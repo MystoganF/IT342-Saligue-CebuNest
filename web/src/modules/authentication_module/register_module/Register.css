@@ -1,0 +1,506 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap');
+
+/* ── RESET (scoped via .reg-page) ── */
+.reg-page *,
+.reg-page *::before,
+.reg-page *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── CSS VARIABLES ── */
+.reg-page {
+  --cn-teal-deep: #1f5d71;
+  --cn-teal-aero: #53a4a3;
+  --cn-teal-soft: #98c1c1;
+  --cn-gold: #b78e42;
+  --cn-gold-dark: #a37435;
+  --cn-gold-light: #d4ab6a;
+  --cn-cloud: #dcdddd;
+  --cn-slate: #6e7071;
+  --cn-bg: #f0f4f5;
+
+  position: fixed;
+  inset: 0;
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  overflow: hidden;
+  background: var(--cn-bg);
+}
+
+/* ════════════════════════════
+   LEFT PANEL
+════════════════════════════ */
+.reg-left-panel {
+  position: relative;
+  width: 42%;
+  background: var(--cn-teal-deep);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 60px 56px;
+  overflow: hidden;
+}
+
+/* Decorative arcs */
+.reg-deco {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(83, 164, 163, 0.18);
+  pointer-events: none;
+}
+.reg-deco--1 { width: 420px; height: 420px; top: -120px; right: -140px; }
+.reg-deco--2 { width: 260px; height: 260px; bottom: -60px; left: -80px; border-color: rgba(183, 142, 66, 0.2); }
+.reg-deco--3 { width: 150px; height: 150px; bottom: 80px; right: 40px; border-color: rgba(83, 164, 163, 0.1); }
+
+/* Gold accent line */
+.reg-accent-line {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 80px;
+  background: linear-gradient(to bottom, var(--cn-gold), transparent);
+}
+
+/* Brand logo */
+.reg-brand-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 48px;
+  animation: regFadeUp 0.7s ease both;
+}
+
+.reg-logo-img {
+  width: 140px;
+  height: 140px;
+  object-fit: contain;
+  margin-bottom: -24px;
+}
+
+/* Brand info block */
+.reg-brand-info {
+  animation: regFadeUp 0.7s 0.15s ease both;
+}
+
+.reg-brand-eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.reg-eyebrow-line {
+  width: 28px;
+  height: 1.5px;
+  background: var(--cn-gold);
+}
+
+.reg-eyebrow-text {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--cn-gold-light);
+}
+
+.reg-brand-heading {
+  font-family: 'Playfair Display', serif;
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #fff;
+  margin-bottom: 18px;
+}
+
+.reg-brand-body {
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--cn-teal-soft);
+  font-weight: 500;
+  max-width: 480px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* Feature list */
+.reg-features {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 44px;
+  padding-top: 36px;
+  border-top: 1px solid rgba(83, 164, 163, 0.2);
+  width: 100%;
+  animation: regFadeUp 0.7s 0.3s ease both;
+}
+
+.reg-feature-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(83, 164, 163, 0.08);
+  border: 1px solid rgba(83, 164, 163, 0.15);
+  border-radius: 14px;
+  padding: 14px 18px;
+  text-align: left;
+}
+
+.reg-feature-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.reg-feature-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.reg-feature-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.3px;
+}
+
+.reg-feature-desc {
+  font-size: 13px;
+  color: var(--cn-teal-soft);
+  font-weight: 500;
+}
+
+/* ════════════════════════════
+   RIGHT PANEL
+════════════════════════════ */
+.reg-right-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Extra vertical padding so the card never touches viewport edges when scrolling */
+  padding: 40px 40px;
+  background: var(--cn-bg);
+  position: relative;
+  overflow-y: auto;
+}
+
+/* Subtle dot-grid bg */
+.reg-right-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(31, 93, 113, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+}
+
+/* Form card
+   — padding-top is larger so the gold ::before strip
+     and the eyebrow row are never clipped by the viewport */
+.reg-form-card {
+  position: relative;
+  background: #fff;
+  /* Top padding bumped to 52px to give the gold strip + eyebrow breathing room */
+  padding: 52px 48px 44px;
+  border-radius: 24px;
+  width: 480px;
+  /* margin ensures the card can scroll into view on short screens */
+  margin: auto;
+  box-shadow: 0 2px 8px rgba(31, 93, 113, 0.06), 0 24px 64px rgba(31, 93, 113, 0.1);
+  animation: regFadeUp 0.6s 0.1s ease both;
+}
+
+/* Top gold strip — sits flush at the very top of the card */
+.reg-form-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 48px;
+  right: 48px;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: linear-gradient(90deg, transparent, var(--cn-gold), transparent);
+}
+
+/* Form header */
+.reg-form-header {
+  margin-bottom: 26px;
+}
+
+.reg-form-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.reg-header-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cn-gold);
+}
+
+.reg-header-eyebrow-text {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--cn-teal-aero);
+}
+
+.reg-form-heading {
+  font-family: 'Playfair Display', serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--cn-teal-deep);
+  line-height: 1.2;
+}
+
+.reg-form-subheading {
+  font-size: 15px;
+  color: var(--cn-slate);
+  margin-top: 6px;
+  font-weight: 500;
+}
+
+/* Role Toggle */
+.reg-role-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.reg-role-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cn-teal-deep);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.reg-role-toggle {
+  display: flex;
+  background: #f0f4f5;
+  border-radius: 12px;
+  padding: 4px;
+  gap: 4px;
+  border: 1.5px solid #e5eced;
+  flex: 1;
+}
+
+.reg-role-btn {
+  flex: 1;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 9px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: var(--cn-slate);
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  letter-spacing: 0.3px;
+}
+
+.reg-role-btn--active {
+  background: var(--cn-teal-deep);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(31, 93, 113, 0.25);
+}
+
+/* Fields */
+.reg-form-fields {
+  display: flex;
+  flex-direction: column;
+}
+
+.reg-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 16px;
+}
+
+.reg-field-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cn-teal-deep);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.reg-field-wrap {
+  position: relative;
+}
+
+.reg-field-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--cn-teal-aero);
+  font-size: 17px;
+  line-height: 1;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.reg-field-input {
+  width: 100%;
+  padding: 14px 14px 14px 44px;
+  border-radius: 12px;
+  border: 1.5px solid #e5eced;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  color: #1a2a2e;
+  background: #fafcfc;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  outline: none;
+}
+
+.reg-field-input::placeholder {
+  color: #b0bcbe;
+  font-weight: 800;
+}
+
+.reg-field-input:focus {
+  border-color: var(--cn-teal-aero);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(83, 164, 163, 0.1);
+}
+
+/* Submit button */
+.reg-btn {
+  width: 100%;
+  padding: 16px;
+  background: var(--cn-teal-deep);
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.25s, transform 0.15s, box-shadow 0.25s;
+  position: relative;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.reg-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, transparent 60%);
+}
+
+.reg-btn:hover {
+  background: #174d5e;
+  box-shadow: 0 8px 24px rgba(31, 93, 113, 0.3);
+  transform: translateY(-1px);
+}
+
+.reg-btn:active {
+  transform: translateY(0);
+}
+
+/* Divider */
+.reg-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 16px;
+}
+
+.reg-divider-line {
+  flex: 1;
+  height: 1px;
+  background: #e5eced;
+}
+
+.reg-divider-text {
+  font-size: 13px;
+  color: var(--cn-slate);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* Error message */
+.reg-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(200, 50, 50, 0.06);
+  border: 1px solid rgba(200, 50, 50, 0.2);
+  border-radius: 10px;
+  padding: 14px 16px;
+  color: #b03030;
+  font-size: 15px;
+  margin-top: 12px;
+}
+
+/* Footer links */
+.reg-links {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.reg-signin-text {
+  font-size: 14px;
+  color: var(--cn-slate);
+  font-weight: 500;
+}
+
+.reg-link {
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cn-teal-deep);
+  transition: color 0.2s;
+}
+
+.reg-link:hover {
+  color: var(--cn-teal-aero);
+}
+
+.reg-link--signin {
+  background: rgba(83, 164, 163, 0.08);
+  border: 1px solid rgba(83, 164, 163, 0.25);
+  padding: 10px 18px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
+}
+
+.reg-link--signin:hover {
+  background: rgba(83, 164, 163, 0.15);
+  color: var(--cn-teal-deep);
+}
+
+/* ── ANIMATION ── */
+@keyframes regFadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 768px) {
+  .reg-left-panel { display: none; }
+  .reg-right-panel { padding: 24px; }
+  .reg-form-card { width: 100%; max-width: 480px; padding: 44px 28px 36px; }
+}
