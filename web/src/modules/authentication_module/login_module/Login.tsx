@@ -9,6 +9,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -40,13 +41,13 @@ const Login: React.FC = () => {
       localStorage.setItem("refreshToken", data.data.refreshToken);
       localStorage.setItem("user", JSON.stringify(data.data.user));
 
-      // Redirect based on role
+      // Show success message, then redirect
+      setSuccess(true);
       const role = data.data.user?.role?.toUpperCase();
-      if (role === "ADMIN") {
-        window.location.href = "/admin/dashboard";
-      } else {
-        window.location.href = "/dashboard";
-      }
+      setTimeout(() => {
+        window.location.href = role === "ADMIN" ? "/admin/dashboard" : "/home";
+      }, 1500);
+
     } catch (err) {
       setError("Unable to connect to the server. Please try again.");
     } finally {
@@ -124,7 +125,7 @@ const Login: React.FC = () => {
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setError(null); }}
                   required
-                  disabled={isLoading}
+                  disabled={isLoading || success}
                 />
               </div>
             </div>
@@ -143,7 +144,7 @@ const Login: React.FC = () => {
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(null); }}
                   required
-                  disabled={isLoading}
+                  disabled={isLoading || success}
                 />
                 <button
                   type="button"
@@ -158,12 +159,16 @@ const Login: React.FC = () => {
             </div>
 
             <button
-              className={`login-btn${isLoading ? " login-btn--loading" : ""}`}
+              className={`login-btn${isLoading ? " login-btn--loading" : ""}${success ? " login-btn--success" : ""}`}
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || success}
             >
               {isLoading ? (
                 <span className="login-spinner" />
+              ) : success ? (
+                <span className="login-btn-success-content">
+                  <span className="login-success-check">✓</span> Login Successful
+                </span>
               ) : (
                 "Sign In"
               )}
@@ -172,6 +177,12 @@ const Login: React.FC = () => {
             {error && (
               <div className="login-message login-message--error">
                 <span>⚠</span> {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="login-message login-message--success">
+                <span>✓</span> Welcome back! Redirecting you now…
               </div>
             )}
           </form>
