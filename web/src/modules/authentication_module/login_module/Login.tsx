@@ -2,14 +2,56 @@ import React, { useState } from "react";
 import "./Login.css";
 import logo from "../../../assets/images/cebunest-logo.png";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+
 const Login: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage("UI-only login — functionality not implemented yet.");
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        const msg =
+          data?.error?.message ||
+          (response.status === 401
+            ? "Invalid email or password."
+            : "Login failed. Please try again.");
+        setError(msg);
+        return;
+      }
+
+      // Store tokens
+      localStorage.setItem("accessToken", data.data.accessToken);
+      localStorage.setItem("refreshToken", data.data.refreshToken);
+      localStorage.setItem("user", JSON.stringify(data.data.user));
+
+      // Redirect based on role
+      const role = data.data.user?.role?.toUpperCase();
+      if (role === "ADMIN") {
+        window.location.href = "/admin/dashboard";
+      } else {
+        window.location.href = "/dashboard";
+      }
+    } catch (err) {
+      setError("Unable to connect to the server. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -80,8 +122,9 @@ const Login: React.FC = () => {
                   id="cn-login-email"
                   placeholder="you@example.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setError(null); }}
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -94,23 +137,41 @@ const Login: React.FC = () => {
                 <span className="login-field-icon">🔒</span>
                 <input
                   className="login-field-input"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   id="cn-login-password"
                   placeholder="Enter your password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); setError(null); }}
                   required
+                  disabled={isLoading}
                 />
+                <button
+                  type="button"
+                  className="login-toggle-password"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  tabIndex={-1}
+                >
+                  {showPassword ? "🙈" : "👁"}
+                </button>
               </div>
             </div>
 
-            <button className="login-btn" type="submit">
-              Sign In
+            <button
+              className={`login-btn${isLoading ? " login-btn--loading" : ""}`}
+              type="submit"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <span className="login-spinner" />
+              ) : (
+                "Sign In"
+              )}
             </button>
 
-            {message && (
-              <div className="login-message">
-                <span>⚠</span> {message}
+            {error && (
+              <div className="login-message login-message--error">
+                <span>⚠</span> {error}
               </div>
             )}
           </form>

@@ -9,11 +9,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class RegisterRequest {
-    private String name;
-    private String phoneNumber;
+public class LoginRequest {
     private String email;
     private String password;
-    private String confirmPassword;
-    private String role; // "TENANT" or "OWNER"
 }
