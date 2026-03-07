@@ -4,6 +4,7 @@ import logo from "../../../assets/images/cebunest-logo.png";
 
 type Role = "TENANT" | "OWNER";
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 const Register: React.FC = () => {
   const [name, setName] = useState("");
@@ -35,7 +36,40 @@ const Register: React.FC = () => {
 
     setLoading(true);
 
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, phoneNumber, email, password, confirmPassword, role }),
+      });
 
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setIsError(true);
+        setMessage(data?.error?.message || "Registration failed. Please try again.");
+        return;
+      }
+
+      // Store tokens
+      localStorage.setItem("accessToken", data.data.accessToken);
+      localStorage.setItem("refreshToken", data.data.refreshToken);
+      localStorage.setItem("user", JSON.stringify(data.data.user));
+
+      setIsError(false);
+      setMessage("Account created! Redirecting...");
+
+      // Redirect after short delay
+      setTimeout(() => {
+        window.location.href = "/home";
+      }, 1200);
+
+    } catch (err) {
+      setIsError(true);
+      setMessage("Network error. Please check your connection.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
