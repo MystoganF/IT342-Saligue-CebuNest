@@ -52,17 +52,17 @@ const TenantLanding: React.FC = () => {
   }, []);
 
   const handleLogout = () => {
-  // Clear all possible key variants
+ 
   localStorage.removeItem("accessToken");
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("user");
   localStorage.removeItem("token");
   localStorage.removeItem("username");
-  localStorage.clear(); // nuclear option — clears everything
+  localStorage.clear(); 
   window.location.href = "/";
 };
 
-  /* Reset body/html styles left behind by Login/Register fixed layout */
+ 
   useEffect(() => {
     const html = document.documentElement;
     const body = document.body;
