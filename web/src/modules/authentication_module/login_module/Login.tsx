@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import "./Login.css";
 import logo from "../../../assets/images/cebunest-logo.png";
+
 const Login: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
