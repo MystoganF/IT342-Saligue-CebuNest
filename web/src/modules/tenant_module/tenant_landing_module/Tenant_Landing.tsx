@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import "./Tenant_Landing.css";
-import logo from "../../../assets/images/cebunest-logo.png";
+import Navbar from "../../../components/Navbar/Navbar";
+import Footer from "../../../components/Navbar/Footer";
 
+/* ─── Types ─── */
 interface Property {
   id: number;
   title: string;
@@ -39,9 +41,6 @@ const TenantLanding: React.FC = () => {
   const [properties, setProperties]     = useState<Property[]>([]);
   const [loading, setLoading]           = useState(true);
   const [error, setError]               = useState<string | null>(null);
-  const [menuOpen, setMenuOpen]         = useState(false);
-  const [profileOpen, setProfileOpen]   = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
 
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
@@ -49,111 +48,64 @@ const TenantLanding: React.FC = () => {
     return () => clearTimeout(t);
   }, [search]);
 
-  const storedUser = localStorage.getItem("user");
-  const user = storedUser ? JSON.parse(storedUser) : null;
-  const initials = user?.name
-    ? user.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
-    : "?";
-
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node))
-        setProfileOpen(false);
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const handleLogout = () => { localStorage.clear(); window.location.href = "/"; };
-
-  useEffect(() => {
-    const html = document.documentElement; const body = document.body;
+    const html = document.documentElement;
+    const body = document.body;
     const root = document.getElementById("root");
-    const prevHtmlPos = html.style.position; const prevBodyPos = body.style.position;
+    const prevHtmlPos = html.style.position;
+    const prevBodyPos = body.style.position;
     const prevBodyOverflow = body.style.overflow;
     html.style.position = "static"; html.style.width = "100%"; html.style.height = "auto"; html.style.overflow = "auto";
     body.style.position = "static"; body.style.width = "100%"; body.style.height = "auto"; body.style.overflow = "auto";
     if (root) { root.style.position = "static"; root.style.width = "100%"; root.style.height = "auto"; }
-    return () => { html.style.position = prevHtmlPos; body.style.position = prevBodyPos; body.style.overflow = prevBodyOverflow; };
+    return () => {
+      html.style.position = prevHtmlPos;
+      body.style.position = prevBodyPos;
+      body.style.overflow = prevBodyOverflow;
+    };
   }, []);
 
   const fetchProperties = useCallback(async () => {
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams();
       if (debouncedSearch) params.append("search", debouncedSearch);
       if (selectedType !== "All") params.append("type", selectedType);
       if (minPrice) params.append("minPrice", minPrice);
       if (maxPrice) params.append("maxPrice", maxPrice);
+
       const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
       const headers: HeadersInit = { "Content-Type": "application/json" };
       if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const res = await fetch(`${API_BASE}/properties?${params.toString()}`, { headers });
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
       const json = await res.json();
-      const list: Property[] = json?.data?.properties ?? json?.properties ?? (Array.isArray(json) ? json : []);
+      const list: Property[] =
+        json?.data?.properties ?? json?.properties ?? (Array.isArray(json) ? json : []);
       setProperties(list);
     } catch (err: any) {
       console.error("Failed to fetch properties:", err);
       setError("Could not load properties. Please try again.");
       setProperties([]);
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }, [debouncedSearch, selectedType, minPrice, maxPrice]);
 
   useEffect(() => { fetchProperties(); }, [fetchProperties]);
 
-  const clearFilters = () => { setSearch(""); setSelectedType("All"); setMinPrice(""); setMaxPrice(""); };
+  const clearFilters = () => {
+    setSearch(""); setSelectedType("All"); setMinPrice(""); setMaxPrice("");
+  };
   const hasActiveFilters = search || selectedType !== "All" || minPrice || maxPrice;
 
   return (
     <div className="tl-page">
 
-      {/* ══ NAVBAR ══ */}
-      <header className="tl-navbar">
-        <div className="tl-navbar-inner">
-          <div className="tl-navbar-brand">
-            <img src={logo} alt="CebuNest" className="tl-navbar-logo" />
-            <span className="tl-navbar-wordmark">CebuNest</span>
-          </div>
-          <nav className={`tl-navbar-nav${menuOpen ? " tl-navbar-nav--open" : ""}`}>
-            <a href="#listings" className="tl-nav-link tl-nav-link--active">Browse</a>
-            <a href="#listings" className="tl-nav-link">My Rentals</a>
-            <a href="#listings" className="tl-nav-link">Notifications</a>
-          </nav>
-          <div className="tl-navbar-actions">
-            <div className="tl-profile-wrapper" ref={profileRef}>
-              <button className="tl-navbar-avatar" onClick={() => setProfileOpen((o) => !o)} aria-label="Profile menu" aria-expanded={profileOpen}>
-                {initials}
-              </button>
-              {profileOpen && (
-                <div className="tl-profile-dropdown">
-                  <div className="tl-profile-dropdown-header">
-                    <div className="tl-profile-dropdown-avatar">{initials}</div>
-                    <div className="tl-profile-dropdown-info">
-                      <span className="tl-profile-dropdown-name">{user?.name || "User"}</span>
-                      <span className="tl-profile-dropdown-email">{user?.email || ""}</span>
-                    </div>
-                  </div>
-                  <div className="tl-profile-dropdown-divider" />
-                  <button className="tl-profile-dropdown-item" disabled>
-                    <span className="tl-profile-dropdown-icon">👤</span>
-                    <span>My Profile</span>
-                    <span className="tl-profile-dropdown-soon">Soon</span>
-                  </button>
-                  <div className="tl-profile-dropdown-divider" />
-                  <button className="tl-profile-dropdown-item tl-profile-dropdown-item--logout" onClick={handleLogout}>
-                    <span className="tl-profile-dropdown-icon">🚪</span>
-                    <span>Logout</span>
-                  </button>
-                </div>
-              )}
-            </div>
-            <button className="tl-hamburger" onClick={() => setMenuOpen((o) => !o)} aria-label="Toggle menu">
-              <span /><span /><span />
-            </button>
-          </div>
-        </div>
-      </header>
+      <Navbar />
 
       {/* ══ HERO ══ */}
       <section className="tl-hero">
@@ -164,20 +116,43 @@ const TenantLanding: React.FC = () => {
           <div className="tl-hero-grid" />
         </div>
         <div className="tl-hero-content">
-          <div className="tl-hero-eyebrow"><div className="tl-hero-eyebrow-dot" /><span>Cebu City Rentals</span></div>
-          <h1 className="tl-hero-heading">Find Your Home<br /><span className="tl-hero-heading-accent">in Cebu</span></h1>
-          <p className="tl-hero-subtext">Browse verified boarding houses, apartments, and studios across Cebu City — all in one place.</p>
+          <div className="tl-hero-eyebrow">
+            <div className="tl-hero-eyebrow-dot" />
+            <span>Cebu City Rentals</span>
+          </div>
+          <h1 className="tl-hero-heading">
+            Find Your Home<br />
+            <span className="tl-hero-heading-accent">in Cebu</span>
+          </h1>
+          <p className="tl-hero-subtext">
+            Browse verified boarding houses, apartments, and studios across Cebu City — all in one place.
+          </p>
           <div className="tl-hero-search">
             <span className="tl-search-icon">🔍</span>
-            <input className="tl-search-input" type="text" placeholder="Search by location or property name…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input
+              className="tl-search-input"
+              type="text"
+              placeholder="Search by location or property name…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
             <button className="tl-search-btn" onClick={fetchProperties}>Search</button>
           </div>
           <div className="tl-hero-stats">
-            <div className="tl-hero-stat"><span className="tl-hero-stat-num">240+</span><span className="tl-hero-stat-lbl">Listings</span></div>
+            <div className="tl-hero-stat">
+              <span className="tl-hero-stat-num">240+</span>
+              <span className="tl-hero-stat-lbl">Listings</span>
+            </div>
             <div className="tl-hero-stat-divider" />
-            <div className="tl-hero-stat"><span className="tl-hero-stat-num">1.2k</span><span className="tl-hero-stat-lbl">Tenants</span></div>
+            <div className="tl-hero-stat">
+              <span className="tl-hero-stat-num">1.2k</span>
+              <span className="tl-hero-stat-lbl">Tenants</span>
+            </div>
             <div className="tl-hero-stat-divider" />
-            <div className="tl-hero-stat"><span className="tl-hero-stat-num">98%</span><span className="tl-hero-stat-lbl">Satisfaction</span></div>
+            <div className="tl-hero-stat">
+              <span className="tl-hero-stat-num">98%</span>
+              <span className="tl-hero-stat-lbl">Satisfaction</span>
+            </div>
           </div>
         </div>
       </section>
@@ -185,10 +160,15 @@ const TenantLanding: React.FC = () => {
       {/* ══ LISTINGS ══ */}
       <section className="tl-listings" id="listings">
         <div className="tl-listings-inner">
+
           <div className="tl-filter-bar">
             <div className="tl-filter-types">
               {PROPERTY_TYPES.map((t) => (
-                <button key={t} className={`tl-filter-chip${selectedType === t ? " tl-filter-chip--active" : ""}`} onClick={() => setSelectedType(t)}>
+                <button
+                  key={t}
+                  className={`tl-filter-chip${selectedType === t ? " tl-filter-chip--active" : ""}`}
+                  onClick={() => setSelectedType(t)}
+                >
                   {t !== "All" && <span>{ICONS[t]}</span>} {t}
                 </button>
               ))}
@@ -202,8 +182,12 @@ const TenantLanding: React.FC = () => {
           </div>
 
           <div className="tl-results-meta">
-            <span className="tl-results-count">{loading ? "Loading…" : `${properties.length} ${properties.length === 1 ? "property" : "properties"} found`}</span>
-            {hasActiveFilters && !loading && <button className="tl-clear-btn" onClick={clearFilters}>✕ Clear filters</button>}
+            <span className="tl-results-count">
+              {loading ? "Loading…" : `${properties.length} ${properties.length === 1 ? "property" : "properties"} found`}
+            </span>
+            {hasActiveFilters && !loading && (
+              <button className="tl-clear-btn" onClick={clearFilters}>✕ Clear filters</button>
+            )}
           </div>
 
           {loading ? (
@@ -259,7 +243,10 @@ const TenantLanding: React.FC = () => {
                         <span className="tl-card-price-period">/mo</span>
                       </div>
                     </div>
-                    <div className="tl-card-location"><span className="tl-card-location-icon">📍</span><span>{prop.location}</span></div>
+                    <div className="tl-card-location">
+                      <span className="tl-card-location-icon">📍</span>
+                      <span>{prop.location}</span>
+                    </div>
                     <div className="tl-card-meta">
                       <span className="tl-card-meta-item">🛏 {prop.beds ?? "—"} Bed</span>
                       <span className="tl-card-meta-item">🚿 {prop.baths ?? "—"} Bath</span>
@@ -284,19 +271,11 @@ const TenantLanding: React.FC = () => {
               ))}
             </div>
           )}
+
         </div>
       </section>
 
-      {/* ══ FOOTER ══ */}
-      <footer className="tl-footer">
-        <div className="tl-footer-inner">
-          <div className="tl-footer-brand">
-            <img src={logo} alt="CebuNest" className="tl-footer-logo" />
-            <span className="tl-footer-wordmark">CebuNest</span>
-          </div>
-          <p className="tl-footer-copy">© 2026 CebuNest. All rights reserved.</p>
-        </div>
-      </footer>
+      <Footer />
 
     </div>
   );
