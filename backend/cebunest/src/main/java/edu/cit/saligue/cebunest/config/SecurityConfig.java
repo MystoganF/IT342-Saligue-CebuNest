@@ -1,6 +1,7 @@
 package edu.cit.saligue.cebunest.config;
 
 import edu.cit.saligue.cebunest.security.JwtAuthFilter;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -39,12 +40,17 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/register", "/api/auth/login").permitAll()
+                        .requestMatchers(
+                                "/api/auth/register",
+                                "/api/auth/login",
+                                "/api/auth/google"
+                        ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/properties").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/properties/{id}").permitAll()
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new SkipGoogleEndpointFilter(jwtAuthFilter),
+                        UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -60,5 +66,31 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
+    }
+
+    /* ── Wrapper that skips JWT filter for public auth endpoints ── */
+    static class SkipGoogleEndpointFilter extends org.springframework.web.filter.OncePerRequestFilter {
+
+        private final JwtAuthFilter jwtAuthFilter;
+
+        SkipGoogleEndpointFilter(JwtAuthFilter jwtAuthFilter) {
+            this.jwtAuthFilter = jwtAuthFilter;
+        }
+
+        @Override
+        protected boolean shouldNotFilter(HttpServletRequest request) {
+            String path = request.getServletPath();
+            return path.equals("/api/auth/google")
+                    || path.equals("/api/auth/login")
+                    || path.equals("/api/auth/register");
+        }
+
+        @Override
+        protected void doFilterInternal(HttpServletRequest request,
+                                        jakarta.servlet.http.HttpServletResponse response,
+                                        jakarta.servlet.FilterChain filterChain)
+                throws jakarta.servlet.ServletException, java.io.IOException {
+            jwtAuthFilter.doFilter(request, response, filterChain);
+        }
     }
 }

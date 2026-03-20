@@ -504,3 +504,75 @@
   .reg-right-panel { padding: 24px; }
   .reg-form-card { width: 100%; max-width: 480px; padding: 44px 28px 36px; }
 }
+
+/* ════════════════════════════
+   GOOGLE BUTTON
+   Append to Login.css and Register.css
+════════════════════════════ */
+
+.login-google-btn,
+.reg-google-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 13px 20px;
+  background: #fff;
+  border: 1.5px solid #dcdddd;
+  border-radius: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1a2a2e;
+  cursor: pointer;
+  transition: background 0.18s, border-color 0.18s, box-shadow 0.18s, transform 0.15s;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.login-google-btn:hover:not(:disabled),
+.reg-google-btn:hover:not(:disabled) {
+  background: #f8fafb;
+  border-color: #53a4a3;
+  box-shadow: 0 4px 14px rgba(31, 93, 113, 0.12);
+  transform: translateY(-1px);
+}
+
+.login-google-btn:disabled,
+.reg-google-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.login-google-icon,
+.reg-google-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.login-spinner--dark {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(31, 93, 113, 0.2);
+  border-top-color: #1f5d71;
+  border-radius: 50%;
+  animation: spinnerSpin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.reg-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(31, 93, 113, 0.2);
+  border-top-color: #1f5d71;
+  border-radius: 50%;
+  animation: spinnerSpin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spinnerSpin {
+  to { transform: rotate(360deg); }
+}

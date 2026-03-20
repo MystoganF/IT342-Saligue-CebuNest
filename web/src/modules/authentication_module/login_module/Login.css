@@ -329,6 +329,7 @@
   position: relative;
   overflow: hidden;
   margin-top: 6px;
+  margin-bottom: 20px;
 }
 
 .login-btn::after {
@@ -500,4 +501,221 @@
 
 .login-toggle-password:hover {
   opacity: 1;
+}
+
+
+/* ════════════════════════════
+   ROLE PICKER MODAL
+   Append to Login.css
+════════════════════════════ */
+
+.login-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 24, 30, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: modalOverlayIn 0.2s ease both;
+}
+
+@keyframes modalOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.login-modal {
+  background: #fff;
+  border-radius: 24px;
+  padding: 40px 36px 32px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 24px 64px rgba(10, 24, 30, 0.22);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  animation: modalIn 0.25s ease both;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.login-modal-header {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.login-modal-icon {
+  font-size: 44px;
+  animation: modalBounce 0.5s ease both;
+}
+
+@keyframes modalBounce {
+  0%   { transform: scale(0.5); opacity: 0; }
+  60%  { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.login-modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: #1f5d71;
+  letter-spacing: -0.3px;
+}
+
+.login-modal-sub {
+  font-size: 14px;
+  color: #6e7071;
+  line-height: 1.6;
+  max-width: 300px;
+}
+
+.login-modal-roles {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-modal-role-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  background: #f0f4f5;
+  border: 2px solid #dcdddd;
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.18s;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.login-modal-role-btn:hover:not(:disabled) {
+  border-color: #53a4a3;
+  background: #e8f4f4;
+}
+
+.login-modal-role-btn--active {
+  border-color: #1f5d71 !important;
+  background: #e8f4f4 !important;
+  box-shadow: 0 4px 14px rgba(31, 93, 113, 0.15);
+}
+
+.login-modal-role-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.login-modal-role-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.login-modal-role-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f5d71;
+  display: block;
+  line-height: 1.2;
+}
+
+.login-modal-role-desc {
+  font-size: 12px;
+  color: #6e7071;
+  display: block;
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+.login-modal-role-btn > span:not(.login-modal-role-icon):not(.login-modal-role-check) {
+  display: flex;
+  flex-direction: column;
+}
+
+.login-modal-role-check {
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #1f5d71;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.login-modal-confirm-btn {
+  width: 100%;
+  padding: 15px;
+  background: #1f5d71;
+  color: #fff;
+  border: none;
+  border-radius: 13px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 4px 16px rgba(31, 93, 113, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.login-modal-confirm-btn:hover:not(:disabled) {
+  background: #174d5e;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(31, 93, 113, 0.35);
+}
+
+.login-modal-confirm-btn:disabled {
+  background: #dcdddd;
+  color: #6e7071;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.login-modal-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: modalSpin 0.7s linear infinite;
+}
+
+@keyframes modalSpin {
+  to { transform: rotate(360deg); }
+}
+
+.login-modal-note {
+  font-size: 12px;
+  color: #6e7071;
+  text-align: center;
+  line-height: 1.5;
+  margin-top: -8px;
+}
+
+@media (max-width: 480px) {
+  .login-modal {
+    margin: 16px;
+    padding: 32px 24px 28px;
+  }
 }
