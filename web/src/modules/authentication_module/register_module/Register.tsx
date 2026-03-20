@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
 import "./Register.css";
 import logo from "../../../assets/images/cebunest-logo.png";
@@ -8,16 +8,19 @@ type Role = "TENANT" | "OWNER";
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 const Register: React.FC = () => {
-  const [name, setName]                     = useState("");
-  const [phoneNumber, setPhoneNumber]       = useState("");
-  const [email, setEmail]                   = useState("");
-  const [password, setPassword]             = useState("");
+  const [name, setName]                       = useState("");
+  const [phoneNumber, setPhoneNumber]         = useState("");
+  const [email, setEmail]                     = useState("");
+  const [password, setPassword]               = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole]                     = useState<Role>("TENANT");
-  const [message, setMessage]               = useState<string | null>(null);
-  const [isError, setIsError]               = useState(false);
-  const [loading, setLoading]               = useState(false);
-  const [googleLoading, setGoogleLoading]   = useState(false);
+  const [role, setRole]                       = useState<Role>("TENANT");
+  const [message, setMessage]                 = useState<string | null>(null);
+  const [isError, setIsError]                 = useState(false);
+  const [loading, setLoading]                 = useState(false);
+  const [googleLoading, setGoogleLoading]     = useState(false);
+
+  /* Already-exists modal */
+  const [showAlreadyExists, setShowAlreadyExists] = useState(false);
 
   /* ── Standard register ── */
   const handleRegister = async (e: React.FormEvent) => {
@@ -63,28 +66,35 @@ const Register: React.FC = () => {
       setMessage(null);
       setIsError(false);
       try {
-        // Get user info from Google
         const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
           headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
         });
         const userInfo = await userInfoRes.json();
 
-        // Send to backend — use selected role
         const res = await fetch(`${API_BASE}/api/auth/google`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             email: userInfo.email,
             name: userInfo.name,
-            role, // uses the role toggle the user selected
+            role,
           }),
         });
         const data = await res.json();
+
         if (!res.ok || !data.success) {
           setIsError(true);
           setMessage(data?.error?.message || "Google sign-up failed.");
           return;
         }
+
+        /* Account already existed — show modal, do NOT log in */
+        if (data.data?.alreadyExists) {
+          setShowAlreadyExists(true);
+          return;
+        }
+
+        /* New account created successfully */
         localStorage.setItem("accessToken", data.data.accessToken);
         localStorage.setItem("refreshToken", data.data.refreshToken);
         localStorage.setItem("user", JSON.stringify(data.data.user));
@@ -106,6 +116,30 @@ const Register: React.FC = () => {
 
   return (
     <div className="reg-page">
+
+      {/* ══ ALREADY EXISTS MODAL ══ */}
+      {showAlreadyExists && (
+        <div className="reg-modal-overlay" onClick={() => setShowAlreadyExists(false)}>
+          <div className="reg-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="reg-modal-header">
+              <div className="reg-modal-icon">⚠️</div>
+              <h3 className="reg-modal-title">Account Already Exists</h3>
+              <p className="reg-modal-sub">
+                This Google account is already registered with CebuNest.
+                Please sign in instead.
+              </p>
+            </div>
+
+            <a href="/" className="reg-modal-signin-btn">
+              Go to Sign In →
+            </a>
+
+            <p className="reg-modal-note">
+              Or close this and try a different Google account.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── LEFT PANEL ── */}
       <div className="reg-left-panel">
@@ -168,7 +202,7 @@ const Register: React.FC = () => {
             <p className="reg-form-subheading">Fill in your details to get started.</p>
           </div>
 
-          {/* Role Selector — used by both email and Google signup */}
+          {/* Role Selector */}
           <div className="reg-role-group">
             <span className="reg-role-label">I am a</span>
             <div className="reg-role-toggle">
@@ -217,7 +251,6 @@ const Register: React.FC = () => {
 
           <form className="reg-form-fields" onSubmit={handleRegister}>
 
-            {/* Name */}
             <div className="reg-field-group">
               <label className="reg-field-label" htmlFor="cn-reg-name">Name</label>
               <div className="reg-field-wrap">
@@ -230,7 +263,6 @@ const Register: React.FC = () => {
               </div>
             </div>
 
-            {/* Phone */}
             <div className="reg-field-group">
               <label className="reg-field-label" htmlFor="cn-reg-phone">Phone Number</label>
               <div className="reg-field-wrap">
@@ -243,7 +275,6 @@ const Register: React.FC = () => {
               </div>
             </div>
 
-            {/* Email */}
             <div className="reg-field-group">
               <label className="reg-field-label" htmlFor="cn-reg-email">Email Address</label>
               <div className="reg-field-wrap">
@@ -256,7 +287,6 @@ const Register: React.FC = () => {
               </div>
             </div>
 
-            {/* Password */}
             <div className="reg-field-group">
               <label className="reg-field-label" htmlFor="cn-reg-password">Password</label>
               <div className="reg-field-wrap">
@@ -269,7 +299,6 @@ const Register: React.FC = () => {
               </div>
             </div>
 
-            {/* Confirm Password */}
             <div className="reg-field-group">
               <label className="reg-field-label" htmlFor="cn-reg-confirm">Confirm Password</label>
               <div className="reg-field-wrap">

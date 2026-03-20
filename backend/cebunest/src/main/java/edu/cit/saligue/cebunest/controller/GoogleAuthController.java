@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -76,20 +77,31 @@ public class GoogleAuthController {
                 return buildTokenResponse(user);
             }
 
-            // Role provided — create new user or log in existing
-            User user = userRepository.findByEmail(email).orElseGet(() -> {
-                Role role = roleRepository.findByName(requestedRole.toUpperCase())
-                        .orElseThrow(() -> new RuntimeException("Role not found."));
-                return userRepository.save(User.builder()
-                        .name(name != null ? name : email.split("@")[0])
-                        .email(email)
-                        .password("GOOGLE_OAUTH_" + UUID.randomUUID())
-                        .role(role)
-                        .createdAt(LocalDateTime.now())
-                        .build());
-            });
+            // Role provided — check if user already exists first
+            if (userRepository.existsByEmail(email)) {
+                Map<String, Object> data = new HashMap<>();
+                data.put("alreadyExists", true);
 
-            return buildTokenResponse(user);
+                Map<String, Object> resp = new HashMap<>();
+                resp.put("success", true);
+                resp.put("data", data);
+                resp.put("error", null);
+                resp.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
+                return ResponseEntity.ok(resp);
+            }
+
+            // Brand new user — create and return tokens
+            Role role = roleRepository.findByName(requestedRole.toUpperCase())
+                    .orElseThrow(() -> new RuntimeException("Role not found."));
+            User newUser = userRepository.save(User.builder()
+                    .name(name != null ? name : email.split("@")[0])
+                    .email(email)
+                    .password("GOOGLE_OAUTH_" + UUID.randomUUID())
+                    .role(role)
+                    .createdAt(LocalDateTime.now())
+                    .build());
+
+            return buildTokenResponse(newUser);
 
         } catch (Exception e) {
             return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
