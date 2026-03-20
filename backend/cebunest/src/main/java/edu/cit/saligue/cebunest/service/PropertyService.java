@@ -1,7 +1,6 @@
 package edu.cit.saligue.cebunest.service;
 
 import edu.cit.saligue.cebunest.dto.PropertyDTO;
-import edu.cit.saligue.cebunest.entity.Property;
 import edu.cit.saligue.cebunest.repository.PropertyRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,13 +23,7 @@ public class PropertyService {
         String cleanType   = (type == null || type.isBlank() || type.equalsIgnoreCase("All")) ? null : type.trim();
 
         return propertyRepository
-                .findFiltered(
-                        Property.PropertyStatus.AVAILABLE,
-                        cleanSearch,
-                        cleanType,
-                        minPrice,
-                        maxPrice
-                )
+                .findFiltered(cleanSearch, cleanType, minPrice, maxPrice)
                 .stream()
                 .map(PropertyDTO::from)
                 .toList();

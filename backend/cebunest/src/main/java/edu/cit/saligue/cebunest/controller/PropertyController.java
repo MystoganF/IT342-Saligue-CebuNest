@@ -43,7 +43,10 @@ public class PropertyController {
             return ResponseEntity.ok(body);
 
         } catch (Exception e) {
-            return buildError("SYSTEM-001", "Failed to fetch properties.", HttpStatus.INTERNAL_SERVER_ERROR);
+            // TEMPORARY — shows real error in response for debugging
+            return buildError("SYSTEM-001",
+                    e.getClass().getSimpleName() + ": " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
