@@ -1,6 +1,8 @@
 package edu.cit.saligue.cebunest.controller;
 
 import edu.cit.saligue.cebunest.dto.PropertyDTO;
+import edu.cit.saligue.cebunest.entity.Property;
+import edu.cit.saligue.cebunest.repository.PropertyRepository;
 import edu.cit.saligue.cebunest.service.PropertyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,6 +22,7 @@ import java.util.Map;
 public class PropertyController {
 
     private final PropertyService propertyService;
+    private final PropertyRepository propertyRepository;
 
     @GetMapping
     public ResponseEntity<?> getProperties(
@@ -47,6 +50,27 @@ public class PropertyController {
             return buildError("SYSTEM-001",
                     e.getClass().getSimpleName() + ": " + e.getMessage(),
                     HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getPropertyById(@PathVariable Long id) {
+        try {
+            Property property = propertyRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Property not found."));
+
+            Map<String, Object> data = new HashMap<>();
+            data.put("property", PropertyDTO.from(property));
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("success", true);
+            body.put("data", data);
+            body.put("error", null);
+            body.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
+
+            return ResponseEntity.ok(body);
+        } catch (IllegalArgumentException e) {
+            return buildError("DB-001", e.getMessage(), HttpStatus.NOT_FOUND);
         }
     }
 
