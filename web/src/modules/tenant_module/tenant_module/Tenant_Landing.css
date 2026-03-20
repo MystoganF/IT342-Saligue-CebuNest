@@ -1066,3 +1066,37 @@ body,
   background: rgba(200, 50, 50, 0.06) !important;
   color: #b03030 !important;
 }
+
+/* ════════════════════════════
+   SKELETON LOADER
+   Append these to the bottom of Tenant_Landing.css
+════════════════════════════ */
+
+@keyframes tlShimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+
+.tl-skeleton-block,
+.tl-skeleton-line {
+  background: linear-gradient(
+    90deg,
+    #e8eeef 0px,
+    #d4dfe0 40px,
+    #e8eeef 80px
+  );
+  background-size: 600px 100%;
+  animation: tlShimmer 1.4s infinite linear;
+  border-radius: 8px;
+}
+
+.tl-card--skeleton {
+  pointer-events: none;
+}
+
+.tl-card--skeleton .tl-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 22px 22px;
+}

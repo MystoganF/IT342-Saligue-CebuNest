@@ -1,0 +1,55 @@
+package edu.cit.saligue.cebunest.entity;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "properties")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Property {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne
+    @JoinColumn(name = "owner_id", nullable = false)
+    private User owner;
+
+    @Column(nullable = false)
+    private String title;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    @Column(nullable = false)
+    private Double price;
+
+    @Column(nullable = false)
+    private String location;
+
+    @Column(nullable = false)
+    private String type; // Studio, Apartment, Boarding House
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private PropertyStatus status;
+
+    private Integer beds;
+    private Integer baths;
+    private Integer sqm;
+
+    private LocalDateTime createdAt = LocalDateTime.now();
+
+    public enum PropertyStatus {
+        AVAILABLE, UNAVAILABLE, PENDING_REVIEW, APPROVED, REJECTED
+    }
+}
