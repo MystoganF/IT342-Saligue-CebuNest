@@ -3,7 +3,10 @@ package edu.cit.saligue.cebunest.controller;
 import edu.cit.saligue.cebunest.dto.AuthResponse;
 import edu.cit.saligue.cebunest.dto.LoginRequest;
 import edu.cit.saligue.cebunest.dto.RegisterRequest;
+import edu.cit.saligue.cebunest.dto.UserDTO;
+import edu.cit.saligue.cebunest.security.JwtUtil;
 import edu.cit.saligue.cebunest.service.AuthService;
+import edu.cit.saligue.cebunest.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +24,29 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final UserService userService;
+    private final JwtUtil jwtUtil;
+
+    @GetMapping("/me")
+    public ResponseEntity<?> me(@RequestHeader("Authorization") String authHeader) {
+        try {
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                return buildError("AUTH-002", "Missing or invalid token.", HttpStatus.UNAUTHORIZED);
+            }
+            String token = authHeader.substring(7);
+            String email = jwtUtil.extractEmail(token);      // use whatever your JwtUtil method is named
+            UserDTO user = userService.getByEmail(email);
+
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("success", true);
+            resp.put("data", Map.of("user", user));
+            resp.put("error", null);
+            resp.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
+            return ResponseEntity.ok(resp);
+        } catch (Exception e) {
+            return buildError("AUTH-001", "Invalid or expired token.", HttpStatus.UNAUTHORIZED);
+        }
+    }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {

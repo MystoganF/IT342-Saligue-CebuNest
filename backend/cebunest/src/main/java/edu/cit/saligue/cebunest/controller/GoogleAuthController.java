@@ -118,6 +118,7 @@ public class GoogleAuthController {
                 .name(user.getName())
                 .email(user.getEmail())
                 .role(roleName)
+                .avatarUrl(user.getAvatarUrl())
                 .build();
 
         AuthResponse response = AuthResponse.builder()

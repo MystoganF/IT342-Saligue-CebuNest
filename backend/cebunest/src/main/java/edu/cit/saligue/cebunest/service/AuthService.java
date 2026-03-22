@@ -74,6 +74,7 @@ public class AuthService {
                 .email(user.getEmail())
                 .phoneNumber(user.getPhoneNumber())
                 .role(roleName)
+                .avatarUrl(user.getAvatarUrl())
                 .build();
 
         return AuthResponse.builder()
