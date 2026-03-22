@@ -66,27 +66,36 @@ public class UserController {
     public ResponseEntity<?> uploadAvatar(
             @PathVariable Long id,
             @RequestParam("file") MultipartFile file) {
+
+        if (file.isEmpty()) {
+            return buildError("VALID-001", "File is required.", HttpStatus.BAD_REQUEST);
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            return buildError("VALID-001", "Only image files are allowed.", HttpStatus.BAD_REQUEST);
+        }
+
+        if (file.getSize() > 5 * 1024 * 1024) {
+            return buildError("VALID-001", "Image must be under 5MB.", HttpStatus.BAD_REQUEST);
+        }
+
         try {
-            if (file.isEmpty()) {
-                return buildError("VALID-001", "File is required.", HttpStatus.BAD_REQUEST);
-            }
-
-            String contentType = file.getContentType();
-            if (contentType == null || !contentType.startsWith("image/")) {
-                return buildError("VALID-001", "Only image files are allowed.", HttpStatus.BAD_REQUEST);
-            }
-
-            if (file.getSize() > 5 * 1024 * 1024) {
-                return buildError("VALID-001", "Image must be under 5MB.", HttpStatus.BAD_REQUEST);
-            }
-
             String avatarUrl = storageService.uploadAvatar(id, file);
 
-            // Persist the URL on the user record
             UserDTO updated = userService.updateProfile(id,
                     new UpdateProfileRequest(null, null, avatarUrl));
 
-            return buildSuccess(Map.of("avatarUrl", avatarUrl, "user", updated));
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("avatarUrl", avatarUrl);
+            responseData.put("user", updated);
+
+            Map<String, Object> resp = new HashMap<>();
+            resp.put("success", true);
+            resp.put("data", responseData);
+            resp.put("error", null);
+            resp.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
+            return ResponseEntity.ok(resp);
 
         } catch (IOException e) {
             return buildError("SYSTEM-001", "Upload failed: " + e.getMessage(),

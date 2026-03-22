@@ -6,7 +6,7 @@ import "./Profile.css";
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 interface UserProfile {
-  id: string;
+  id: number;
   name: string;
   email: string;
   phoneNumber?: string;
@@ -21,11 +21,13 @@ const Profile: React.FC = () => {
   const storedUser = localStorage.getItem("user");
   const localUser: UserProfile = storedUser ? JSON.parse(storedUser) : null;
 
-  const [profile, setProfile]             = useState<UserProfile>(localUser || { id: "", name: "", email: "", role: "" });
+  const [profile, setProfile]             = useState<UserProfile>(localUser || { id: 0, name: "", email: "", role: "" });
   const [name, setName]                   = useState(localUser?.name || "");
   const [phoneNumber, setPhoneNumber]     = useState(localUser?.phoneNumber || "");
-  const [avatarUrl, setAvatarUrl]         = useState(localUser?.avatarUrl || "");
-  const [avatarPreview, setAvatarPreview] = useState(localUser?.avatarUrl || "");
+
+  // avatarPreview always shows what's visible — starts from saved URL if any
+  const [avatarPreview, setAvatarPreview] = useState<string>(localUser?.avatarUrl || "");
+  const [savedAvatarUrl, setSavedAvatarUrl] = useState<string>(localUser?.avatarUrl || "");
 
   const [uploading, setUploading]         = useState(false);
   const [saving, setSaving]               = useState(false);
@@ -36,6 +38,13 @@ const Profile: React.FC = () => {
   const initials = profile.name
     ? profile.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "?";
+
+  /* ── Sync localStorage and notify Navbar ── */
+  const syncLocalStorage = (updated: UserProfile) => {
+    localStorage.setItem("user", JSON.stringify(updated));
+    // Notify Navbar and any other listeners to re-read localStorage
+    window.dispatchEvent(new Event("storage"));
+  };
 
   /* ── Upload avatar via Spring Boot → Supabase ── */
   const handleFileSelect = async (file: File) => {
@@ -48,13 +57,14 @@ const Profile: React.FC = () => {
       return;
     }
 
-    // Instant local preview
+    // Show local blob preview instantly while uploading
     const reader = new FileReader();
     reader.onload = (e) => setAvatarPreview(e.target?.result as string);
     reader.readAsDataURL(file);
 
     setUploadError(null);
     setUploading(true);
+
     try {
       const token = localStorage.getItem("accessToken");
       const formData = new FormData();
@@ -69,21 +79,25 @@ const Profile: React.FC = () => {
 
       if (!res.ok || !data.success) {
         setUploadError(data?.error?.message || "Upload failed.");
-        setAvatarPreview(avatarUrl);
+        // Revert preview back to last saved URL on failure
+        setAvatarPreview(savedAvatarUrl);
         return;
       }
 
-      const newUrl = data.data.avatarUrl;
-      setAvatarUrl(newUrl);
-      setAvatarPreview(newUrl);
+      const newUrl: string = data.data.avatarUrl;
 
+      // Update preview to the real Supabase URL (replaces the blob)
+      setAvatarPreview(newUrl);
+      setSavedAvatarUrl(newUrl);
+
+      // Persist to state and localStorage
       const updated = { ...profile, avatarUrl: newUrl };
-      localStorage.setItem("user", JSON.stringify(updated));
       setProfile(updated);
+      syncLocalStorage(updated);
 
     } catch {
       setUploadError("Upload failed. Please try again.");
-      setAvatarPreview(avatarUrl);
+      setAvatarPreview(savedAvatarUrl);
     } finally {
       setUploading(false);
     }
@@ -92,6 +106,8 @@ const Profile: React.FC = () => {
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handleFileSelect(file);
+    // Reset input so same file can be re-selected if needed
+    e.target.value = "";
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -124,8 +140,8 @@ const Profile: React.FC = () => {
       }
 
       const updated = { ...profile, name, phoneNumber };
-      localStorage.setItem("user", JSON.stringify(updated));
       setProfile(updated);
+      syncLocalStorage(updated);
       setSaveMessage({ text: "Profile updated successfully!", ok: true });
 
     } catch {
@@ -178,7 +194,13 @@ const Profile: React.FC = () => {
                 onClick={() => !uploading && fileInputRef.current?.click()}
               >
                 {avatarPreview ? (
-                  <img src={avatarPreview} alt="Avatar" className="pf-avatar-img" />
+                  <img
+                    src={avatarPreview}
+                    alt="Avatar"
+                    className="pf-avatar-img"
+                    // If the Supabase URL fails to load, fall back to initials
+                    onError={() => setAvatarPreview("")}
+                  />
                 ) : (
                   <div className="pf-avatar-placeholder">
                     <span className="pf-avatar-initials">{initials}</span>
@@ -187,7 +209,12 @@ const Profile: React.FC = () => {
                 <div className="pf-avatar-overlay">
                   {uploading
                     ? <span className="pf-avatar-spinner" />
-                    : (<><span className="pf-avatar-overlay-icon">📷</span><span className="pf-avatar-overlay-text">Change Photo</span></>)
+                    : (
+                      <>
+                        <span className="pf-avatar-overlay-icon">📷</span>
+                        <span className="pf-avatar-overlay-text">Change Photo</span>
+                      </>
+                    )
                   }
                 </div>
               </div>

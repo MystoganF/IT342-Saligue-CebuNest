@@ -22,6 +22,9 @@ public class SupabaseStorageService {
     @Value("${supabase.bucket}")
     private String bucket;
 
+    @Value("${supabase.service-key}")
+    private String supabaseServiceKey;
+
     private final RestTemplate restTemplate = new RestTemplate();
 
     public String uploadAvatar(Long userId, MultipartFile file) throws IOException {
@@ -31,7 +34,7 @@ public class SupabaseStorageService {
 
         HttpHeaders headers = new HttpHeaders();
         headers.set("apikey", supabaseAnonKey);
-        headers.set("Authorization", "Bearer " + supabaseAnonKey);
+        headers.set("Authorization", "Bearer " + supabaseServiceKey);
         headers.setContentType(MediaType.parseMediaType(file.getContentType()));
         headers.set("x-upsert", "true");
 
@@ -45,4 +48,6 @@ public class SupabaseStorageService {
         if (filename == null || !filename.contains(".")) return "jpg";
         return filename.substring(filename.lastIndexOf(".") + 1);
     }
+
+
 }
