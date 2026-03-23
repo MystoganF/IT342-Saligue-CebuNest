@@ -114,7 +114,7 @@ public class PropertyController {
 
             PropertyDTO created = propertyService.createProperty(dto, currentUser);
 
-            // ── Use HashMap, NOT Map.of() — Map.of() forbids null values ──
+            // Use HashMap — Map.of() forbids null values
             Map<String, Object> body = new HashMap<>();
             body.put("success",   true);
             body.put("data",      Map.of("property", created));
@@ -160,6 +160,29 @@ public class PropertyController {
             return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
             return buildError("SYSTEM-001", "Image upload failed: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── DELETE /api/properties/{id} — delete property (owner only) ───────
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteProperty(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (currentUser == null) {
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+        }
+
+        try {
+            propertyService.deleteProperty(id, currentUser);
+            return buildSuccess(Map.of("deleted", true, "id", id));
+        } catch (IllegalArgumentException e) {
+            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return buildError("SYSTEM-001",
+                    e.getClass().getName() + ": " + e.getMessage(),
                     HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

@@ -67,8 +67,13 @@ public class PropertyService {
         // saveAndFlush forces the INSERT so the generated ID is populated immediately
         Property saved = propertyRepository.saveAndFlush(property);
 
-        // Map directly from `saved` — no re-fetch needed.
-        // images is already an empty ArrayList from @Builder.Default, so no lazy load occurs.
+        // Force-initialize lazy associations inside the transaction
+        saved.getOwner().getId();
+        saved.getOwner().getName();
+        saved.getType().getId();
+        saved.getType().getName();
+
+        // Map directly — images is already an empty ArrayList from @Builder.Default
         return PropertyDTO.from(saved);
     }
 
@@ -94,6 +99,20 @@ public class PropertyService {
 
         // Reload with images
         return PropertyDTO.from(propertyRepository.findById(propertyId).get());
+    }
+
+    // ── Delete property (owner only) ─────────────────────────────────────
+    @Transactional
+    public void deleteProperty(Long propertyId, User owner) {
+        Property property = propertyRepository.findById(propertyId)
+                .orElseThrow(() -> new IllegalArgumentException("Property not found."));
+
+        if (!property.getOwner().getId().equals(owner.getId())) {
+            throw new IllegalArgumentException("You do not own this property.");
+        }
+
+        // Images are deleted automatically via CascadeType.ALL + orphanRemoval = true
+        propertyRepository.delete(property);
     }
 
     // ── Helper ───────────────────────────────────────────────────────────
