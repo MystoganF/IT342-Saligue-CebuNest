@@ -1,10 +1,7 @@
 package edu.cit.saligue.cebunest.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -21,11 +18,11 @@ public class RentalRequest {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "property_id", nullable = false)
     private Property property;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tenant_id", nullable = false)
     private User tenant;
 
@@ -39,9 +36,17 @@ public class RentalRequest {
     @Column(nullable = false)
     private RentalStatus status;
 
+    // "MONTHLY" or "FULL" — set when tenant confirms and chooses plan
+    private String paymentPlan;
+
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     public enum RentalStatus {
-        PENDING, APPROVED, REJECTED, CONFIRMED
+        PENDING,    // submitted by tenant, awaiting owner review
+        APPROVED,   // owner approved, tenant must confirm
+        REJECTED,   // owner rejected
+        CONFIRMED,  // tenant confirmed + chose payment plan → active rental
+        COMPLETED   // lease ended
     }
 }

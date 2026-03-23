@@ -10,7 +10,7 @@ import OwnerProperties  from "./modules/owner_module/owner_property_module/Owner
 import AddProperty      from "./modules/owner_module/owner_property_management_module/owner_add_property";
 import AdminRentalRequests from "./modules/admin_module/admin_rental_request/admin_rental_request";
 import EditProperty      from "./modules/owner_module/owner_property_management_module/owner_edit_property";
-
+import MyRentals from "./modules/tenant_module/rented_property_module/my_rentals";
 
 function App() {
   return (
@@ -24,6 +24,7 @@ function App() {
         <Route path="/home"           element={<Home />}            />
         <Route path="/properties/:id" element={<PropertyDetail />}  />
         <Route path="/profile"        element={<Profile />}         />
+        <Route path="/my-rentals" element={<MyRentals />} />
  
         {/* Owner */}
         <Route path="/owner/dashboard"   element={<OwnerDashboard />}  />
@@ -33,6 +34,7 @@ function App() {
 
         {/* Edit */}
         <Route path="/admin/rental-requests" element={<AdminRentalRequests />} />
+        
       </Routes>
     </BrowserRouter>
   );

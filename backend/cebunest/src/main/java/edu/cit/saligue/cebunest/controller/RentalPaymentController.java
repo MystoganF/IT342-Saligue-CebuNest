@@ -1,0 +1,139 @@
+package edu.cit.saligue.cebunest.controller;
+
+import edu.cit.saligue.cebunest.dto.RentalPaymentDTO;
+import edu.cit.saligue.cebunest.dto.RentalRequestDTO;
+import edu.cit.saligue.cebunest.entity.User;
+import edu.cit.saligue.cebunest.service.RentalPaymentService;
+import lombok.Data;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/payments")
+@RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:5173")
+public class RentalPaymentController {
+
+    private final RentalPaymentService rentalPaymentService;
+
+    // ── POST /api/payments/confirm — tenant confirms approval + picks plan
+    @PostMapping("/confirm")
+    public ResponseEntity<?> confirmAndChoosePlan(
+            @RequestBody ConfirmDTO body,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+        if (body.getRequestId() == null)
+            return buildError("VALID-001", "requestId is required.", HttpStatus.BAD_REQUEST);
+        if (body.getPlan() == null || body.getPlan().isBlank())
+            return buildError("VALID-001", "plan is required (MONTHLY or FULL).", HttpStatus.BAD_REQUEST);
+
+        try {
+            RentalRequestDTO updated = rentalPaymentService.confirmAndChoosePlan(
+                    body.getRequestId(), body.getPlan(), currentUser);
+            return buildSuccess(Map.of("request", updated));
+        } catch (IllegalArgumentException e) {
+            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── GET /api/payments/request/{requestId} — get payment schedule
+    @GetMapping("/request/{requestId}")
+    public ResponseEntity<?> getPayments(
+            @PathVariable Long requestId,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+        try {
+            List<RentalPaymentDTO> payments =
+                    rentalPaymentService.getPaymentsForRequest(requestId, currentUser);
+            return buildSuccess(Map.of("payments", payments));
+        } catch (IllegalArgumentException e) {
+            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── POST /api/payments/{id}/initiate — create PayMongo link
+    @PostMapping("/{id}/initiate")
+    public ResponseEntity<?> initiatePayment(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+        try {
+            RentalPaymentDTO payment = rentalPaymentService.initiatePayment(id, currentUser);
+            return buildSuccess(Map.of("payment", payment));
+        } catch (IllegalArgumentException e) {
+            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── POST /api/payments/{id}/verify — poll PayMongo for confirmation
+    @PostMapping("/{id}/verify")
+    public ResponseEntity<?> verifyPayment(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+        try {
+            RentalPaymentDTO payment = rentalPaymentService.verifyPayment(id, currentUser);
+            return buildSuccess(Map.of("payment", payment));
+        } catch (IllegalArgumentException e) {
+            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── Inner DTOs ────────────────────────────────────────────────────────
+    @Data
+    public static class ConfirmDTO {
+        private Long   requestId;
+        private String plan; // "MONTHLY" or "FULL"
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+    private ResponseEntity<?> buildSuccess(Object data) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("success",   true);
+        body.put("data",      data);
+        body.put("error",     null);
+        body.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
+        return ResponseEntity.ok(body);
+    }
+
+    private ResponseEntity<?> buildError(String code, String message, HttpStatus status) {
+        Map<String, Object> error = new HashMap<>();
+        error.put("code",    code);
+        error.put("message", message);
+        error.put("details", null);
+        Map<String, Object> body = new HashMap<>();
+        body.put("success",   false);
+        body.put("data",      null);
+        body.put("error",     error);
+        body.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
+        return ResponseEntity.status(status).body(body);
+    }
+}
