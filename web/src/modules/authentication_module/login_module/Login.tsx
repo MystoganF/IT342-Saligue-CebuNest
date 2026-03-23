@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
-import "./Login.css";
+import styles from "./Login.module.css";
 import logo from "../../../assets/images/cebunest-logo.png";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
@@ -12,130 +12,151 @@ interface PendingGoogleUser {
   name: string;
 }
 
+interface AuthResponse {
+  success: boolean;
+  data: {
+    accessToken: string;
+    refreshToken: string;
+    user: { role: string };
+    requiresRoleSelection?: boolean;
+  };
+  error?: { message: string };
+}
+
+// ─── helpers ───────────────────────────────────────────────────────────────
+
+function storeTokensAndRedirect(data: AuthResponse) {
+  localStorage.setItem("accessToken", data.data.accessToken);
+  localStorage.setItem("refreshToken", data.data.refreshToken);
+  localStorage.setItem("user", JSON.stringify(data.data.user));
+
+  const role = data.data.user?.role?.toUpperCase();
+  const destination = role === "ADMIN" ? "/admin/dashboard" : "/home";
+  setTimeout(() => { window.location.href = destination; }, 1200);
+}
+
+async function postJSON(url: string, body: object): Promise<{ res: Response; data: AuthResponse }> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data: AuthResponse = await res.json();
+  return { res, data };
+}
+
+// ─── component ─────────────────────────────────────────────────────────────
+
 const Login: React.FC = () => {
-  const [email, setEmail]               = useState("");
-  const [password, setPassword]         = useState("");
-  const [isLoading, setIsLoading]       = useState(false);
-  const [error, setError]               = useState<string | null>(null);
-  const [success, setSuccess]           = useState(false);
+  // Form state
+  const [email, setEmail]             = useState("");
+  const [password, setPassword]       = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  // UI state
+  const [isLoading, setIsLoading]     = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [error, setError]             = useState<string | null>(null);
+  const [success, setSuccess]         = useState(false);
 
-  /* Role picker modal state */
-  const [showRolePicker, setShowRolePicker]       = useState(false);
+  // Role-picker modal state
+  const [showRolePicker, setShowRolePicker]     = useState(false);
   const [pendingGoogleUser, setPendingGoogleUser] = useState<PendingGoogleUser | null>(null);
-  const [selectedRole, setSelectedRole]           = useState<Role>("TENANT");
-  const [roleSubmitting, setRoleSubmitting]       = useState(false);
+  const [selectedRole, setSelectedRole]         = useState<Role>("TENANT");
+  const [roleSubmitting, setRoleSubmitting]     = useState(false);
 
-  /* ── Standard login ── */
+  // ── Standard e-mail / password login ────────────────────────────────────
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
+
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        setError(data?.error?.message || (response.status === 401 ? "Invalid email or password." : "Login failed. Please try again."));
+      const { res, data } = await postJSON(`${API_BASE_URL}/api/auth/login`, { email, password });
+
+      if (!res.ok || !data.success) {
+        const msg = data?.error?.message
+          ?? (res.status === 401 ? "Invalid email or password." : "Login failed. Please try again.");
+        setError(msg);
         return;
       }
-      storeAndRedirect(data);
-    } catch (err) {
+
+      setSuccess(true);
+      storeTokensAndRedirect(data);
+    } catch {
       setError("Unable to connect to the server. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  /* ── Store tokens and redirect ── */
-  const storeAndRedirect = (data: any) => {
-    localStorage.setItem("accessToken", data.data.accessToken);
-    localStorage.setItem("refreshToken", data.data.refreshToken);
-    localStorage.setItem("user", JSON.stringify(data.data.user));
-    setSuccess(true);
-    const role = data.data.user?.role?.toUpperCase();
-    setTimeout(() => {
-      window.location.href = role === "ADMIN" ? "/admin/dashboard" : "/home";
-    }, 1200);
-  };
-
-  /* ── Google login — check if user exists first ── */
+  // ── Google OAuth login ───────────────────────────────────────────────────
   const handleGoogleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setGoogleLoading(true);
       setError(null);
+
       try {
-        const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        // 1. Fetch the user's profile from Google
+        const profileRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
           headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
         });
-        const userInfo = await userInfoRes.json();
+        const profile = await profileRes.json();
 
-        // Send without role — backend checks if user exists
-        const res = await fetch(`${API_BASE_URL}/api/auth/google`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: userInfo.email,
-            name: userInfo.name,
-            // no role — signals backend to check existence only
-          }),
+        // 2. Check if this Google account already exists in our backend
+        //    (no role sent → backend just checks existence)
+        const { res, data } = await postJSON(`${API_BASE_URL}/api/auth/google`, {
+          email: profile.email,
+          name: profile.name,
         });
-        const data = await res.json();
 
         if (!res.ok || !data.success) {
-          setError(data?.error?.message || "Google login failed.");
+          setError(data?.error?.message ?? "Google login failed.");
           return;
         }
 
-        // New user — show role picker modal
+        // 3a. New user — let them pick a role first
         if (data.data?.requiresRoleSelection) {
-          setPendingGoogleUser({ email: userInfo.email, name: userInfo.name });
+          setPendingGoogleUser({ email: profile.email, name: profile.name });
           setShowRolePicker(true);
           return;
         }
 
-        // Existing user — log in directly
-        storeAndRedirect(data);
-
-      } catch (err) {
+        // 3b. Existing user — log them straight in
+        setSuccess(true);
+        storeTokensAndRedirect(data);
+      } catch {
         setError("Google login failed. Please try again.");
       } finally {
         setGoogleLoading(false);
       }
     },
-    onError: () => {
-      setError("Google sign-in was cancelled or failed.");
-    },
+    onError: () => setError("Google sign-in was cancelled or failed."),
   });
 
-  /* ── Submit role selection for new Google user ── */
+  // ── Role selection (new Google users only) ──────────────────────────────
   const handleRoleSubmit = async () => {
     if (!pendingGoogleUser) return;
     setRoleSubmitting(true);
     setError(null);
+
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/google`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: pendingGoogleUser.email,
-          name: pendingGoogleUser.name,
-          role: selectedRole,
-        }),
+      const { res, data } = await postJSON(`${API_BASE_URL}/api/auth/google`, {
+        email: pendingGoogleUser.email,
+        name: pendingGoogleUser.name,
+        role: selectedRole,
       });
-      const data = await res.json();
+
       if (!res.ok || !data.success) {
-        setError(data?.error?.message || "Account creation failed.");
+        setError(data?.error?.message ?? "Account creation failed.");
         setShowRolePicker(false);
         return;
       }
+
       setShowRolePicker(false);
-      storeAndRedirect(data);
-    } catch (err) {
+      setSuccess(true);
+      storeTokensAndRedirect(data);
+    } catch {
       setError("Something went wrong. Please try again.");
       setShowRolePicker(false);
     } finally {
@@ -143,125 +164,131 @@ const Login: React.FC = () => {
     }
   };
 
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="login-page">
+    <div className={styles.page}>
 
-      {/* ══ ROLE PICKER MODAL ══ */}
+      {/* ══ ROLE PICKER MODAL ══════════════════════════════════════════════ */}
       {showRolePicker && (
-        <div className="login-modal-overlay" onClick={() => !roleSubmitting && setShowRolePicker(false)}>
-          <div className="login-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="login-modal-header">
-              <div className="login-modal-icon">👋</div>
-              <h3 className="login-modal-title">Welcome to CebuNest!</h3>
-              <p className="login-modal-sub">
+        <div
+          className={styles.modalOverlay}
+          onClick={() => !roleSubmitting && setShowRolePicker(false)}
+        >
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+
+            <div className={styles.modalHeader}>
+              <div className={styles.modalIcon}>👋</div>
+              <h3 className={styles.modalTitle}>Welcome to CebuNest!</h3>
+              <p className={styles.modalSubtitle}>
                 Looks like you're new here. How will you be using CebuNest?
               </p>
             </div>
 
-            <div className="login-modal-roles">
-              <button
-                className={`login-modal-role-btn${selectedRole === "TENANT" ? " login-modal-role-btn--active" : ""}`}
-                onClick={() => setSelectedRole("TENANT")}
-                disabled={roleSubmitting}
-              >
-                <span className="login-modal-role-icon">🏡</span>
-                <span className="login-modal-role-label">Tenant</span>
-                <span className="login-modal-role-desc">I'm looking to rent a property</span>
-                {selectedRole === "TENANT" && <span className="login-modal-role-check">✓</span>}
-              </button>
+            <div className={styles.modalRoles}>
+              {(["TENANT", "OWNER"] as Role[]).map((role) => {
+                const isActive = selectedRole === role;
+                const meta = {
+                  TENANT: { icon: "🏡", label: "Tenant", desc: "I'm looking to rent a property" },
+                  OWNER:  { icon: "🔑", label: "Owner",  desc: "I'm listing a property to rent out" },
+                }[role];
 
-              <button
-                className={`login-modal-role-btn${selectedRole === "OWNER" ? " login-modal-role-btn--active" : ""}`}
-                onClick={() => setSelectedRole("OWNER")}
-                disabled={roleSubmitting}
-              >
-                <span className="login-modal-role-icon">🔑</span>
-                <span className="login-modal-role-label">Owner</span>
-                <span className="login-modal-role-desc">I'm listing a property to rent out</span>
-                {selectedRole === "OWNER" && <span className="login-modal-role-check">✓</span>}
-              </button>
+                return (
+                  <button
+                    key={role}
+                    className={`${styles.roleBtn} ${isActive ? styles.roleBtnActive : ""}`}
+                    onClick={() => setSelectedRole(role)}
+                    disabled={roleSubmitting}
+                  >
+                    <span className={styles.roleIcon}>{meta.icon}</span>
+                    <span className={styles.roleTextGroup}>
+                      <span className={styles.roleLabel}>{meta.label}</span>
+                      <span className={styles.roleDesc}>{meta.desc}</span>
+                    </span>
+                    {isActive && <span className={styles.roleCheck}>✓</span>}
+                  </button>
+                );
+              })}
             </div>
 
             <button
-              className="login-modal-confirm-btn"
+              className={styles.modalConfirmBtn}
               onClick={handleRoleSubmit}
               disabled={roleSubmitting}
             >
-              {roleSubmitting ? (
-                <span className="login-modal-spinner" />
-              ) : `Continue as ${selectedRole === "TENANT" ? "Tenant" : "Owner"}`}
+              {roleSubmitting
+                ? <span className={styles.modalSpinner} />
+                : `Continue as ${selectedRole === "TENANT" ? "Tenant" : "Owner"}`}
             </button>
 
-            <p className="login-modal-note">
+            <p className={styles.modalNote}>
               You can't change your role later, so choose carefully.
             </p>
           </div>
         </div>
       )}
 
-      {/* ── LEFT PANEL ── */}
-      <div className="login-left-panel">
-        <div className="login-deco login-deco--1" />
-        <div className="login-deco login-deco--2" />
-        <div className="login-deco login-deco--3" />
-        <div className="login-accent-line" />
+      {/* ══ LEFT PANEL ═════════════════════════════════════════════════════ */}
+      <div className={styles.leftPanel}>
+        <div className={styles.deco + " " + styles.deco1} />
+        <div className={styles.deco + " " + styles.deco2} />
+        <div className={styles.deco + " " + styles.deco3} />
+        <div className={styles.accentLine} />
 
-        <div className="login-brand-logo">
-          <img src={logo} alt="CebuNest Logo" className="login-logo-img" />
+        <div className={styles.brandLogo}>
+          <img src={logo} alt="CebuNest Logo" className={styles.logoImg} />
         </div>
 
-        <div className="login-brand-info">
-          <div className="login-brand-eyebrow">
-            <div className="login-eyebrow-line" />
-            <span className="login-eyebrow-text">Property Management</span>
+        <div className={styles.brandInfo}>
+          <div className={styles.brandEyebrow}>
+            <div className={styles.eyebrowLine} />
+            <span className={styles.eyebrowText}>Property Management</span>
           </div>
-          <h2 className="login-brand-heading">Your Home in Cebu Awaits</h2>
-          <p className="login-brand-body">
+          <h2 className={styles.brandHeading}>Your Home in Cebu Awaits</h2>
+          <p className={styles.brandBody}>
             Streamlined rental management for tenants and property owners.
             Browse listings, submit rental requests, and manage bookings — all in one place.
           </p>
         </div>
 
-        <div className="login-stats">
-          <div className="login-stat-item">
-            <span className="login-stat-number">240+</span>
-            <span className="login-stat-label">Active Listings</span>
-          </div>
-          <div className="login-stat-item">
-            <span className="login-stat-number">1.2k</span>
-            <span className="login-stat-label">Happy Tenants</span>
-          </div>
-          <div className="login-stat-item">
-            <span className="login-stat-number">98%</span>
-            <span className="login-stat-label">Satisfaction</span>
-          </div>
+        <div className={styles.stats}>
+          {[
+            { number: "240+", label: "Active Listings" },
+            { number: "1.2k", label: "Happy Tenants"   },
+            { number: "98%",  label: "Satisfaction"    },
+          ].map(({ number, label }) => (
+            <div key={label} className={styles.statItem}>
+              <span className={styles.statNumber}>{number}</span>
+              <span className={styles.statLabel}>{label}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* ── RIGHT PANEL ── */}
-      <div className="login-right-panel">
-        <div className="login-form-card">
+      {/* ══ RIGHT PANEL ════════════════════════════════════════════════════ */}
+      <div className={styles.rightPanel}>
+        <div className={styles.formCard}>
 
-          <div className="login-form-header">
-            <div className="login-form-eyebrow">
-              <div className="login-header-dot" />
-              <span className="login-header-eyebrow-text">Secure Access</span>
+          {/* Header */}
+          <div className={styles.formHeader}>
+            <div className={styles.formEyebrow}>
+              <div className={styles.headerDot} />
+              <span className={styles.headerEyebrowText}>Secure Access</span>
             </div>
-            <h2 className="login-form-heading">Welcome Back</h2>
-            <p className="login-form-subheading">Sign in to manage your properties and rentals.</p>
+            <h2 className={styles.formHeading}>Welcome Back</h2>
+            <p className={styles.formSubheading}>Sign in to manage your properties and rentals.</p>
           </div>
 
-          {/* Google Sign-In Button */}
+          {/* Google sign-in */}
           <button
-            className="login-google-btn"
+            className={styles.googleBtn}
             type="button"
             onClick={() => handleGoogleLogin()}
             disabled={isLoading || success || googleLoading}
           >
             {googleLoading ? (
-              <span className="login-spinner login-spinner--dark" />
+              <span className={`${styles.spinner} ${styles.spinnerDark}`} />
             ) : (
-              <svg className="login-google-icon" viewBox="0 0 24 24">
+              <svg className={styles.googleIcon} viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -271,39 +298,54 @@ const Login: React.FC = () => {
             <span>{googleLoading ? "Signing in…" : "Continue with Google"}</span>
           </button>
 
-          <div className="login-divider">
-            <div className="login-divider-line" />
-            <span className="login-divider-text">or sign in with email</span>
-            <div className="login-divider-line" />
+          {/* Divider */}
+          <div className={styles.divider}>
+            <div className={styles.dividerLine} />
+            <span className={styles.dividerText}>or sign in with email</span>
+            <div className={styles.dividerLine} />
           </div>
 
-          <form className="login-form-fields" onSubmit={handleLogin}>
-            <div className="login-field-group">
-              <label className="login-field-label" htmlFor="cn-login-email">Email Address</label>
-              <div className="login-field-wrap">
-                <span className="login-field-icon">✉</span>
+          {/* E-mail / password form */}
+          <form className={styles.formFields} onSubmit={handleLogin}>
+
+            <div className={styles.fieldGroup}>
+              <label className={styles.fieldLabel} htmlFor="cn-login-email">
+                Email Address
+              </label>
+              <div className={styles.fieldWrap}>
+                <span className={styles.fieldIcon}>✉</span>
                 <input
-                  className="login-field-input" type="email" id="cn-login-email"
-                  placeholder="you@example.com" value={email}
+                  id="cn-login-email"
+                  type="email"
+                  className={styles.fieldInput}
+                  placeholder="you@example.com"
+                  value={email}
                   onChange={(e) => { setEmail(e.target.value); setError(null); }}
-                  required disabled={isLoading || success}
+                  required
+                  disabled={isLoading || success}
                 />
               </div>
             </div>
 
-            <div className="login-field-group">
-              <label className="login-field-label" htmlFor="cn-login-password">Password</label>
-              <div className="login-field-wrap">
-                <span className="login-field-icon">🔒</span>
+            <div className={styles.fieldGroup}>
+              <label className={styles.fieldLabel} htmlFor="cn-login-password">
+                Password
+              </label>
+              <div className={styles.fieldWrap}>
+                <span className={styles.fieldIcon}>🔒</span>
                 <input
-                  className="login-field-input"
+                  id="cn-login-password"
                   type={showPassword ? "text" : "password"}
-                  id="cn-login-password" placeholder="Enter your password" value={password}
+                  className={styles.fieldInput}
+                  placeholder="Enter your password"
+                  value={password}
                   onChange={(e) => { setPassword(e.target.value); setError(null); }}
-                  required disabled={isLoading || success}
+                  required
+                  disabled={isLoading || success}
                 />
                 <button
-                  type="button" className="login-toggle-password"
+                  type="button"
+                  className={styles.togglePassword}
                   onClick={() => setShowPassword((prev) => !prev)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   tabIndex={-1}
@@ -314,34 +356,39 @@ const Login: React.FC = () => {
             </div>
 
             <button
-              className={`login-btn${isLoading ? " login-btn--loading" : ""}${success ? " login-btn--success" : ""}`}
-              type="submit" disabled={isLoading || success}
+              type="submit"
+              className={`${styles.submitBtn} ${success ? styles.submitBtnSuccess : ""}`}
+              disabled={isLoading || success}
             >
               {isLoading ? (
-                <span className="login-spinner" />
+                <span className={styles.spinner} />
               ) : success ? (
-                <span className="login-btn-success-content">
-                  <span className="login-success-check">✓</span> Login Successful
+                <span className={styles.btnSuccessContent}>
+                  <span className={styles.successCheck}>✓</span> Login Successful
                 </span>
               ) : "Sign In"}
             </button>
 
             {error && (
-              <div className="login-message login-message--error"><span>⚠</span> {error}</div>
+              <div className={`${styles.message} ${styles.messageError}`}>
+                <span>⚠</span> {error}
+              </div>
             )}
             {success && (
-              <div className="login-message login-message--success"><span>✓</span> Welcome back! Redirecting you now…</div>
+              <div className={`${styles.message} ${styles.messageSuccess}`}>
+                <span>✓</span> Welcome back! Redirecting you now…
+              </div>
             )}
           </form>
 
-          <div className="login-links">
-            <a href="/forgot-password" className="login-link">Forgot Password?</a>
-            <a href="/register" className="login-link login-link--signup">Create Account →</a>
+          {/* Footer links */}
+          <div className={styles.links}>
+            <a href="/forgot-password" className={styles.link}>Forgot Password?</a>
+            <a href="/register" className={`${styles.link} ${styles.linkSignup}`}>Create Account →</a>
           </div>
 
         </div>
       </div>
-
     </div>
   );
 };
