@@ -37,7 +37,9 @@ public class AdminPropertyService {
                     "Only properties with PENDING_REVIEW status can be approved or rejected.");
         }
 
-        Property.PropertyStatus newStatus = Property.PropertyStatus.valueOf(status);
+        Property.PropertyStatus newStatus = status.equals("APPROVED")
+                ? Property.PropertyStatus.AVAILABLE
+                : Property.PropertyStatus.REJECTED;
         property.setStatus(newStatus);
         propertyRepository.save(property);
 

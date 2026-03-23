@@ -2,6 +2,7 @@ package edu.cit.saligue.cebunest.service;
 
 import edu.cit.saligue.cebunest.dto.CreatePropertyDTO;
 import edu.cit.saligue.cebunest.dto.PropertyDTO;
+import edu.cit.saligue.cebunest.dto.UpdatePropertyDTO;
 import edu.cit.saligue.cebunest.entity.*;
 import edu.cit.saligue.cebunest.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,7 @@ public class PropertyService {
     private final PropertyImageRepository propertyImageRepository;
     private final SupabaseStorageService  storageService;
 
-    // ── All available properties (tenant view) ──────────────────────────
+    // ── All available properties (tenant view) ───────────────────────────
     @Transactional(readOnly = true)
     public List<PropertyDTO> getProperties(
             String search, String type, Double minPrice, Double maxPrice) {
@@ -45,7 +46,7 @@ public class PropertyService {
         return propertyTypeRepository.findAll();
     }
 
-    // ── Create property (no images yet) ─────────────────────────────────
+    // ── Create property ──────────────────────────────────────────────────
     @Transactional
     public PropertyDTO createProperty(CreatePropertyDTO dto, User owner) {
         PropertyType type = propertyTypeRepository.findById(dto.getTypeId())
@@ -64,7 +65,6 @@ public class PropertyService {
                 .sqm(dto.getSqm())
                 .build();
 
-        // saveAndFlush forces the INSERT so the generated ID is populated immediately
         Property saved = propertyRepository.saveAndFlush(property);
 
         // Force-initialize lazy associations inside the transaction
@@ -73,20 +73,69 @@ public class PropertyService {
         saved.getType().getId();
         saved.getType().getName();
 
-        // Map directly — images is already an empty ArrayList from @Builder.Default
         return PropertyDTO.from(saved);
     }
 
-    // ── Upload images for a property ─────────────────────────────────────
+    // ── Update property ──────────────────────────────────────────────────
+    @Transactional
+    public PropertyDTO updateProperty(Long propertyId, UpdatePropertyDTO dto, User owner) {
+        Property property = propertyRepository.findById(propertyId)
+                .orElseThrow(() -> new IllegalArgumentException("Property not found."));
+
+        if (!property.getOwner().getId().equals(owner.getId()))
+            throw new IllegalArgumentException("You do not own this property.");
+
+        PropertyType type = propertyTypeRepository.findById(dto.getTypeId())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid property type."));
+
+        // Update fields
+        property.setTitle(dto.getTitle().trim());
+        property.setDescription(dto.getDescription() != null ? dto.getDescription().trim() : "");
+        property.setPrice(dto.getPrice());
+        property.setLocation(dto.getLocation().trim());
+        property.setType(type);
+        property.setBeds(dto.getBeds());
+        property.setBaths(dto.getBaths());
+        property.setSqm(dto.getSqm());
+
+        // Visibility toggle — only allowed on AVAILABLE or UNAVAILABLE properties
+        if (dto.getStatus() != null) {
+            Property.PropertyStatus current = property.getStatus();
+            if (current == Property.PropertyStatus.AVAILABLE
+                    || current == Property.PropertyStatus.UNAVAILABLE) {
+                if (dto.getStatus().equals("AVAILABLE"))
+                    property.setStatus(Property.PropertyStatus.AVAILABLE);
+                else if (dto.getStatus().equals("UNAVAILABLE"))
+                    property.setStatus(Property.PropertyStatus.UNAVAILABLE);
+            }
+            // Silently ignore status changes on PENDING_REVIEW / REJECTED properties
+        }
+
+        // Remove images the owner flagged for deletion
+        if (dto.getRemovedImageIds() != null && !dto.getRemovedImageIds().isEmpty()) {
+            dto.getRemovedImageIds().forEach(imageId -> {
+                PropertyImage img = propertyImageRepository.findById(imageId).orElse(null);
+                if (img != null && img.getProperty().getId().equals(propertyId)) {
+                    propertyImageRepository.delete(img);
+                }
+            });
+        }
+
+        propertyRepository.save(property);
+
+        // Reload fresh with updated images
+        return PropertyDTO.from(propertyRepository.findById(propertyId).get());
+    }
+
+    // ── Upload images ────────────────────────────────────────────────────
     @Transactional
     public PropertyDTO uploadImages(Long propertyId, User owner, List<MultipartFile> files)
             throws IOException {
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new IllegalArgumentException("Property not found."));
 
-        if (!property.getOwner().getId().equals(owner.getId())) {
+        if (!property.getOwner().getId().equals(owner.getId()))
             throw new IllegalArgumentException("You do not own this property.");
-        }
 
         for (MultipartFile file : files) {
             String url = storageService.uploadPropertyImage(propertyId, file);
@@ -97,21 +146,18 @@ public class PropertyService {
             propertyImageRepository.save(image);
         }
 
-        // Reload with images
         return PropertyDTO.from(propertyRepository.findById(propertyId).get());
     }
 
-    // ── Delete property (owner only) ─────────────────────────────────────
+    // ── Delete property ──────────────────────────────────────────────────
     @Transactional
     public void deleteProperty(Long propertyId, User owner) {
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new IllegalArgumentException("Property not found."));
 
-        if (!property.getOwner().getId().equals(owner.getId())) {
+        if (!property.getOwner().getId().equals(owner.getId()))
             throw new IllegalArgumentException("You do not own this property.");
-        }
 
-        // Images are deleted automatically via CascadeType.ALL + orphanRemoval = true
         propertyRepository.delete(property);
     }
 

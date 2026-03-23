@@ -2,6 +2,7 @@ package edu.cit.saligue.cebunest.controller;
 
 import edu.cit.saligue.cebunest.dto.CreatePropertyDTO;
 import edu.cit.saligue.cebunest.dto.PropertyDTO;
+import edu.cit.saligue.cebunest.dto.UpdatePropertyDTO;
 import edu.cit.saligue.cebunest.entity.Property;
 import edu.cit.saligue.cebunest.entity.PropertyType;
 import edu.cit.saligue.cebunest.entity.User;
@@ -29,7 +30,7 @@ public class PropertyController {
     private final PropertyService    propertyService;
     private final PropertyRepository propertyRepository;
 
-    // ── GET /api/properties — public listing (tenants) ───────────────────
+    // ── GET /api/properties ───────────────────────────────────────────────
     @GetMapping
     public ResponseEntity<?> getProperties(
             @RequestParam(required = false) String search,
@@ -46,7 +47,7 @@ public class PropertyController {
         }
     }
 
-    // ── GET /api/properties/types — dynamic filter chips ─────────────────
+    // ── GET /api/properties/types ─────────────────────────────────────────
     @GetMapping("/types")
     public ResponseEntity<?> getPropertyTypes() {
         try {
@@ -63,7 +64,7 @@ public class PropertyController {
         }
     }
 
-    // ── GET /api/properties/my — owner's own listings ────────────────────
+    // ── GET /api/properties/my ────────────────────────────────────────────
     @GetMapping("/my")
     public ResponseEntity<?> getMyProperties(
             @AuthenticationPrincipal User currentUser,
@@ -80,7 +81,7 @@ public class PropertyController {
         }
     }
 
-    // ── GET /api/properties/{id} ─────────────────────────────────────────
+    // ── GET /api/properties/{id} ──────────────────────────────────────────
     @GetMapping("/{id}")
     public ResponseEntity<?> getPropertyById(@PathVariable Long id) {
         try {
@@ -92,15 +93,14 @@ public class PropertyController {
         }
     }
 
-    // ── POST /api/properties — create new property (owner only) ──────────
+    // ── POST /api/properties ──────────────────────────────────────────────
     @PostMapping
     public ResponseEntity<?> createProperty(
             @RequestBody CreatePropertyDTO dto,
             @AuthenticationPrincipal User currentUser
     ) {
-        if (currentUser == null) {
+        if (currentUser == null)
             return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
-        }
 
         try {
             if (dto.getTitle()    == null || dto.getTitle().isBlank())
@@ -114,7 +114,6 @@ public class PropertyController {
 
             PropertyDTO created = propertyService.createProperty(dto, currentUser);
 
-            // Use HashMap — Map.of() forbids null values
             Map<String, Object> body = new HashMap<>();
             body.put("success",   true);
             body.put("data",      Map.of("property", created));
@@ -132,7 +131,40 @@ public class PropertyController {
         }
     }
 
-    // ── POST /api/properties/{id}/images — upload images ─────────────────
+    // ── PUT /api/properties/{id} — update property ────────────────────────
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateProperty(
+            @PathVariable Long id,
+            @RequestBody UpdatePropertyDTO dto,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+
+        try {
+            if (dto.getTitle()    == null || dto.getTitle().isBlank())
+                return buildError("VALID-001", "Title is required.", HttpStatus.BAD_REQUEST);
+            if (dto.getPrice()    == null || dto.getPrice() <= 0)
+                return buildError("VALID-001", "Price must be greater than 0.", HttpStatus.BAD_REQUEST);
+            if (dto.getLocation() == null || dto.getLocation().isBlank())
+                return buildError("VALID-001", "Location is required.", HttpStatus.BAD_REQUEST);
+            if (dto.getTypeId()   == null)
+                return buildError("VALID-001", "Property type is required.", HttpStatus.BAD_REQUEST);
+
+            PropertyDTO updated = propertyService.updateProperty(id, dto, currentUser);
+            return buildSuccess(Map.of("property", updated));
+
+        } catch (IllegalArgumentException e) {
+            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return buildError("SYSTEM-001",
+                    e.getClass().getName() + ": " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── POST /api/properties/{id}/images ──────────────────────────────────
     @PostMapping("/{id}/images")
     public ResponseEntity<?> uploadImages(
             @PathVariable Long id,
@@ -141,7 +173,6 @@ public class PropertyController {
     ) {
         if (files == null || files.isEmpty())
             return buildError("VALID-001", "At least one image is required.", HttpStatus.BAD_REQUEST);
-
         if (files.size() > 10)
             return buildError("VALID-001", "Maximum 10 images allowed.", HttpStatus.BAD_REQUEST);
 
@@ -164,15 +195,14 @@ public class PropertyController {
         }
     }
 
-    // ── DELETE /api/properties/{id} — delete property (owner only) ───────
+    // ── DELETE /api/properties/{id} ───────────────────────────────────────
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteProperty(
             @PathVariable Long id,
             @AuthenticationPrincipal User currentUser
     ) {
-        if (currentUser == null) {
+        if (currentUser == null)
             return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
-        }
 
         try {
             propertyService.deleteProperty(id, currentUser);
