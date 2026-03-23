@@ -11,7 +11,7 @@ import AddProperty      from "./modules/owner_module/owner_property_management_m
 import AdminRentalRequests from "./modules/admin_module/admin_rental_request/admin_rental_request";
 import EditProperty      from "./modules/owner_module/owner_property_management_module/owner_edit_property";
 import MyRentals from "./modules/tenant_module/rented_property_module/my_rentals";
-
+import RentalDetail from "./modules/tenant_module/rented_property_module/RentalDetal";
 function App() {
   return (
     <BrowserRouter>
@@ -25,6 +25,7 @@ function App() {
         <Route path="/properties/:id" element={<PropertyDetail />}  />
         <Route path="/profile"        element={<Profile />}         />
         <Route path="/my-rentals" element={<MyRentals />} />
+        <Route path="/my-rentals/:requestId" element={<RentalDetail />} />
  
         {/* Owner */}
         <Route path="/owner/dashboard"   element={<OwnerDashboard />}  />

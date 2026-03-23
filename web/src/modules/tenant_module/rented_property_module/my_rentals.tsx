@@ -5,25 +5,12 @@ import styles from "./my_rentals.module.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
-// ─── types ─────────────────────────────────────────────────────────────────
-
 interface User {
   id: number;
   name: string;
   email: string;
   role: string;
   avatarUrl?: string | null;
-}
-
-interface Payment {
-  id: number;
-  installmentNumber: number;
-  amount: number;
-  dueDate: string;
-  paidAt: string | null;
-  status: string;
-  checkoutUrl: string | null;
-  paymongoPaymentId: string | null;
 }
 
 interface RentalRequest {
@@ -41,12 +28,9 @@ interface RentalRequest {
   status: string;
   paymentPlan: string | null;
   createdAt: string;
-  payments?: Payment[];
 }
 
 type Tab = "active" | "pending" | "rejected" | "past";
-
-// ─── helpers ───────────────────────────────────────────────────────────────
 
 function formatPrice(amount: number): string {
   return new Intl.NumberFormat("en-PH", {
@@ -62,15 +46,6 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function paymentStatusColor(status: string) {
-  switch (status) {
-    case "PAID":      return { color: "#1a7a4a", bg: "rgba(26,122,74,0.08)", border: "rgba(26,122,74,0.2)" };
-    case "OVERDUE":   return { color: "#c0392b", bg: "rgba(192,57,43,0.08)", border: "rgba(192,57,43,0.2)" };
-    case "PENDING":   return { color: "#b78e42", bg: "rgba(183,142,66,0.08)", border: "rgba(183,142,66,0.2)" };
-    default:          return { color: "#6e7071", bg: "#f0f4f5", border: "#e5eced" };
-  }
-}
-
 function statusLabel(status: string): string {
   switch (status) {
     case "PENDING":   return "⏳ Awaiting Approval";
@@ -82,10 +57,18 @@ function statusLabel(status: string): string {
   }
 }
 
-// ─── component ─────────────────────────────────────────────────────────────
+function statusBadgeStyle(status: string): React.CSSProperties {
+  switch (status) {
+    case "CONFIRMED": return { background: "rgba(26,122,74,0.1)",  color: "#1a7a4a" };
+    case "APPROVED":  return { background: "rgba(31,93,113,0.1)",  color: "#1f5d71" };
+    case "REJECTED":  return { background: "rgba(192,57,43,0.1)",  color: "#c0392b" };
+    case "COMPLETED": return { background: "rgba(110,112,113,0.1)", color: "#6e7071" };
+    default:          return { background: "rgba(183,142,66,0.1)", color: "#b78e42" };
+  }
+}
 
 const MyRentals: React.FC = () => {
-  const navigate = useNavigate();
+  const navigate      = useNavigate();
   const [searchParams] = useSearchParams();
 
   const [user, setUser]         = useState<User | null>(null);
@@ -94,23 +77,15 @@ const MyRentals: React.FC = () => {
   const [error, setError]       = useState<string | null>(null);
   const [tab, setTab]           = useState<Tab>("active");
 
-  // Expand / payments
-  const [expandedId, setExpandedId]     = useState<number | null>(null);
-  const [payments, setPayments]         = useState<Record<number, Payment[]>>({});
-  const [paymentsLoading, setPaymentsLoading] = useState<Record<number, boolean>>({});
-
-  // Plan confirm modal
+  // Confirm plan modal (for APPROVED cards — quick action without leaving page)
   const [confirmTarget, setConfirmTarget] = useState<RentalRequest | null>(null);
   const [selectedPlan, setSelectedPlan]   = useState<"MONTHLY" | "FULL">("MONTHLY");
   const [confirming, setConfirming]       = useState(false);
   const [confirmError, setConfirmError]   = useState<string | null>(null);
 
-  // Payment initiation
-  const [initiating, setInitiating]   = useState<number | null>(null);
-  const [verifying, setVerifying]     = useState<number | null>(null);
-  const [paymentMsg, setPaymentMsg]   = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [banner, setBanner] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // ── Auth guard ─────────────────────────────────────────────────────────
+  // ── Auth ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const stored = localStorage.getItem("user");
     const token  = localStorage.getItem("accessToken");
@@ -122,18 +97,14 @@ const MyRentals: React.FC = () => {
     } catch { navigate("/"); }
   }, [navigate]);
 
-  // ── Handle PayMongo redirect ───────────────────────────────────────────
+  // ── PayMongo redirect banner ───────────────────────────────────────────
   useEffect(() => {
-    const paymentStatus = searchParams.get("payment");
-    if (paymentStatus === "success") {
-      setPaymentMsg({ type: "success", text: "Payment successful! Verifying with PayMongo…" });
-      setTab("active");
-    } else if (paymentStatus === "cancelled") {
-      setPaymentMsg({ type: "error", text: "Payment was cancelled. You can try again anytime." });
-    }
+    const ps = searchParams.get("payment");
+    if (ps === "success")    setBanner({ type: "success", text: "Payment received! Open your rental to verify." });
+    if (ps === "cancelled")  setBanner({ type: "error",   text: "Payment cancelled. You can try again from the rental detail page." });
   }, [searchParams]);
 
-  // ── Fetch requests ─────────────────────────────────────────────────────
+  // ── Fetch ──────────────────────────────────────────────────────────────
   const fetchRequests = useCallback(async () => {
     setLoading(true); setError(null);
     try {
@@ -153,37 +124,7 @@ const MyRentals: React.FC = () => {
 
   useEffect(() => { if (user) fetchRequests(); }, [user, fetchRequests]);
 
-  // ── Fetch payments for a request ───────────────────────────────────────
-  const fetchPayments = async (requestId: number) => {
-    if (payments[requestId]) return; // already loaded
-    setPaymentsLoading((prev) => ({ ...prev, [requestId]: true }));
-    try {
-      const token = localStorage.getItem("accessToken");
-      const res   = await fetch(`${API_BASE}/api/payments/request/${requestId}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
-      if (data.success) {
-        setPayments((prev) => ({ ...prev, [requestId]: data.data.payments ?? [] }));
-      }
-    } catch {}
-    finally {
-      setPaymentsLoading((prev) => ({ ...prev, [requestId]: false }));
-    }
-  };
-
-  const toggleExpand = (req: RentalRequest) => {
-    if (expandedId === req.id) {
-      setExpandedId(null);
-    } else {
-      setExpandedId(req.id);
-      if (req.status === "CONFIRMED" || req.status === "COMPLETED") {
-        fetchPayments(req.id);
-      }
-    }
-  };
-
-  // ── Confirm + choose plan ──────────────────────────────────────────────
+  // ── Confirm plan (APPROVED → CONFIRMED) ────────────────────────────────
   const handleConfirm = async () => {
     if (!confirmTarget) return;
     setConfirming(true); setConfirmError(null);
@@ -199,10 +140,8 @@ const MyRentals: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setConfirmError(data?.error?.message ?? "Failed to confirm.");
-        return;
+        setConfirmError(data?.error?.message ?? "Failed to confirm."); return;
       }
-      // Refresh
       setConfirmTarget(null);
       await fetchRequests();
       setTab("active");
@@ -213,61 +152,8 @@ const MyRentals: React.FC = () => {
     }
   };
 
-  // ── Pay a specific installment ─────────────────────────────────────────
-  const handlePay = async (paymentId: number) => {
-    setInitiating(paymentId); setPaymentMsg(null);
-    try {
-      const token = localStorage.getItem("accessToken");
-      const res   = await fetch(`${API_BASE}/api/payments/${paymentId}/initiate`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setPaymentMsg({ type: "error", text: data?.error?.message ?? "Failed to create payment link." });
-        return;
-      }
-      const checkoutUrl = data.data.payment.checkoutUrl;
-      if (checkoutUrl) window.location.href = checkoutUrl;
-    } catch {
-      setPaymentMsg({ type: "error", text: "Network error. Please try again." });
-    } finally {
-      setInitiating(null);
-    }
-  };
-
-  // ── Verify a payment after redirect ───────────────────────────────────
-  const handleVerify = async (paymentId: number, requestId: number) => {
-    setVerifying(paymentId); setPaymentMsg(null);
-    try {
-      const token = localStorage.getItem("accessToken");
-      const res   = await fetch(`${API_BASE}/api/payments/${paymentId}/verify`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
-      if (data.success) {
-        const updated: Payment = data.data.payment;
-        setPayments((prev) => ({
-          ...prev,
-          [requestId]: (prev[requestId] ?? []).map((p) => p.id === paymentId ? updated : p),
-        }));
-        if (updated.status === "PAID") {
-          setPaymentMsg({ type: "success", text: "Payment confirmed! ✓" });
-        } else {
-          setPaymentMsg({ type: "error", text: "Payment not yet confirmed by PayMongo. Please wait a moment and try again." });
-        }
-      }
-    } catch {
-      setPaymentMsg({ type: "error", text: "Verification failed. Please try again." });
-    } finally {
-      setVerifying(null);
-    }
-  };
-
   if (!user) return null;
 
-  // ── Filter by tab ──────────────────────────────────────────────────────
   const filtered = requests.filter((r) => {
     switch (tab) {
       case "active":   return r.status === "CONFIRMED";
@@ -300,9 +186,7 @@ const MyRentals: React.FC = () => {
                 Choose how you'd like to pay.
               </p>
             </div>
-
             <div className={styles.modalBody}>
-              {/* Property summary */}
               <div className={styles.modalPropSummary}>
                 {confirmTarget.propertyImage && (
                   <img src={confirmTarget.propertyImage} alt="" className={styles.modalPropImg} />
@@ -317,40 +201,25 @@ const MyRentals: React.FC = () => {
                   </div>
                 </div>
               </div>
-
-              {/* Plan selection */}
               <div className={styles.planLabel}>Choose your payment plan:</div>
               <div className={styles.planOptions}>
-                <button
-                  type="button"
+                <button type="button"
                   className={`${styles.planOption} ${selectedPlan === "MONTHLY" ? styles.planOptionActive : ""}`}
-                  onClick={() => setSelectedPlan("MONTHLY")}
-                >
+                  onClick={() => setSelectedPlan("MONTHLY")}>
                   <div className={styles.planOptionTitle}>📅 Pay Monthly</div>
-                  <div className={styles.planOptionDesc}>
-                    {formatPrice(confirmTarget.propertyPrice)} / month
-                  </div>
-                  <div className={styles.planOptionDetail}>
-                    {confirmTarget.leaseDurationMonths} separate payments
-                  </div>
+                  <div className={styles.planOptionDesc}>{formatPrice(confirmTarget.propertyPrice)} / month</div>
+                  <div className={styles.planOptionDetail}>{confirmTarget.leaseDurationMonths} separate payments</div>
                 </button>
-
-                <button
-                  type="button"
+                <button type="button"
                   className={`${styles.planOption} ${selectedPlan === "FULL" ? styles.planOptionActive : ""}`}
-                  onClick={() => setSelectedPlan("FULL")}
-                >
+                  onClick={() => setSelectedPlan("FULL")}>
                   <div className={styles.planOptionTitle}>💳 Pay in Full</div>
-                  <div className={styles.planOptionDesc}>
-                    {formatPrice(confirmTarget.propertyPrice * confirmTarget.leaseDurationMonths)} total
-                  </div>
+                  <div className={styles.planOptionDesc}>{formatPrice(confirmTarget.propertyPrice * confirmTarget.leaseDurationMonths)} total</div>
                   <div className={styles.planOptionDetail}>One single payment</div>
                 </button>
               </div>
-
               {confirmError && <p className={styles.modalError}>⚠ {confirmError}</p>}
             </div>
-
             <div className={styles.modalFooter}>
               <button className={styles.modalCancelBtn} onClick={() => setConfirmTarget(null)}
                 disabled={confirming} type="button">Cancel</button>
@@ -363,32 +232,30 @@ const MyRentals: React.FC = () => {
         </div>
       )}
 
-      {/* ── Page Header ── */}
+      {/* ── Header ── */}
       <div className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>My Rentals</h1>
         <p className={styles.pageSub}>Track your rental requests and payment schedules.</p>
       </div>
 
-      {/* ── Payment message banner ── */}
-      {paymentMsg && (
+      {/* ── Banner ── */}
+      {banner && (
         <div className={styles.bannerWrap}>
-          <div className={`${styles.banner} ${paymentMsg.type === "success" ? styles.bannerSuccess : styles.bannerError}`}>
-            {paymentMsg.type === "success" ? "✓" : "⚠"} {paymentMsg.text}
-            <button className={styles.bannerClose} onClick={() => setPaymentMsg(null)} type="button">✕</button>
+          <div className={`${styles.banner} ${banner.type === "success" ? styles.bannerSuccess : styles.bannerError}`}>
+            {banner.type === "success" ? "✓" : "⚠"} {banner.text}
+            <button className={styles.bannerClose} onClick={() => setBanner(null)} type="button">✕</button>
           </div>
         </div>
       )}
 
       <div className={styles.main}>
+
         {/* ── Tabs ── */}
         <div className={styles.tabs}>
           {(["active", "pending", "rejected", "past"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              type="button"
+            <button key={t} type="button"
               className={`${styles.tab} ${tab === t ? styles.tabActive : ""}`}
-              onClick={() => setTab(t)}
-            >
+              onClick={() => setTab(t)}>
               {t === "active"   && "🏠 Active"}
               {t === "pending"  && "⏳ Pending"}
               {t === "rejected" && "❌ Rejected"}
@@ -402,7 +269,7 @@ const MyRentals: React.FC = () => {
           ))}
         </div>
 
-        {/* ── Content ── */}
+        {/* ── Skeletons ── */}
         {loading && (
           <div className={styles.skeletonList}>
             {[1,2,3].map((i) => (
@@ -418,6 +285,7 @@ const MyRentals: React.FC = () => {
           </div>
         )}
 
+        {/* ── Error ── */}
         {!loading && error && (
           <div className={styles.stateBox}>
             <span className={styles.stateIcon}>⚠️</span>
@@ -426,6 +294,7 @@ const MyRentals: React.FC = () => {
           </div>
         )}
 
+        {/* ── Empty ── */}
         {!loading && !error && filtered.length === 0 && (
           <div className={styles.stateBox}>
             <span className={styles.stateIcon}>
@@ -437,7 +306,7 @@ const MyRentals: React.FC = () => {
               {tab === "rejected" && "No rejected requests."}
               {tab === "past"     && "No past rentals."}
             </p>
-            {tab === "active" && (
+            {tab !== "rejected" && (
               <button className={styles.stateBtn} onClick={() => navigate("/home")} type="button">
                 Browse Properties
               </button>
@@ -445,176 +314,76 @@ const MyRentals: React.FC = () => {
           </div>
         )}
 
+        {/* ── Cards ── */}
         {!loading && !error && filtered.length > 0 && (
           <div className={styles.rentalList}>
-            {filtered.map((req) => {
-              const isExpanded   = expandedId === req.id;
-              const reqPayments  = payments[req.id] ?? [];
-              const paidCount    = reqPayments.filter((p) => p.status === "PAID").length;
-              const totalPayments = reqPayments.length;
-              const nextDue      = reqPayments.find((p) => p.status === "PENDING" || p.status === "OVERDUE");
+            {filtered.map((req) => (
+              <div
+                key={req.id}
+                className={styles.rentalCard}
+                onClick={() => navigate(`/my-rentals/${req.id}`)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === "Enter" && navigate(`/my-rentals/${req.id}`)}
+              >
+                {/* Thumbnail */}
+                <div className={styles.cardThumb}>
+                  {req.propertyImage
+                    ? <img src={req.propertyImage} alt={req.propertyTitle} className={styles.cardThumbImg} />
+                    : <div className={styles.cardThumbPlaceholder}>🏠</div>
+                  }
+                </div>
 
-              return (
-                <div key={req.id} className={styles.rentalCard}>
-
-                  {/* ── Card header ── */}
-                  <div className={styles.cardHeader}>
-                    <div className={styles.cardThumb}>
-                      {req.propertyImage
-                        ? <img src={req.propertyImage} alt={req.propertyTitle} className={styles.cardThumbImg} />
-                        : <div className={styles.cardThumbPlaceholder}>🏠</div>
-                      }
+                {/* Info */}
+                <div className={styles.cardInfo}>
+                  <div className={styles.cardTop}>
+                    <div className={styles.cardTitleWrap}>
+                      <h3 className={styles.cardTitle}>{req.propertyTitle}</h3>
+                      <div className={styles.cardLocation}>📍 {req.propertyLocation}</div>
                     </div>
-
-                    <div className={styles.cardInfo}>
-                      <div className={styles.cardTop}>
-                        <div>
-                          <h3 className={styles.cardTitle}>{req.propertyTitle}</h3>
-                          <div className={styles.cardLocation}>📍 {req.propertyLocation}</div>
-                        </div>
-                        <div className={styles.cardPrice}>
-                          {formatPrice(req.propertyPrice)}<span>/mo</span>
-                        </div>
-                      </div>
-
-                      <div className={styles.cardMeta}>
-                        <span>📅 Move in: {formatDate(req.startDate)}</span>
-                        <span>🗓 {req.leaseDurationMonths} month{req.leaseDurationMonths !== 1 ? "s" : ""}</span>
-                        <span>👤 {req.ownerName}</span>
-                        {req.paymentPlan && (
-                          <span>💳 {req.paymentPlan === "MONTHLY" ? "Monthly payments" : "Full payment"}</span>
-                        )}
-                      </div>
-
-                      <div className={styles.cardBottom}>
-                        <span className={styles.cardStatus}>
-                          {statusLabel(req.status)}
-                        </span>
-
-                        {/* Active: show payment progress */}
-                        {req.status === "CONFIRMED" && totalPayments > 0 && (
-                          <div className={styles.progressWrap}>
-                            <div className={styles.progressBar}>
-                              <div
-                                className={styles.progressFill}
-                                style={{ width: `${(paidCount / totalPayments) * 100}%` }}
-                              />
-                            </div>
-                            <span className={styles.progressLabel}>
-                              {paidCount}/{totalPayments} paid
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Approved: action required */}
-                        {req.status === "APPROVED" && (
-                          <button
-                            className={styles.actionBtn}
-                            onClick={() => { setConfirmTarget(req); setSelectedPlan("MONTHLY"); setConfirmError(null); }}
-                            type="button"
-                          >
-                            ✓ Confirm & Choose Plan
-                          </button>
-                        )}
-
-                        {/* Owner contact */}
-                        <a href={`mailto:${req.ownerEmail}`} className={styles.contactBtn}>
-                          ✉️ Contact Owner
-                        </a>
-
-                        {/* Expand toggle */}
-                        {(req.status === "CONFIRMED" || req.status === "COMPLETED") && (
-                          <button
-                            className={styles.expandBtn}
-                            onClick={() => toggleExpand(req)}
-                            type="button"
-                          >
-                            {isExpanded ? "▲ Hide payments" : "▼ View payments"}
-                          </button>
-                        )}
-                      </div>
+                    <div className={styles.cardPrice}>
+                      {formatPrice(req.propertyPrice)}<span>/mo</span>
                     </div>
                   </div>
 
-                  {/* ── Payment schedule ── */}
-                  {isExpanded && (
-                    <div className={styles.paymentsSection}>
-                      <div className={styles.paymentsSectionTitle}>Payment Schedule</div>
+                  <div className={styles.cardMeta}>
+                    <span>📅 Move in: {formatDate(req.startDate)}</span>
+                    <span>🗓 {req.leaseDurationMonths} month{req.leaseDurationMonths !== 1 ? "s" : ""}</span>
+                    <span>👤 {req.ownerName}</span>
+                    {req.paymentPlan && (
+                      <span>💳 {req.paymentPlan === "MONTHLY" ? "Monthly" : "Full payment"}</span>
+                    )}
+                  </div>
 
-                      {paymentsLoading[req.id] && (
-                        <div className={styles.paymentsLoading}>Loading payments…</div>
-                      )}
+                  <div className={styles.cardFooter}>
+                    <span className={styles.cardStatus} style={statusBadgeStyle(req.status)}>
+                      {statusLabel(req.status)}
+                    </span>
 
-                      {!paymentsLoading[req.id] && reqPayments.length === 0 && (
-                        <div className={styles.paymentsEmpty}>No payments generated yet.</div>
-                      )}
+                    {/* Approved: quick confirm button — stop propagation so card click doesn't fire */}
+                    {req.status === "APPROVED" && (
+                      <button
+                        className={styles.actionBtn}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setConfirmTarget(req);
+                          setSelectedPlan("MONTHLY");
+                          setConfirmError(null);
+                        }}
+                        type="button"
+                      >
+                        ✓ Confirm & Choose Plan
+                      </button>
+                    )}
 
-                      {!paymentsLoading[req.id] && reqPayments.length > 0 && (
-                        <div className={styles.paymentsList}>
-                          {reqPayments.map((p) => {
-                            const colors  = paymentStatusColor(p.status);
-                            const isPaid  = p.status === "PAID";
-                            const label   = p.installmentNumber === 0
-                              ? "Full Lease Payment"
-                              : `Month ${p.installmentNumber}`;
-
-                            return (
-                              <div key={p.id} className={styles.paymentRow}>
-                                <div className={styles.paymentLeft}>
-                                  <div className={styles.paymentLabel}>{label}</div>
-                                  <div className={styles.paymentDate}>
-                                    Due: {formatDate(p.dueDate)}
-                                    {p.paidAt && ` · Paid: ${formatDate(p.paidAt)}`}
-                                  </div>
-                                </div>
-                                <div className={styles.paymentMiddle}>
-                                  {formatPrice(p.amount)}
-                                </div>
-                                <div className={styles.paymentRight}>
-                                  <span
-                                    className={styles.paymentStatus}
-                                    style={{ color: colors.color, background: colors.bg, borderColor: colors.border }}
-                                  >
-                                    {p.status}
-                                  </span>
-
-                                  {!isPaid && (
-                                    <button
-                                      className={styles.payBtn}
-                                      onClick={() => handlePay(p.id)}
-                                      disabled={initiating === p.id}
-                                      type="button"
-                                    >
-                                      {initiating === p.id
-                                        ? <><span className={styles.spinner} /> Opening…</>
-                                        : "Pay Now"}
-                                    </button>
-                                  )}
-
-                                  {!isPaid && p.paymongoPaymentId && (
-                                    <button
-                                      className={styles.verifyBtn}
-                                      onClick={() => handleVerify(p.id, req.id)}
-                                      disabled={verifying === p.id}
-                                      type="button"
-                                    >
-                                      {verifying === p.id ? "Checking…" : "Verify"}
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
+                    <span className={styles.viewHint}>View details →</span>
+                  </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         )}
+
       </div>
     </div>
   );
