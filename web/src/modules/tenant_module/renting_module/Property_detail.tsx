@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import "./Property_Detail.css";
+import styles from "./Property_Detail.module.css";
 import Navbar from "../../../components/Navbar/Navbar";
 import Footer from "../../../components/Navbar/Footer";
 
-/* ─── Types ─── */
+/* ─────────────────────────────────────────
+   Types
+───────────────────────────────────────── */
 interface Property {
   id: number;
   title: string;
@@ -20,7 +22,18 @@ interface Property {
   createdAt: string;
 }
 
-const GRADIENTS = [
+/* ─────────────────────────────────────────
+   Constants
+───────────────────────────────────────── */
+const API_BASE = "http://localhost:8080/api";
+
+const PROPERTY_ICONS: Record<string, string> = {
+  Studio: "🏢",
+  Apartment: "🏠",
+  "Boarding House": "🏘",
+};
+
+const CARD_GRADIENTS = [
   "linear-gradient(135deg, #1f5d71 0%, #2d8c8a 100%)",
   "linear-gradient(135deg, #2d6a4f 0%, #52b788 100%)",
   "linear-gradient(135deg, #5c4033 0%, #a07850 100%)",
@@ -28,53 +41,171 @@ const GRADIENTS = [
   "linear-gradient(135deg, #4a2060 0%, #8a4fbf 100%)",
   "linear-gradient(135deg, #7c3030 0%, #c06060 100%)",
 ];
-const ICONS: Record<string, string> = {
-  Studio: "🏢", Apartment: "🏠", "Boarding House": "🏘",
-};
-const API_BASE = "http://localhost:8080/api";
 
-const PropertyDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+const LEASE_DURATION_OPTIONS = [1, 2, 3, 4, 5, 6, 9, 12, 18, 24];
 
-  const [property, setProperty]       = useState<Property | null>(null);
-  const [loading, setLoading]         = useState(true);
-  const [error, setError]             = useState<string | null>(null);
+/* ─────────────────────────────────────────
+   Helper: read auth token from storage
+───────────────────────────────────────── */
+function getToken(): string | null {
+  return localStorage.getItem("accessToken") || localStorage.getItem("token");
+}
 
-  const [startDate, setStartDate]           = useState("");
-  const [leaseDuration, setLeaseDuration]   = useState("1");
-  const [submitting, setSubmitting]         = useState(false);
-  const [submitSuccess, setSubmitSuccess]   = useState(false);
-  const [submitError, setSubmitError]       = useState<string | null>(null);
+/* ─────────────────────────────────────────
+   Helper: today's date as YYYY-MM-DD
+───────────────────────────────────────── */
+function getTodayString(): string {
+  return new Date().toISOString().split("T")[0];
+}
 
-  const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
+/* ─────────────────────────────────────────
+   Sub-component: Loading skeleton
+───────────────────────────────────────── */
+function LoadingSkeleton() {
+  return (
+    <div className={styles.loadingWrapper}>
+      <div className={styles.loadingInner}>
+        <div className={styles.skeletonHero} />
+        <div className={styles.skeletonBody}>
+          <div className={styles.skeletonLine} style={{ width: "60%", height: 32 }} />
+          <div className={styles.skeletonLine} style={{ width: "40%", height: 20 }} />
+          <div className={styles.skeletonLine} style={{ width: "80%", height: 16 }} />
+          <div className={styles.skeletonLine} style={{ width: "70%", height: 16 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  /* Fetch property */
-  useEffect(() => {
-    const fetchProperty = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const headers: HeadersInit = { "Content-Type": "application/json" };
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-        const res = await fetch(`${API_BASE}/properties/${id}`, { headers });
-        if (!res.ok) throw new Error(`Server error: ${res.status}`);
-        const json = await res.json();
-        setProperty(json?.data?.property ?? json);
-      } catch (err: any) {
-        setError("Could not load property details.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (id) fetchProperty();
-  }, [id]);
+/* ─────────────────────────────────────────
+   Sub-component: Error state
+───────────────────────────────────────── */
+interface ErrorStateProps {
+  message: string | null;
+  onBack: () => void;
+}
 
-  /* Submit rental request */
+function ErrorState({ message, onBack }: ErrorStateProps) {
+  return (
+    <div className={styles.errorState}>
+      <div className={styles.errorIcon}>⚠️</div>
+      <h2 className={styles.errorTitle}>Property not found</h2>
+      <p className={styles.errorSubtitle}>{message || "This property may have been removed."}</p>
+      <button className={styles.ctaBtn} onClick={onBack}>Back to Listings</button>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
+   Sub-component: Property hero image banner
+───────────────────────────────────────── */
+interface HeroImageProps {
+  propertyId: number;
+  type: string;
+  isUnavailable: boolean;
+}
+
+function HeroImage({ propertyId, type, isUnavailable }: HeroImageProps) {
+  const gradient = CARD_GRADIENTS[propertyId % CARD_GRADIENTS.length];
+  const icon     = PROPERTY_ICONS[type] || "🏠";
+
+  return (
+    <div className={styles.heroImage} style={{ background: gradient }}>
+      <span className={styles.heroIcon}>{icon}</span>
+      <div className={styles.heroTypeBadge}>{type}</div>
+      {isUnavailable && (
+        <div className={styles.heroUnavailBadge}>Unavailable</div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
+   Sub-component: Beds / baths / sqm row
+───────────────────────────────────────── */
+interface PropertyStatsProps {
+  beds: number;
+  baths: number;
+  sqm: number;
+}
+
+function PropertyStats({ beds, baths, sqm }: PropertyStatsProps) {
+  const stats = [
+    { icon: "🛏", value: beds,  label: `Bedroom${beds !== 1 ? "s" : ""}` },
+    { icon: "🚿", value: baths, label: `Bathroom${baths !== 1 ? "s" : ""}` },
+    { icon: "📐", value: sqm,   label: "m²" },
+  ];
+
+  return (
+    <div className={styles.statsRow}>
+      {stats.map((stat, i) => (
+        <React.Fragment key={stat.label}>
+          {i > 0 && <div className={styles.statDivider} />}
+          <div className={styles.stat}>
+            <span className={styles.statIcon}>{stat.icon}</span>
+            <span className={styles.statValue}>{stat.value ?? "—"}</span>
+            <span className={styles.statLabel}>{stat.label}</span>
+          </div>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
+   Sub-component: Success confirmation
+───────────────────────────────────────── */
+interface SuccessViewProps {
+  propertyTitle: string;
+  onBack: () => void;
+}
+
+function SuccessView({ propertyTitle, onBack }: SuccessViewProps) {
+  return (
+    <div className={styles.success}>
+      <div className={styles.successIcon}>🎉</div>
+      <h3 className={styles.successTitle}>Request Submitted!</h3>
+      <p className={styles.successSubtitle}>
+        Your rental request for <strong>{propertyTitle}</strong> has been sent
+        to the owner. You'll be notified once they respond.
+      </p>
+      <div className={styles.successStatus}>
+        <span className={styles.statusDot} />
+        Status: <strong>PENDING</strong>
+      </div>
+      <button className={`${styles.ctaBtn} ${styles.ctaBtnOutline}`} onClick={onBack}>
+        Back to Listings
+      </button>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
+   Sub-component: Rental request form
+───────────────────────────────────────── */
+interface RentalFormProps {
+  property: Property;
+  onSuccess: () => void;
+  onNavigateLogin: () => void;
+}
+
+function RentalForm({ property, onSuccess, onNavigateLogin }: RentalFormProps) {
+  const token = getToken();
+
+  const [startDate,     setStartDate]     = useState("");
+  const [leaseDuration, setLeaseDuration] = useState("1");
+  const [submitting,    setSubmitting]    = useState(false);
+  const [submitError,   setSubmitError]   = useState<string | null>(null);
+
+  const isUnavailable = property.status === "UNAVAILABLE";
+  const estimatedTotal = property.price * Number(leaseDuration);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token) { setSubmitError("You must be logged in to submit a rental request."); return; }
-    if (!startDate || !leaseDuration) { setSubmitError("Please fill in all fields."); return; }
+    if (!startDate || !leaseDuration) {
+      setSubmitError("Please fill in all fields.");
+      return;
+    }
 
     setSubmitting(true);
     setSubmitError(null);
@@ -86,14 +217,14 @@ const PropertyDetail: React.FC = () => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          propertyId: Number(id),
+          propertyId:          property.id,
           startDate,
           leaseDurationMonths: Number(leaseDuration),
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error?.message || "Failed to submit request.");
-      setSubmitSuccess(true);
+      onSuccess();
     } catch (err: any) {
       setSubmitError(err.message || "Something went wrong. Please try again.");
     } finally {
@@ -101,237 +232,265 @@ const PropertyDetail: React.FC = () => {
     }
   };
 
-  const today = new Date().toISOString().split("T")[0];
-  const gradient = GRADIENTS[Number(id) % GRADIENTS.length];
-
   return (
-    <div className="pd-page">
+    <>
+      {/* Price summary */}
+      <div className={styles.priceSummary}>
+        <div className={styles.priceSummaryRow}>
+          <span>Monthly Rent</span>
+          <span className={styles.priceSummaryVal}>
+            ₱{property.price.toLocaleString()}
+          </span>
+        </div>
+        {leaseDuration && (
+          <div className={`${styles.priceSummaryRow} ${styles.priceSummaryRowTotal}`}>
+            <span>Est. Total ({leaseDuration} mo)</span>
+            <span className={styles.priceSummaryTotal}>
+              ₱{estimatedTotal.toLocaleString()}
+            </span>
+          </div>
+        )}
+      </div>
 
+      {/* Conditional body: unavailable / login required / form */}
+      {isUnavailable ? (
+        <div className={`${styles.notice} ${styles.noticeUnavailable}`}>
+          <span>🚫</span>
+          <span>This property is currently unavailable for rental requests.</span>
+        </div>
+      ) : !token ? (
+        <div className={`${styles.notice} ${styles.noticeLogin}`}>
+          <span>🔐</span>
+          <span>
+            <strong>Login required.</strong> Please{" "}
+            <span className={styles.loginLink} onClick={onNavigateLogin}>
+              sign in
+            </span>{" "}
+            to submit a rental request.
+          </span>
+        </div>
+      ) : (
+        <form className={styles.form} onSubmit={handleSubmit}>
+          {/* Move-in date */}
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="startDate">
+              Move-in Date
+            </label>
+            <input
+              id="startDate"
+              className={styles.input}
+              type="date"
+              min={getTodayString()}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              required
+            />
+          </div>
+
+          {/* Lease duration */}
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="leaseDuration">
+              Lease Duration
+            </label>
+            <div className={styles.selectWrapper}>
+              <select
+                id="leaseDuration"
+                className={styles.select}
+                value={leaseDuration}
+                onChange={(e) => setLeaseDuration(e.target.value)}
+                required
+              >
+                {LEASE_DURATION_OPTIONS.map((months) => (
+                  <option key={months} value={months}>
+                    {months} month{months !== 1 ? "s" : ""}
+                  </option>
+                ))}
+              </select>
+              <span className={styles.selectArrow}>▾</span>
+            </div>
+          </div>
+
+          {/* Inline error */}
+          {submitError && (
+            <div className={styles.formError}>
+              <span>⚠️</span>
+              <span>{submitError}</span>
+            </div>
+          )}
+
+          {/* Submit button */}
+          <button type="submit" className={styles.ctaBtn} disabled={submitting}>
+            {submitting ? (
+              <span className={styles.btnLoadingWrapper}>
+                <span className={styles.spinner} />
+                Submitting…
+              </span>
+            ) : (
+              "Submit Rental Request"
+            )}
+          </button>
+
+          <p className={styles.formNote}>
+            🔒 Your request will be reviewed by the owner. No payment is required at this stage.
+          </p>
+        </form>
+      )}
+    </>
+  );
+}
+
+/* ─────────────────────────────────────────
+   Main page component
+───────────────────────────────────────── */
+const PropertyDetail: React.FC = () => {
+  const { id }   = useParams<{ id: string }>();
+  const navigate = useNavigate();
+
+  const [property,      setProperty]      = useState<Property | null>(null);
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // Fetch property data on mount
+  useEffect(() => {
+    const fetchProperty = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const token = getToken();
+        const headers: HeadersInit = { "Content-Type": "application/json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch(`${API_BASE}/properties/${id}`, { headers });
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+
+        const json = await res.json();
+        setProperty(json?.data?.property ?? json);
+      } catch {
+        setError("Could not load property details.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) fetchProperty();
+  }, [id]);
+
+  /* ── Render ── */
+  return (
+    <div className={styles.page}>
       <Navbar />
 
-      {/* ══ BREADCRUMB ══ */}
-      <div className="pd-breadcrumb">
-        <div className="pd-breadcrumb-inner">
-          <button className="pd-back-btn" onClick={() => navigate("/home")}>
-            <span className="pd-back-arrow">←</span>
+      {/* Breadcrumb navigation */}
+      <div className={styles.breadcrumb}>
+        <div className={styles.breadcrumbInner}>
+          <button className={styles.backBtn} onClick={() => navigate("/home")}>
+            <span className={styles.backArrow}>←</span>
             Back to Listings
           </button>
+
           {property && (
-            <span className="pd-breadcrumb-trail">
-              <span className="pd-breadcrumb-home" onClick={() => navigate("/home")}>Browse</span>
-              <span className="pd-breadcrumb-sep">›</span>
-              <span className="pd-breadcrumb-current">{property.title}</span>
+            <span className={styles.breadcrumbTrail}>
+              <span
+                className={styles.breadcrumbHome}
+                onClick={() => navigate("/home")}
+              >
+                Browse
+              </span>
+              <span className={styles.breadcrumbSep}>›</span>
+              <span className={styles.breadcrumbCurrent}>{property.title}</span>
             </span>
           )}
         </div>
       </div>
 
-      {/* ══ MAIN CONTENT ══ */}
+      {/* Main content — three possible states */}
       {loading ? (
-        <div className="pd-loading">
-          <div className="pd-loading-inner">
-            <div className="pd-skeleton-hero" />
-            <div className="pd-skeleton-body">
-              <div className="pd-skeleton-line" style={{ width: "60%", height: 32 }} />
-              <div className="pd-skeleton-line" style={{ width: "40%", height: 20 }} />
-              <div className="pd-skeleton-line" style={{ width: "80%", height: 16 }} />
-              <div className="pd-skeleton-line" style={{ width: "70%", height: 16 }} />
-            </div>
-          </div>
-        </div>
-
+        <LoadingSkeleton />
       ) : error || !property ? (
-        <div className="pd-error">
-          <div className="pd-error-icon">⚠️</div>
-          <h2 className="pd-error-title">Property not found</h2>
-          <p className="pd-error-sub">{error || "This property may have been removed."}</p>
-          <button className="pd-cta-btn" onClick={() => navigate("/home")}>Back to Listings</button>
-        </div>
-
+        <ErrorState message={error} onBack={() => navigate("/home")} />
       ) : (
-        <main className="pd-main">
-          <div className="pd-main-inner">
+        <main className={styles.main}>
+          <div className={styles.mainInner}>
 
-            {/* ── LEFT COLUMN ── */}
-            <div className="pd-left">
+            {/* ── Left column: property info ── */}
+            <div className={styles.leftCol}>
+              <HeroImage
+                propertyId={Number(id)}
+                type={property.type}
+                isUnavailable={property.status === "UNAVAILABLE"}
+              />
 
-              {/* Hero image */}
-              <div className="pd-hero-image" style={{ background: gradient }}>
-                <span className="pd-hero-icon">{ICONS[property.type] || "🏠"}</span>
-                <div className="pd-hero-type-badge">{property.type}</div>
-                {property.status === "UNAVAILABLE" && (
-                  <div className="pd-hero-unavail-badge">Unavailable</div>
-                )}
-              </div>
-
-              {/* Info card */}
-              <div className="pd-info-card">
-                <div className="pd-info-header">
-                  <div className="pd-info-title-block">
-                    <h1 className="pd-title">{property.title}</h1>
-                    <div className="pd-location">
+              <div className={styles.infoCard}>
+                {/* Title + price */}
+                <div className={styles.infoHeader}>
+                  <div className={styles.infoTitleBlock}>
+                    <h1 className={styles.propertyTitle}>{property.title}</h1>
+                    <div className={styles.location}>
                       <span>📍</span>
                       <span>{property.location}</span>
                     </div>
                   </div>
-                  <div className="pd-price-block">
-                    <span className="pd-price-amount">₱{property.price.toLocaleString()}</span>
-                    <span className="pd-price-period">/month</span>
+                  <div className={styles.priceBlock}>
+                    <span className={styles.priceAmount}>
+                      ₱{property.price.toLocaleString()}
+                    </span>
+                    <span className={styles.pricePeriod}>/month</span>
                   </div>
                 </div>
 
-                <div className="pd-stats-row">
-                  <div className="pd-stat">
-                    <span className="pd-stat-icon">🛏</span>
-                    <span className="pd-stat-value">{property.beds ?? "—"}</span>
-                    <span className="pd-stat-label">Bedroom{property.beds !== 1 ? "s" : ""}</span>
-                  </div>
-                  <div className="pd-stat-divider" />
-                  <div className="pd-stat">
-                    <span className="pd-stat-icon">🚿</span>
-                    <span className="pd-stat-value">{property.baths ?? "—"}</span>
-                    <span className="pd-stat-label">Bathroom{property.baths !== 1 ? "s" : ""}</span>
-                  </div>
-                  <div className="pd-stat-divider" />
-                  <div className="pd-stat">
-                    <span className="pd-stat-icon">📐</span>
-                    <span className="pd-stat-value">{property.sqm ?? "—"}</span>
-                    <span className="pd-stat-label">m²</span>
-                  </div>
-                </div>
+                {/* Beds / baths / sqm */}
+                <PropertyStats
+                  beds={property.beds}
+                  baths={property.baths}
+                  sqm={property.sqm}
+                />
 
+                {/* Description */}
                 {property.description && (
-                  <div className="pd-description">
-                    <h3 className="pd-section-label">About this property</h3>
-                    <p className="pd-description-text">{property.description}</p>
+                  <div className={styles.description}>
+                    <h3 className={styles.sectionLabel}>About this property</h3>
+                    <p className={styles.descriptionText}>{property.description}</p>
                   </div>
                 )}
 
-                <div className="pd-owner-row">
-                  <div className="pd-owner-avatar">
+                {/* Owner info */}
+                <div className={styles.ownerRow}>
+                  <div className={styles.ownerAvatar}>
                     {property.ownerName?.charAt(0).toUpperCase() || "O"}
                   </div>
-                  <div className="pd-owner-info">
-                    <span className="pd-owner-label">Listed by</span>
-                    <span className="pd-owner-name">{property.ownerName || "Property Owner"}</span>
+                  <div className={styles.ownerInfo}>
+                    <span className={styles.ownerLabel}>Listed by</span>
+                    <span className={styles.ownerName}>
+                      {property.ownerName || "Property Owner"}
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* ── RIGHT COLUMN ── */}
-            <div className="pd-right">
-              <div className="pd-form-card">
-
+            {/* ── Right column: rental form ── */}
+            <div className={styles.rightCol}>
+              <div className={styles.formCard}>
                 {submitSuccess ? (
-                  <div className="pd-success">
-                    <div className="pd-success-icon">🎉</div>
-                    <h3 className="pd-success-title">Request Submitted!</h3>
-                    <p className="pd-success-sub">
-                      Your rental request for <strong>{property.title}</strong> has been sent to the owner.
-                      You'll be notified once they respond.
-                    </p>
-                    <div className="pd-success-status">
-                      <span className="pd-status-dot" />
-                      Status: <strong>PENDING</strong>
-                    </div>
-                    <button className="pd-cta-btn pd-cta-btn--outline" onClick={() => navigate("/home")}>
-                      Back to Listings
-                    </button>
-                  </div>
-
+                  <SuccessView
+                    propertyTitle={property.title}
+                    onBack={() => navigate("/home")}
+                  />
                 ) : (
                   <>
-                    <div className="pd-form-header">
-                      <h2 className="pd-form-title">Request to Rent</h2>
-                      <p className="pd-form-sub">
-                        Fill in your preferred move-in date and lease duration to send a request to the owner.
+                    <div className={styles.formHeader}>
+                      <h2 className={styles.formTitle}>Request to Rent</h2>
+                      <p className={styles.formSubtitle}>
+                        Fill in your preferred move-in date and lease duration
+                        to send a request to the owner.
                       </p>
                     </div>
-
-                    <div className="pd-price-summary">
-                      <div className="pd-price-summary-row">
-                        <span>Monthly Rent</span>
-                        <span className="pd-price-summary-val">₱{property.price.toLocaleString()}</span>
-                      </div>
-                      {leaseDuration && (
-                        <div className="pd-price-summary-row pd-price-summary-row--total">
-                          <span>Est. Total ({leaseDuration} mo)</span>
-                          <span className="pd-price-summary-total">
-                            ₱{(property.price * Number(leaseDuration)).toLocaleString()}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {property.status === "UNAVAILABLE" ? (
-                      <div className="pd-unavail-notice">
-                        <span>🚫</span>
-                        <span>This property is currently unavailable for rental requests.</span>
-                      </div>
-                    ) : !token ? (
-                      <div className="pd-login-notice">
-                        <span>🔐</span>
-                        <span>
-                          <strong>Login required.</strong> Please{" "}
-                          <span className="pd-login-link" onClick={() => navigate("/")}>sign in</span>{" "}
-                          to submit a rental request.
-                        </span>
-                      </div>
-                    ) : (
-                      <form className="pd-form" onSubmit={handleSubmit}>
-                        <div className="pd-field">
-                          <label className="pd-label" htmlFor="startDate">Move-in Date</label>
-                          <input
-                            id="startDate"
-                            className="pd-input"
-                            type="date"
-                            min={today}
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            required
-                          />
-                        </div>
-
-                        <div className="pd-field">
-                          <label className="pd-label" htmlFor="leaseDuration">Lease Duration</label>
-                          <div className="pd-select-wrapper">
-                            <select
-                              id="leaseDuration"
-                              className="pd-select"
-                              value={leaseDuration}
-                              onChange={(e) => setLeaseDuration(e.target.value)}
-                              required
-                            >
-                              {[1, 2, 3, 4, 5, 6, 9, 12, 18, 24].map((m) => (
-                                <option key={m} value={m}>{m} month{m !== 1 ? "s" : ""}</option>
-                              ))}
-                            </select>
-                            <span className="pd-select-arrow">▾</span>
-                          </div>
-                        </div>
-
-                        {submitError && (
-                          <div className="pd-form-error">
-                            <span>⚠️</span>
-                            <span>{submitError}</span>
-                          </div>
-                        )}
-
-                        <button type="submit" className="pd-cta-btn" disabled={submitting}>
-                          {submitting ? (
-                            <span className="pd-btn-loading">
-                              <span className="pd-spinner" />
-                              Submitting…
-                            </span>
-                          ) : "Submit Rental Request"}
-                        </button>
-
-                        <p className="pd-form-note">
-                          🔒 Your request will be reviewed by the owner. No payment is required at this stage.
-                        </p>
-                      </form>
-                    )}
+                    <RentalForm
+                      property={property}
+                      onSuccess={() => setSubmitSuccess(true)}
+                      onNavigateLogin={() => navigate("/")}
+                    />
                   </>
                 )}
               </div>
@@ -342,7 +501,6 @@ const PropertyDetail: React.FC = () => {
       )}
 
       <Footer />
-
     </div>
   );
 };

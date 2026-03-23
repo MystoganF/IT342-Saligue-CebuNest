@@ -1,26 +1,140 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import "./Navbar.css";
+import styles from "./Navbar.module.css";
 import logo from "../../assets/images/cebunest-logo.png";
 
+/* ─────────────────────────────────────────
+   Types
+───────────────────────────────────────── */
+interface UserData {
+  name: string;
+  email: string;
+  avatarUrl?: string;
+}
+
+/* ─────────────────────────────────────────
+   Helper: read + parse user from storage
+───────────────────────────────────────── */
+function getStoredUser(): UserData | null {
+  const raw = localStorage.getItem("user");
+  return raw ? JSON.parse(raw) : null;
+}
+
+/* ─────────────────────────────────────────
+   Helper: derive initials from a full name
+───────────────────────────────────────── */
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+/* ─────────────────────────────────────────
+   Sub-component: Avatar (image or initials)
+───────────────────────────────────────── */
+interface AvatarProps {
+  avatarUrl: string | null;
+  initials: string;
+  className?: string;
+  imgClassName?: string;
+}
+
+function Avatar({ avatarUrl, initials, className, imgClassName }: AvatarProps) {
+  if (avatarUrl) {
+    return <img src={avatarUrl} alt={initials} className={imgClassName} />;
+  }
+  return <span className={className}>{initials}</span>;
+}
+
+/* ─────────────────────────────────────────
+   Sub-component: Profile dropdown menu
+───────────────────────────────────────── */
+interface ProfileDropdownProps {
+  user: UserData | null;
+  avatarUrl: string | null;
+  initials: string;
+  isProfileActive: boolean;
+  onProfileClick: () => void;
+  onLogout: () => void;
+}
+
+function ProfileDropdown({
+  user,
+  avatarUrl,
+  initials,
+  isProfileActive,
+  onProfileClick,
+  onLogout,
+}: ProfileDropdownProps) {
+  return (
+    <div className={styles.dropdown}>
+      {/* User info header */}
+      <div className={styles.dropdownHeader}>
+        <div className={styles.dropdownAvatar}>
+          <Avatar
+            avatarUrl={avatarUrl}
+            initials={initials}
+            imgClassName={styles.dropdownAvatarImg}
+          />
+        </div>
+        <div className={styles.dropdownUserInfo}>
+          <span className={styles.dropdownName}>{user?.name || "User"}</span>
+          <span className={styles.dropdownEmail}>{user?.email || ""}</span>
+        </div>
+      </div>
+
+      <div className={styles.dropdownDivider} />
+
+      {/* My Profile */}
+      <button
+        className={`${styles.dropdownItem}${isProfileActive ? ` ${styles.dropdownItemActive}` : ""}`}
+        onClick={onProfileClick}
+      >
+        <span className={styles.dropdownIcon}>👤</span>
+        <span>My Profile</span>
+      </button>
+
+      <div className={styles.dropdownDivider} />
+
+      {/* Logout */}
+      <button
+        className={`${styles.dropdownItem} ${styles.dropdownItemLogout}`}
+        onClick={onLogout}
+      >
+        <span className={styles.dropdownIcon}>🚪</span>
+        <span>Logout</span>
+      </button>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
+   Main Navbar component
+───────────────────────────────────────── */
 const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [menuOpen, setMenuOpen]     = useState(false);
+
+  const [menuOpen,    setMenuOpen]    = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+
   const profileRef = useRef<HTMLDivElement>(null);
 
-  const storedUser = localStorage.getItem("user");
-  const user       = storedUser ? JSON.parse(storedUser) : null;
-  const initials   = user?.name
-    ? user.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
-    : "?";
-  const avatarUrl  = user?.avatarUrl || null;
+  const user      = getStoredUser();
+  const initials  = user?.name ? getInitials(user.name) : "?";
+  const avatarUrl = user?.avatarUrl || null;
 
+  const isActive = (path: string) => location.pathname === path;
+
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node))
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -36,92 +150,62 @@ const Navbar: React.FC = () => {
     navigate("/profile");
   };
 
-  const isActive = (path: string) => location.pathname === path;
-
   return (
-    <header className="cn-navbar">
-      <div className="cn-navbar-inner">
+    <header className={styles.navbar}>
+      <div className={styles.navbarInner}>
 
         {/* Brand */}
-        <div className="cn-navbar-brand" onClick={() => navigate("/home")}>
-          <img src={logo} alt="CebuNest" className="cn-navbar-logo" />
-          <span className="cn-navbar-wordmark">CebuNest</span>
+        <div className={styles.brand} onClick={() => navigate("/home")}>
+          <img src={logo} alt="CebuNest" className={styles.brandLogo} />
+          <span className={styles.brandWordmark}>CebuNest</span>
         </div>
 
         {/* Nav links */}
-        <nav className={`cn-navbar-nav${menuOpen ? " cn-navbar-nav--open" : ""}`}>
+        <nav className={`${styles.nav}${menuOpen ? ` ${styles.navOpen}` : ""}`}>
           <span
-            className={`cn-nav-link${isActive("/home") ? " cn-nav-link--active" : ""}`}
+            className={`${styles.navLink}${isActive("/home") ? ` ${styles.navLinkActive}` : ""}`}
             onClick={() => navigate("/home")}
           >
             Browse
           </span>
-          <span className="cn-nav-link">My Rentals</span>
-          <span className="cn-nav-link">Notifications</span>
+          <span className={styles.navLink}>My Rentals</span>
+          <span className={styles.navLink}>Notifications</span>
         </nav>
 
         {/* Actions */}
-        <div className="cn-navbar-actions">
-          <div className="cn-profile-wrapper" ref={profileRef}>
+        <div className={styles.actions}>
 
-            {/* Avatar button — shows photo if available, initials otherwise */}
+          {/* Profile avatar + dropdown */}
+          <div className={styles.profileWrapper} ref={profileRef}>
             <button
-              className="cn-navbar-avatar"
-              onClick={() => setProfileOpen((o) => !o)}
+              className={styles.avatarBtn}
+              onClick={() => setProfileOpen((prev) => !prev)}
               aria-label="Profile menu"
               aria-expanded={profileOpen}
             >
-              {avatarUrl
-                ? <img src={avatarUrl} alt={initials} className="cn-navbar-avatar-img" />
-                : initials
-              }
+              <Avatar
+                avatarUrl={avatarUrl}
+                initials={initials}
+                imgClassName={styles.avatarImg}
+              />
             </button>
 
             {profileOpen && (
-              <div className="cn-profile-dropdown">
-
-                {/* Dropdown header */}
-                <div className="cn-profile-dropdown-header">
-                  <div className="cn-profile-dropdown-avatar">
-                    {avatarUrl
-                      ? <img src={avatarUrl} alt={initials} className="cn-profile-dropdown-avatar-img" />
-                      : initials
-                    }
-                  </div>
-                  <div className="cn-profile-dropdown-info">
-                    <span className="cn-profile-dropdown-name">{user?.name || "User"}</span>
-                    <span className="cn-profile-dropdown-email">{user?.email || ""}</span>
-                  </div>
-                </div>
-
-                <div className="cn-profile-dropdown-divider" />
-
-                {/* My Profile — now active */}
-                <button
-                  className={`cn-profile-dropdown-item${isActive("/profile") ? " cn-profile-dropdown-item--active" : ""}`}
-                  onClick={handleProfileClick}
-                >
-                  <span className="cn-profile-dropdown-icon">👤</span>
-                  <span>My Profile</span>
-                </button>
-
-                <div className="cn-profile-dropdown-divider" />
-
-                <button
-                  className="cn-profile-dropdown-item cn-profile-dropdown-item--logout"
-                  onClick={handleLogout}
-                >
-                  <span className="cn-profile-dropdown-icon">🚪</span>
-                  <span>Logout</span>
-                </button>
-
-              </div>
+              <ProfileDropdown
+                user={user}
+                avatarUrl={avatarUrl}
+                initials={initials}
+                isProfileActive={isActive("/profile")}
+                onProfileClick={handleProfileClick}
+                onLogout={handleLogout}
+              />
             )}
           </div>
 
+          {/* Hamburger (mobile) */}
           <button
-            className="cn-hamburger"
-            onClick={() => setMenuOpen((o) => !o)}
+            className={styles.hamburger}
+            onClick={() => setMenuOpen((prev) => !prev)}
             aria-label="Toggle menu"
           >
             <span /><span /><span />

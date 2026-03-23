@@ -1,15 +1,15 @@
 import React from "react";
-import "./Navbar.css";
+import styles from "./Navbar.module.css";
 import logo from "../../assets/images/cebunest-logo.png";
 
 const Footer: React.FC = () => (
-  <footer className="cn-footer">
-    <div className="cn-footer-inner">
-      <div className="cn-footer-brand">
-        <img src={logo} alt="CebuNest" className="cn-footer-logo" />
-        <span className="cn-footer-wordmark">CebuNest</span>
+  <footer className={styles.footer}>
+    <div className={styles.footerInner}>
+      <div className={styles.footerBrand}>
+        <img src={logo} alt="CebuNest" className={styles.footerLogo} />
+        <span className={styles.footerWordmark}>CebuNest</span>
       </div>
-      <p className="cn-footer-copy">© 2026 CebuNest. All rights reserved.</p>
+      <p className={styles.footerCopy}>© 2026 CebuNest. All rights reserved.</p>
     </div>
   </footer>
 );

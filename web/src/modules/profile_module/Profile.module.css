@@ -1,14 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap');
 
-.pf-page *,
-.pf-page *::before,
-.pf-page *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-.pf-page {
+/* ─────────────────────────────────────────
+   CSS Variables & Page Root
+───────────────────────────────────────── */
+.page {
   --cn-teal-deep:  #1f5d71;
   --cn-teal-aero:  #53a4a3;
   --cn-teal-soft:  #98c1c1;
@@ -20,34 +15,45 @@
   min-height: 100vh;
   background: var(--cn-bg);
   font-family: 'DM Sans', sans-serif;
+  box-sizing: border-box;
 }
 
-/* ════════════════════════════
-   HERO
-════════════════════════════ */
-.pf-hero {
+.page *,
+.page *::before,
+.page *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ─────────────────────────────────────────
+   Hero Banner
+───────────────────────────────────────── */
+.hero {
   position: relative;
   background: var(--cn-teal-deep);
-  padding: 80px 0 52px;
+  padding: 32px 0 80px;
   overflow: hidden;
 }
 
-.pf-hero-deco {
+/* Decorative rings */
+.heroDeco {
   position: absolute;
   border-radius: 50%;
   pointer-events: none;
   border: 1px solid rgba(83, 164, 163, 0.18);
 }
-.pf-hero-deco--1 { width: 500px; height: 500px; top: -200px; right: -100px; }
-.pf-hero-deco--2 { width: 280px; height: 280px; bottom: -120px; left: -60px; border-color: rgba(183,142,66,0.2); }
 
-.pf-hero-inner {
+.heroDeco1 { width: 500px; height: 500px; top: -200px; right: -100px; }
+.heroDeco2 { width: 280px; height: 280px; bottom: -120px; left: -60px; border-color: rgba(183, 142, 66, 0.2); }
+
+.heroInner {
   max-width: 1100px;
   margin: 0 auto;
   padding: 0 40px;
 }
 
-.pf-back-btn {
+.backBtn {
   background: none;
   border: none;
   color: var(--cn-teal-soft);
@@ -63,22 +69,22 @@
   letter-spacing: 0.3px;
   transition: color 0.2s;
 }
-.pf-back-btn:hover { color: #fff; }
+.backBtn:hover { color: #fff; }
 
-.pf-hero-eyebrow {
+.heroEyebrow {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
 }
 
-.pf-eyebrow-line {
+.eyebrowLine {
   width: 28px;
   height: 1.5px;
   background: var(--cn-gold);
 }
 
-.pf-eyebrow-text {
+.eyebrowText {
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 3px;
@@ -86,19 +92,19 @@
   color: var(--cn-gold-light);
 }
 
-.pf-hero-heading {
+.heroHeading {
   font-family: 'Playfair Display', serif;
   font-size: 42px;
   font-weight: 700;
   color: #fff;
   line-height: 1.2;
-  animation: pfFadeUp 0.6s ease both;
+  animation: fadeUp 0.6s ease both;
 }
 
-/* ════════════════════════════
-   LAYOUT
-════════════════════════════ */
-.pf-content {
+/* ─────────────────────────────────────────
+   Two-Column Content Layout
+───────────────────────────────────────── */
+.content {
   max-width: 1100px;
   margin: -32px auto 60px;
   padding: 0 40px;
@@ -108,28 +114,33 @@
   align-items: start;
 }
 
-/* ════════════════════════════
-   LEFT — AVATAR CARD
-════════════════════════════ */
-.pf-avatar-card {
+/* ─────────────────────────────────────────
+   Left Column — Avatar Card
+───────────────────────────────────────── */
+.avatarCard {
   background: #fff;
   border-radius: 24px;
-  box-shadow: 0 2px 8px rgba(31,93,113,0.06), 0 16px 48px rgba(31,93,113,0.1);
+  box-shadow:
+    0 2px 8px rgba(31, 93, 113, 0.06),
+    0 16px 48px rgba(31, 93, 113, 0.1);
   overflow: hidden;
   position: relative;
-  animation: pfFadeUp 0.5s 0.05s ease both;
+  animation: fadeUp 0.5s 0.05s ease both;
 }
 
-.pf-avatar-card::before {
+/* Gold accent line at top of card */
+.avatarCard::before {
   content: '';
   position: absolute;
-  top: 0; left: 32px; right: 32px;
+  top: 0;
+  left: 32px;
+  right: 32px;
   height: 2px;
   border-radius: 0 0 2px 2px;
   background: linear-gradient(90deg, transparent, var(--cn-gold), transparent);
 }
 
-.pf-avatar-card-top {
+.avatarCardTop {
   padding: 40px 28px 24px;
   display: flex;
   flex-direction: column;
@@ -137,8 +148,8 @@
   gap: 14px;
 }
 
-/* Avatar zone */
-.pf-avatar-zone {
+/* ── Avatar upload zone ── */
+.avatarZone {
   position: relative;
   width: 130px;
   height: 130px;
@@ -147,21 +158,21 @@
   flex-shrink: 0;
   transition: transform 0.2s;
 }
-.pf-avatar-zone:hover { transform: scale(1.03); }
-.pf-avatar-zone--dragover { outline: 3px dashed var(--cn-teal-aero); outline-offset: 4px; }
-.pf-avatar-zone--uploading { cursor: not-allowed; }
+.avatarZone:hover           { transform: scale(1.03); }
+.avatarZoneDragover         { outline: 3px dashed var(--cn-teal-aero); outline-offset: 4px; }
+.avatarZoneUploading        { cursor: not-allowed; }
 
-.pf-avatar-img {
+.avatarImg {
   width: 100%;
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
   display: block;
   border: 3px solid #fff;
-  box-shadow: 0 4px 20px rgba(31,93,113,0.2);
+  box-shadow: 0 4px 20px rgba(31, 93, 113, 0.2);
 }
 
-.pf-avatar-placeholder {
+.avatarPlaceholder {
   width: 100%;
   height: 100%;
   border-radius: 50%;
@@ -170,10 +181,10 @@
   align-items: center;
   justify-content: center;
   border: 3px solid #fff;
-  box-shadow: 0 4px 20px rgba(31,93,113,0.2);
+  box-shadow: 0 4px 20px rgba(31, 93, 113, 0.2);
 }
 
-.pf-avatar-initials {
+.avatarInitials {
   font-family: 'Playfair Display', serif;
   font-size: 36px;
   font-weight: 700;
@@ -181,7 +192,8 @@
   letter-spacing: 1px;
 }
 
-.pf-avatar-overlay {
+/* Hover overlay */
+.avatarOverlay {
   position: absolute;
   inset: 0;
   border-radius: 50%;
@@ -194,11 +206,11 @@
   opacity: 0;
   transition: opacity 0.2s;
 }
-.pf-avatar-zone:hover .pf-avatar-overlay,
-.pf-avatar-zone--uploading .pf-avatar-overlay { opacity: 1; }
+.avatarZone:hover .avatarOverlay,
+.avatarZoneUploading .avatarOverlay { opacity: 1; }
 
-.pf-avatar-overlay-icon  { font-size: 22px; }
-.pf-avatar-overlay-text  {
+.avatarOverlayIcon { font-size: 22px; }
+.avatarOverlayText {
   font-size: 11px;
   font-weight: 700;
   color: #fff;
@@ -206,25 +218,26 @@
   text-transform: uppercase;
 }
 
-.pf-avatar-spinner {
+.avatarSpinner {
   width: 24px;
   height: 24px;
-  border: 2.5px solid rgba(255,255,255,0.3);
+  border: 2.5px solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
   border-radius: 50%;
-  animation: pfSpin 0.7s linear infinite;
+  animation: spin 0.7s linear infinite;
 }
 
-.pf-avatar-input { display: none; }
+/* Hidden file input */
+.avatarInput { display: none; }
 
-.pf-upload-error {
+.uploadError {
   font-size: 12px;
   color: #b03030;
   text-align: center;
   font-weight: 600;
 }
 
-.pf-avatar-hint {
+.avatarHint {
   font-size: 12px;
   color: var(--cn-slate);
   text-align: center;
@@ -232,21 +245,21 @@
   font-weight: 500;
 }
 
-.pf-avatar-card-divider {
+.avatarCardDivider {
   height: 1px;
   background: #f0f4f5;
   margin: 0 28px;
 }
 
-/* Read-only info block in card */
-.pf-avatar-card-info {
+/* Read-only snapshot (name, email, role) */
+.avatarCardInfo {
   padding: 22px 28px 20px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.pf-info-name {
+.infoName {
   font-family: 'Playfair Display', serif;
   font-size: 17px;
   font-weight: 700;
@@ -255,26 +268,26 @@
   margin-bottom: 2px;
 }
 
-.pf-info-row {
+.infoRow {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.pf-info-icon {
+.infoIcon {
   font-size: 14px;
   flex-shrink: 0;
   opacity: 0.6;
 }
 
-.pf-info-value {
+.infoValue {
   font-size: 13px;
   color: var(--cn-slate);
   font-weight: 500;
   word-break: break-all;
 }
 
-.pf-role-badge {
+.roleBadge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -288,7 +301,7 @@
   letter-spacing: 0.3px;
 }
 
-.pf-avatar-card-note {
+.avatarCardNote {
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -301,46 +314,51 @@
   font-weight: 500;
 }
 
-.pf-note-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+.noteIcon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
 
-/* ════════════════════════════
-   RIGHT — FORM CARD
-════════════════════════════ */
-.pf-form-card {
+/* ─────────────────────────────────────────
+   Right Column — Edit Form Card
+───────────────────────────────────────── */
+.formCard {
   background: #fff;
   border-radius: 24px;
-  padding: 48px 48px 44px;
-  box-shadow: 0 2px 8px rgba(31,93,113,0.06), 0 16px 48px rgba(31,93,113,0.1);
+  padding: 48px;
+  box-shadow:
+    0 2px 8px rgba(31, 93, 113, 0.06),
+    0 16px 48px rgba(31, 93, 113, 0.1);
   position: relative;
-  animation: pfFadeUp 0.5s 0.12s ease both;
+  animation: fadeUp 0.5s 0.12s ease both;
 }
 
-.pf-form-card::before {
+.formCard::before {
   content: '';
   position: absolute;
-  top: 0; left: 48px; right: 48px;
+  top: 0;
+  left: 48px;
+  right: 48px;
   height: 2px;
   border-radius: 0 0 2px 2px;
   background: linear-gradient(90deg, transparent, var(--cn-gold), transparent);
 }
 
-.pf-form-header { margin-bottom: 32px; }
+/* Form card header */
+.formHeader { margin-bottom: 32px; }
 
-.pf-form-eyebrow {
+.formEyebrow {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
 }
 
-.pf-header-dot {
+.headerDot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: var(--cn-gold);
 }
 
-.pf-header-eyebrow-text {
+.headerEyebrowText {
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 2.5px;
@@ -348,7 +366,7 @@
   color: var(--cn-teal-aero);
 }
 
-.pf-form-heading {
+.formHeading {
   font-family: 'Playfair Display', serif;
   font-size: 32px;
   font-weight: 700;
@@ -356,28 +374,28 @@
   line-height: 1.2;
 }
 
-.pf-form-subheading {
+.formSubheading {
   font-size: 15px;
   color: var(--cn-slate);
   margin-top: 8px;
   font-weight: 500;
 }
 
-/* Read-only display fields */
-.pf-readonly-group {
+/* Read-only email + role display */
+.readonlyGroup {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
   margin-bottom: 28px;
 }
 
-.pf-readonly-item {
+.readonlyItem {
   display: flex;
   flex-direction: column;
   gap: 7px;
 }
 
-.pf-readonly-label {
+.readonlyLabel {
   font-size: 13px;
   font-weight: 700;
   color: var(--cn-teal-deep);
@@ -385,7 +403,7 @@
   text-transform: uppercase;
 }
 
-.pf-readonly-value-wrap {
+.readonlyValueWrap {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -395,36 +413,36 @@
   padding: 13px 14px;
 }
 
-.pf-readonly-icon {
+.readonlyIcon {
   font-size: 16px;
   opacity: 0.5;
   flex-shrink: 0;
 }
 
-.pf-readonly-value {
+.readonlyValue {
   font-size: 15px;
   color: var(--cn-slate);
   font-weight: 500;
   word-break: break-all;
 }
 
-/* Section divider */
-.pf-section-divider {
+/* "Editable fields" section divider */
+.sectionDivider {
   display: flex;
   align-items: center;
   gap: 12px;
   margin: 0 0 28px;
 }
 
-.pf-section-divider::before,
-.pf-section-divider::after {
+.sectionDivider::before,
+.sectionDivider::after {
   content: '';
   flex: 1;
   height: 1px;
   background: #e5eced;
 }
 
-.pf-section-divider-text {
+.sectionDividerText {
   font-size: 12px;
   color: var(--cn-slate);
   font-weight: 700;
@@ -433,17 +451,17 @@
   white-space: nowrap;
 }
 
-/* Editable fields */
-.pf-form { display: flex; flex-direction: column; }
+/* Editable input fields */
+.form { display: flex; flex-direction: column; }
 
-.pf-field-group {
+.fieldGroup {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-bottom: 22px;
 }
 
-.pf-field-label {
+.fieldLabel {
   font-size: 13px;
   font-weight: 700;
   color: var(--cn-teal-deep);
@@ -451,20 +469,19 @@
   text-transform: uppercase;
 }
 
-.pf-field-wrap { position: relative; }
+.fieldWrap { position: relative; }
 
-.pf-field-icon {
+.fieldIcon {
   position: absolute;
   left: 14px;
   top: 50%;
   transform: translateY(-50%);
   font-size: 17px;
-  line-height: 1;
   pointer-events: none;
   opacity: 0.6;
 }
 
-.pf-field-input {
+.fieldInput {
   width: 100%;
   padding: 14px 14px 14px 44px;
   border-radius: 12px;
@@ -473,20 +490,20 @@
   font-size: 15px;
   color: #1a2a2e;
   background: #fafcfc;
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
   outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
 
-.pf-field-input::placeholder { color: #b0bcbe; font-weight: 500; }
+.fieldInput::placeholder { color: #b0bcbe; font-weight: 500; }
 
-.pf-field-input:focus {
+.fieldInput:focus {
   border-color: var(--cn-teal-aero);
   background: #fff;
   box-shadow: 0 0 0 4px rgba(83, 164, 163, 0.1);
 }
 
 /* Save button */
-.pf-save-btn {
+.saveBtn {
   width: 100%;
   padding: 16px;
   background: var(--cn-teal-deep);
@@ -508,36 +525,38 @@
   margin-top: 4px;
 }
 
-.pf-save-btn::after {
+.saveBtn::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, transparent 60%);
 }
 
-.pf-save-btn:hover:not(:disabled) {
+.saveBtn:hover:not(:disabled) {
   background: #174d5e;
-  box-shadow: 0 8px 24px rgba(31,93,113,0.3);
+  box-shadow: 0 8px 24px rgba(31, 93, 113, 0.3);
   transform: translateY(-1px);
 }
 
-.pf-save-btn:disabled {
+.saveBtn:disabled {
   opacity: 0.7;
   cursor: not-allowed;
   transform: none;
 }
 
-.pf-btn-spinner {
+.saveBtnLoading { opacity: 0.7; cursor: not-allowed; }
+
+.btnSpinner {
   width: 20px;
   height: 20px;
-  border: 2.5px solid rgba(255,255,255,0.35);
+  border: 2.5px solid rgba(255, 255, 255, 0.35);
   border-top-color: #fff;
   border-radius: 50%;
-  animation: pfSpin 0.7s linear infinite;
+  animation: spin 0.7s linear infinite;
 }
 
-/* Messages */
-.pf-save-msg {
+/* Success / error message */
+.saveMsg {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -546,43 +565,47 @@
   font-size: 15px;
   font-weight: 600;
   margin-top: 16px;
-  animation: pfFadeUp 0.3s ease both;
+  animation: fadeUp 0.3s ease both;
 }
 
-.pf-save-msg--ok {
-  background: rgba(31,93,113,0.06);
-  border: 1px solid rgba(31,93,113,0.22);
+.saveMsgOk {
+  background: rgba(31, 93, 113, 0.06);
+  border: 1px solid rgba(31, 93, 113, 0.22);
   color: var(--cn-teal-deep);
 }
 
-.pf-save-msg--err {
-  background: rgba(200,50,50,0.06);
-  border: 1px solid rgba(200,50,50,0.2);
+.saveMsgErr {
+  background: rgba(200, 50, 50, 0.06);
+  border: 1px solid rgba(200, 50, 50, 0.2);
   color: #b03030;
 }
 
-/* ── ANIMATIONS ── */
-@keyframes pfFadeUp {
+/* ─────────────────────────────────────────
+   Animations
+───────────────────────────────────────── */
+@keyframes fadeUp {
   from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes pfSpin {
+@keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-/* ── RESPONSIVE ── */
+/* ─────────────────────────────────────────
+   Responsive
+───────────────────────────────────────── */
 @media (max-width: 900px) {
-  .pf-content { grid-template-columns: 1fr; }
-  .pf-avatar-card { max-width: 480px; margin: 0 auto; width: 100%; }
-  .pf-readonly-group { grid-template-columns: 1fr; }
+  .content           { grid-template-columns: 1fr; }
+  .avatarCard        { max-width: 480px; margin: 0 auto; width: 100%; }
+  .readonlyGroup     { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 600px) {
-  .pf-hero { padding: 72px 0 40px; }
-  .pf-hero-inner { padding: 0 20px; }
-  .pf-hero-heading { font-size: 32px; }
-  .pf-content { padding: 0 20px; margin-top: -20px; }
-  .pf-form-card { padding: 36px 24px 32px; }
-  .pf-form-card::before { left: 24px; right: 24px; }
+  .hero              { padding: 72px 0 40px; }
+  .heroInner         { padding: 0 20px; }
+  .heroHeading       { font-size: 32px; }
+  .content           { padding: 0 20px; margin-top: -20px; }
+  .formCard          { padding: 36px 24px 32px; }
+  .formCard::before  { left: 24px; right: 24px; }
 }
