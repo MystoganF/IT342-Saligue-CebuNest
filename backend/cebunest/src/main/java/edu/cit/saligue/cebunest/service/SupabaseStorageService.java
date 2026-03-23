@@ -27,13 +27,24 @@ public class SupabaseStorageService {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
+    // ── Upload avatar ─────────────────────────────────────────────────────
     public String uploadAvatar(Long userId, MultipartFile file) throws IOException {
-        String ext      = getExtension(file.getOriginalFilename());
-        String fileName = userId + "-" + UUID.randomUUID() + "." + ext;
+        String fileName  = "avatars/" + userId + "-" + UUID.randomUUID() + "." + getExtension(file);
+        return upload(fileName, file);
+    }
+
+    // ── Upload property image ─────────────────────────────────────────────
+    public String uploadPropertyImage(Long propertyId, MultipartFile file) throws IOException {
+        String fileName = "properties/" + propertyId + "-" + UUID.randomUUID() + "." + getExtension(file);
+        return upload(fileName, file);
+    }
+
+    // ── Shared upload logic ───────────────────────────────────────────────
+    private String upload(String fileName, MultipartFile file) throws IOException {
         String uploadUrl = supabaseUrl + "/storage/v1/object/" + bucket + "/" + fileName;
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("apikey", supabaseAnonKey);
+        headers.set("apikey",        supabaseAnonKey);
         headers.set("Authorization", "Bearer " + supabaseServiceKey);
         headers.setContentType(MediaType.parseMediaType(file.getContentType()));
         headers.set("x-upsert", "true");
@@ -44,10 +55,9 @@ public class SupabaseStorageService {
         return supabaseUrl + "/storage/v1/object/public/" + bucket + "/" + fileName;
     }
 
-    private String getExtension(String filename) {
-        if (filename == null || !filename.contains(".")) return "jpg";
-        return filename.substring(filename.lastIndexOf(".") + 1);
+    private String getExtension(MultipartFile file) {
+        String name = file.getOriginalFilename();
+        if (name == null || !name.contains(".")) return "jpg";
+        return name.substring(name.lastIndexOf(".") + 1);
     }
-
-
 }

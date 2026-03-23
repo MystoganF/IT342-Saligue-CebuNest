@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "properties")
@@ -36,7 +37,6 @@ public class Property {
     @Column(nullable = false)
     private String location;
 
-    // Changed from String to FK → property_types
     @ManyToOne
     @JoinColumn(name = "type_id", nullable = false)
     private PropertyType type;
@@ -48,6 +48,9 @@ public class Property {
     private Integer beds;
     private Integer baths;
     private Integer sqm;
+
+    @OneToMany(mappedBy = "property", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private List<PropertyImage> images;
 
     private LocalDateTime createdAt = LocalDateTime.now();
 

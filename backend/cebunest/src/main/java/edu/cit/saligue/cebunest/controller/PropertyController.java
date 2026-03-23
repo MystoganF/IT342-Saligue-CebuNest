@@ -1,5 +1,6 @@
 package edu.cit.saligue.cebunest.controller;
 
+import edu.cit.saligue.cebunest.dto.CreatePropertyDTO;
 import edu.cit.saligue.cebunest.dto.PropertyDTO;
 import edu.cit.saligue.cebunest.entity.Property;
 import edu.cit.saligue.cebunest.entity.PropertyType;
@@ -11,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -49,15 +51,12 @@ public class PropertyController {
     public ResponseEntity<?> getPropertyTypes() {
         try {
             List<PropertyType> types = propertyService.getPropertyTypes();
-            // Return as list of {id, name} objects
-            List<Map<String, Object>> result = types.stream()
-                    .map(t -> {
-                        Map<String, Object> m = new HashMap<>();
-                        m.put("id",   t.getId());
-                        m.put("name", t.getName());
-                        return m;
-                    })
-                    .toList();
+            List<Map<String, Object>> result = types.stream().map(t -> {
+                Map<String, Object> m = new HashMap<>();
+                m.put("id",   t.getId());
+                m.put("name", t.getName());
+                return m;
+            }).toList();
             return buildSuccess(Map.of("types", result));
         } catch (Exception e) {
             return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
@@ -93,12 +92,74 @@ public class PropertyController {
         }
     }
 
+    // ── POST /api/properties — create new property (owner only) ──────────
+    @PostMapping
+    public ResponseEntity<?> createProperty(
+            @RequestBody CreatePropertyDTO dto,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        try {
+            // Basic validation
+            if (dto.getTitle()    == null || dto.getTitle().isBlank())
+                return buildError("VALID-001", "Title is required.", HttpStatus.BAD_REQUEST);
+            if (dto.getPrice()    == null || dto.getPrice() <= 0)
+                return buildError("VALID-001", "Price must be greater than 0.", HttpStatus.BAD_REQUEST);
+            if (dto.getLocation() == null || dto.getLocation().isBlank())
+                return buildError("VALID-001", "Location is required.", HttpStatus.BAD_REQUEST);
+            if (dto.getTypeId()   == null)
+                return buildError("VALID-001", "Property type is required.", HttpStatus.BAD_REQUEST);
+
+            PropertyDTO created = propertyService.createProperty(dto, currentUser);
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                    Map.of("success", true, "data", Map.of("property", created),
+                            "error", null,
+                            "timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME))
+            );
+        } catch (IllegalArgumentException e) {
+            return buildError("VALID-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── POST /api/properties/{id}/images — upload images ─────────────────
+    @PostMapping("/{id}/images")
+    public ResponseEntity<?> uploadImages(
+            @PathVariable Long id,
+            @RequestParam("files") List<MultipartFile> files,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (files == null || files.isEmpty())
+            return buildError("VALID-001", "At least one image is required.", HttpStatus.BAD_REQUEST);
+
+        if (files.size() > 10)
+            return buildError("VALID-001", "Maximum 10 images allowed.", HttpStatus.BAD_REQUEST);
+
+        for (MultipartFile file : files) {
+            String ct = file.getContentType();
+            if (ct == null || !ct.startsWith("image/"))
+                return buildError("VALID-001", "Only image files are allowed.", HttpStatus.BAD_REQUEST);
+            if (file.getSize() > 5 * 1024 * 1024)
+                return buildError("VALID-001", "Each image must be under 5MB.", HttpStatus.BAD_REQUEST);
+        }
+
+        try {
+            PropertyDTO updated = propertyService.uploadImages(id, currentUser, files);
+            return buildSuccess(Map.of("property", updated));
+        } catch (IllegalArgumentException e) {
+            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return buildError("SYSTEM-001", "Image upload failed: " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────
     private ResponseEntity<?> buildSuccess(Object data) {
         Map<String, Object> body = new HashMap<>();
-        body.put("success", true);
-        body.put("data",    data);
-        body.put("error",   null);
+        body.put("success",   true);
+        body.put("data",      data);
+        body.put("error",     null);
         body.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
         return ResponseEntity.ok(body);
     }
@@ -110,9 +171,9 @@ public class PropertyController {
         error.put("details", null);
 
         Map<String, Object> body = new HashMap<>();
-        body.put("success", false);
-        body.put("data",    null);
-        body.put("error",   error);
+        body.put("success",   false);
+        body.put("data",      null);
+        body.put("error",     error);
         body.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
         return ResponseEntity.status(status).body(body);
     }

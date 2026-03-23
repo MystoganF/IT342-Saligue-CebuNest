@@ -6,7 +6,6 @@ import styles from "./Owner_properties.module.css";
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 // ─── types ─────────────────────────────────────────────────────────────────
-
 interface User {
   id: number;
   name: string;
@@ -14,7 +13,7 @@ interface User {
   role: string;
   avatarUrl?: string | null;
 }
-
+ 
 interface Property {
   id: number;
   title: string;
@@ -28,16 +27,16 @@ interface Property {
   sqm: number | null;
   images: { imageUrl: string }[];
 }
-
+ 
 // ─── helpers ───────────────────────────────────────────────────────────────
-
+ 
 function formatPrice(price: number): string {
   return new Intl.NumberFormat("en-PH", {
     style: "currency", currency: "PHP",
     minimumFractionDigits: 0, maximumFractionDigits: 0,
   }).format(price);
 }
-
+ 
 function getStatusBadge(status: string, s: typeof styles): string {
   switch (status?.toUpperCase()) {
     case "AVAILABLE":   return s.badgeAvailable;
@@ -45,28 +44,28 @@ function getStatusBadge(status: string, s: typeof styles): string {
     default:            return s.badgePending;
   }
 }
-
+ 
 // ─── component ─────────────────────────────────────────────────────────────
-
+ 
 const OwnerProperties: React.FC = () => {
   const navigate = useNavigate();
-
+ 
   const [user, setUser]             = useState<User | null>(null);
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
-
+ 
   // Filters
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [minPrice, setMinPrice]       = useState("");
   const [maxPrice, setMaxPrice]       = useState("");
-
+ 
   // Delete modal
   const [deleteTarget, setDeleteTarget]   = useState<Property | null>(null);
   const [deleting, setDeleting]           = useState(false);
   const [deleteError, setDeleteError]     = useState<string | null>(null);
-
+ 
   // ── Auth guard ─────────────────────────────────────────────────────────
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -78,7 +77,7 @@ const OwnerProperties: React.FC = () => {
       setUser(parsed);
     } catch { navigate("/"); }
   }, [navigate]);
-
+ 
   // ── Fetch properties ───────────────────────────────────────────────────
   const fetchProperties = useCallback(async () => {
     setLoading(true);
@@ -88,9 +87,9 @@ const OwnerProperties: React.FC = () => {
       if (searchQuery) params.set("search",   searchQuery);
       if (minPrice)    params.set("minPrice", minPrice);
       if (maxPrice)    params.set("maxPrice", maxPrice);
-
+ 
       const token = localStorage.getItem("accessToken");
-      const res   = await fetch(`${API_BASE}/api/properties?${params.toString()}`, {
+      const res   = await fetch(`${API_BASE}/api/properties/my?${params.toString()}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
@@ -102,9 +101,9 @@ const OwnerProperties: React.FC = () => {
       setLoading(false);
     }
   }, [searchQuery, minPrice, maxPrice]);
-
+ 
   useEffect(() => { if (user) fetchProperties(); }, [user, fetchProperties]);
-
+ 
   // ── Delete ─────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -129,21 +128,21 @@ const OwnerProperties: React.FC = () => {
       setDeleting(false);
     }
   };
-
+ 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSearchQuery(searchInput.trim());
   };
-
+ 
   if (!user) return null;
-
+ 
   return (
     <div className={styles.page}>
       <OwnerNavbar
         user={user}
         onAddProperty={() => navigate("/owner/properties/new")}
       />
-
+ 
       {/* ── Delete Confirmation Modal ── */}
       {deleteTarget && (
         <div className={styles.modalOverlay} onClick={() => !deleting && setDeleteTarget(null)}>
@@ -181,7 +180,7 @@ const OwnerProperties: React.FC = () => {
           </div>
         </div>
       )}
-
+ 
       {/* ── Page Header ── */}
       <div className={styles.pageBar}>
         <div className={styles.pageBarDeco} />
@@ -202,10 +201,10 @@ const OwnerProperties: React.FC = () => {
           </button>
         </div>
       </div>
-
+ 
       {/* ── Main ── */}
       <main className={styles.main}>
-
+ 
         {/* Filter bar */}
         <form className={styles.filterBar} onSubmit={handleSearchSubmit}>
           <div className={styles.searchWrap}>
@@ -238,10 +237,10 @@ const OwnerProperties: React.FC = () => {
             />
           </div>
         </form>
-
+ 
         {/* Grid */}
         <div className={styles.propertyGrid}>
-
+ 
           {/* Skeletons */}
           {loading && Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className={styles.skeletonCard}>
@@ -253,7 +252,7 @@ const OwnerProperties: React.FC = () => {
               </div>
             </div>
           ))}
-
+ 
           {/* Error */}
           {!loading && error && (
             <div className={styles.stateBox}>
@@ -263,7 +262,7 @@ const OwnerProperties: React.FC = () => {
               <button className={styles.stateBtn} onClick={fetchProperties}>Try Again</button>
             </div>
           )}
-
+ 
           {/* Empty */}
           {!loading && !error && properties.length === 0 && (
             <div className={styles.stateBox}>
@@ -282,7 +281,7 @@ const OwnerProperties: React.FC = () => {
               </button>
             </div>
           )}
-
+ 
           {/* Property cards */}
           {!loading && !error && properties.map((p, i) => {
             const img         = p.images?.[0]?.imageUrl;
@@ -310,12 +309,12 @@ const OwnerProperties: React.FC = () => {
                     <span className={styles.cardTypeBadge}>{p.type}</span>
                   )}
                 </div>
-
+ 
                 {/* Body */}
                 <div className={styles.cardBody}>
                   <h3 className={styles.cardTitle}>{p.title}</h3>
                   <div className={styles.cardLocation}>📍 {p.location}</div>
-
+ 
                   {/* Beds/baths/sqm */}
                   {(p.beds || p.baths || p.sqm) && (
                     <div className={styles.cardMeta}>
@@ -324,7 +323,7 @@ const OwnerProperties: React.FC = () => {
                       {p.sqm   != null && <span className={styles.cardMetaItem}>📐 {p.sqm} sqm</span>}
                     </div>
                   )}
-
+ 
                   <div className={styles.cardFooter}>
                     <div>
                       <div className={styles.cardPrice}>{formatPrice(p.price)}</div>
@@ -350,11 +349,11 @@ const OwnerProperties: React.FC = () => {
               </div>
             );
           })}
-
+ 
         </div>
       </main>
     </div>
   );
 };
-
+ 
 export default OwnerProperties;
