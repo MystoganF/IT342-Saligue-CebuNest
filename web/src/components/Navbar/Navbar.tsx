@@ -24,7 +24,8 @@ const Navbar: React.FC<NavbarProps> = ({ user, notificationCount = 0 }) => {
   const navigate  = useNavigate();
   const location  = useLocation();
   const [open, setOpen] = useState(false);
-  const dropdownRef     = useRef<HTMLDivElement>(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -37,7 +38,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, notificationCount = 0 }) => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const handleLogout = () => {
+  const confirmLogout = () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
@@ -56,6 +57,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, notificationCount = 0 }) => {
     .toUpperCase();
 
   return (
+    <>
     <nav className={styles.navbar}>
       <div className={styles.inner}>
 
@@ -138,7 +140,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, notificationCount = 0 }) => {
                     role="menuitem"
                     onClick={() => setOpen(false)}
                   >
-                    <span className={styles.dropdownItemIcon}></span>
+                    <span className={styles.dropdownItemIcon}>👤</span>
                     Profile
                   </a>
 
@@ -147,9 +149,9 @@ const Navbar: React.FC<NavbarProps> = ({ user, notificationCount = 0 }) => {
                   <button
                     className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`}
                     role="menuitem"
-                    onClick={handleLogout}
+                    onClick={() => { setOpen(false); setShowLogoutModal(true); }}
                   >
-                    <span className={styles.dropdownItemIcon}></span>
+                    <span className={styles.dropdownItemIcon}>🚪</span>
                     Logout
                   </button>
                 </div>
@@ -160,6 +162,39 @@ const Navbar: React.FC<NavbarProps> = ({ user, notificationCount = 0 }) => {
 
       </div>
     </nav>
+
+    {/* ── Logout Confirmation Modal ── */}
+    {showLogoutModal && (
+      <div
+        className={styles.modalOverlay}
+        onClick={() => setShowLogoutModal(false)}
+      >
+        <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modalIcon}>🚪</div>
+          <h3 className={styles.modalTitle}>Sign Out?</h3>
+          <p className={styles.modalBody}>
+            You'll be logged out of your account and returned to the login page.
+          </p>
+          <div className={styles.modalActions}>
+            <button
+              type="button"
+              className={styles.modalCancelBtn}
+              onClick={() => setShowLogoutModal(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className={styles.modalConfirmBtn}
+              onClick={confirmLogout}
+            >
+              Yes, Log Out
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 

@@ -1,0 +1,595 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap');
+
+/* ─────────────────────────────────────
+   CSS VARIABLES & PAGE WRAPPER
+───────────────────────────────────── */
+.page {
+  --teal-deep:  #1f5d71;
+  --teal-aero:  #53a4a3;
+  --teal-soft:  #98c1c1;
+  --gold:       #b78e42;
+  --gold-light: #d4ab6a;
+  --slate:      #6e7071;
+  --cloud:      #dcdddd;
+  --bg:         #f0f4f5;
+
+  min-height: 100vh;
+  background: var(--bg);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  color: #1a2a2e;
+}
+
+
+/* ─────────────────────────────────────
+   HERO BANNER
+───────────────────────────────────── */
+.hero {
+  position: relative;
+  background: var(--teal-deep);
+  overflow: hidden;
+  padding: 52px 40px 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.heroDeco {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.heroDeco1 {
+  width: 500px; height: 500px;
+  top: -180px; right: -120px;
+  border: 1px solid rgba(83, 164, 163, 0.15);
+}
+.heroDeco2 {
+  width: 300px; height: 300px;
+  bottom: -100px; left: -60px;
+  border: 1px solid rgba(183, 142, 66, 0.18);
+}
+
+.heroAccent {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent 0%, var(--gold) 40%, var(--gold-light) 60%, transparent 100%);
+}
+
+.heroInner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 36px;
+  width: 100%;
+  max-width: 860px;
+  animation: fadeUp 0.6s ease both;
+}
+
+/* Avatar in hero */
+.heroAvatarWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.heroAvatar {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  display: block;
+}
+.heroAvatarPlaceholder {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: 4px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-size: 36px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 1px;
+}
+.heroAvatarOverlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(10, 24, 30, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  cursor: pointer;
+  border: none;
+}
+.heroAvatarWrap:hover .heroAvatarOverlay { opacity: 1; }
+.heroAvatarOverlayIcon { font-size: 20px; color: #fff; }
+.heroAvatarOverlayText {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.heroAvatarUploading {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(10, 24, 30, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.avatarSpinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+.avatarInput { display: none; }
+
+/* Hero text */
+.heroText { flex: 1; min-width: 0; }
+.heroName {
+  font-family: 'Playfair Display', serif;
+  font-size: 32px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.2;
+  margin-bottom: 10px;
+}
+
+/* Role badge */
+.heroRoleBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.heroRoleTenant {
+  background: rgba(83, 164, 163, 0.25);
+  color: var(--teal-soft);
+  border: 1px solid rgba(83, 164, 163, 0.35);
+}
+.heroRoleOwner {
+  background: rgba(183, 142, 66, 0.25);
+  color: var(--gold-light);
+  border: 1px solid rgba(183, 142, 66, 0.35);
+}
+.heroRoleAdmin {
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+.heroRoleIcon { font-size: 14px; }
+
+.heroEmail {
+  font-size: 14px;
+  color: var(--teal-soft);
+  font-weight: 500;
+}
+
+/* Avatar upload feedback shown in hero */
+.avatarMsg {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 8px;
+  display: block;
+}
+.avatarMsgSuccess { color: rgba(152, 193, 193, 0.95); }
+.avatarMsgError   { color: #f1948a; }
+
+
+/* ─────────────────────────────────────
+   MAIN CONTENT
+───────────────────────────────────── */
+.main {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 32px 40px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+
+/* ─────────────────────────────────────
+   LOCKED FIELDS NOTICE
+───────────────────────────────────── */
+.lockedNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(31, 93, 113, 0.06);
+  border: 1px solid rgba(31, 93, 113, 0.14);
+  border-radius: 14px;
+  padding: 14px 18px;
+  animation: fadeUp 0.5s 0.1s ease both;
+}
+.lockedNoticeIcon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.lockedNoticeText {
+  font-size: 13px;
+  color: var(--teal-deep);
+  line-height: 1.65;
+  font-weight: 500;
+}
+.lockedNoticeText strong { font-weight: 700; }
+
+
+/* ─────────────────────────────────────
+   INFO CARD
+───────────────────────────────────── */
+.infoCard {
+  background: #fff;
+  border-radius: 20px;
+  padding: 32px;
+  box-shadow: 0 2px 8px rgba(31, 93, 113, 0.06);
+  animation: fadeUp 0.5s 0.15s ease both;
+}
+
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--teal-deep);
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sectionTitle::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #f0f4f5;
+}
+
+.fieldsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+.fieldFull { grid-column: 1 / -1; }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Field label */
+.fieldLabel {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--teal-deep);
+}
+.fieldLabelEditable { color: var(--teal-aero); }
+
+/* Label badges */
+.fieldBadge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 10px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.fieldBadgeEdit {
+  background: rgba(83, 164, 163, 0.12);
+  color: var(--teal-aero);
+}
+.fieldBadgeLocked {
+  background: rgba(110, 112, 113, 0.1);
+  color: var(--slate);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* Read-only value */
+.fieldValue {
+  font-size: 15px;
+  color: #4a5a60;
+  font-weight: 500;
+  padding: 12px 14px;
+  background: #f4f7f8;
+  border: 1.5px solid #eaeeef;
+  border-radius: 12px;
+  cursor: default;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.fieldLockIcon {
+  font-size: 12px;
+  opacity: 0.35;
+  flex-shrink: 0;
+}
+
+/* Editable input */
+.fieldInput {
+  font-size: 15px;
+  color: #1a2a2e;
+  font-weight: 500;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1.5px solid #e5eced;
+  border-radius: 12px;
+  font-family: 'DM Sans', sans-serif;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+}
+.fieldInput:focus {
+  border-color: var(--teal-aero);
+  box-shadow: 0 0 0 4px rgba(83, 164, 163, 0.1);
+}
+.fieldInput::placeholder { color: #b0bcbe; }
+
+/* Divider inside card */
+.cardDivider {
+  height: 1px;
+  background: #f0f4f5;
+  margin: 8px 0 24px;
+}
+
+
+/* ─────────────────────────────────────
+   SAVE ROW
+───────────────────────────────────── */
+.saveRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  padding-top: 20px;
+  border-top: 1px solid #f0f4f5;
+}
+.saveMsg {
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.saveMsgSuccess { color: #2d8c6a; }
+.saveMsgError   { color: #c0392b; }
+
+.saveBtn {
+  padding: 12px 28px;
+  background: var(--teal-deep);
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 130px;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.saveBtn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%);
+}
+.saveBtn:hover:not(:disabled) {
+  background: #174d5e;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(31, 93, 113, 0.25);
+}
+.saveBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+.saveSpinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+
+/* ─────────────────────────────────────
+   LOGOUT CARD
+───────────────────────────────────── */
+.logoutCard {
+  background: #fff;
+  border-radius: 20px;
+  padding: 24px 32px;
+  box-shadow: 0 2px 8px rgba(31, 93, 113, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  animation: fadeUp 0.5s 0.2s ease both;
+}
+.logoutTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #c0392b;
+  margin-bottom: 4px;
+}
+.logoutDesc {
+  font-size: 13px;
+  color: var(--slate);
+  line-height: 1.5;
+}
+.logoutBtn {
+  padding: 10px 22px;
+  background: none;
+  border: 1.5px solid rgba(192, 57, 43, 0.35);
+  border-radius: 10px;
+  color: #c0392b;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.logoutBtn:hover {
+  background: rgba(192, 57, 43, 0.06);
+  border-color: #c0392b;
+  transform: translateY(-1px);
+}
+
+
+/* ─────────────────────────────────────
+   KEYFRAMES
+───────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes overlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes bounce {
+  0%   { transform: scale(0.5); opacity: 0; }
+  60%  { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+
+/* ─────────────────────────────────────
+   LOGOUT CONFIRMATION MODAL
+───────────────────────────────────── */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 24, 30, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: overlayIn 0.2s ease both;
+}
+.modal {
+  background: #fff;
+  border-radius: 24px;
+  padding: 36px 32px 28px;
+  width: 100%;
+  max-width: 380px;
+  margin: 0 16px;
+  box-shadow: 0 24px 64px rgba(10, 24, 30, 0.22);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  animation: modalIn 0.25s ease both;
+}
+.modalIcon { font-size: 44px; animation: bounce 0.5s ease both; }
+.modalTitle {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--teal-deep);
+  letter-spacing: -0.3px;
+}
+.modalBody {
+  font-size: 14px;
+  color: var(--slate);
+  line-height: 1.65;
+  max-width: 280px;
+}
+.modalActions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-top: 8px;
+}
+.modalCancelBtn {
+  flex: 1;
+  padding: 13px;
+  background: #f0f4f5;
+  border: 1.5px solid #e5eced;
+  border-radius: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--slate);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.modalCancelBtn:hover {
+  background: #e5eced;
+  border-color: var(--cloud);
+}
+.modalConfirmBtn {
+  flex: 1;
+  padding: 13px;
+  background: #c0392b;
+  border: none;
+  border-radius: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+.modalConfirmBtn:hover {
+  background: #a93226;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(192, 57, 43, 0.3);
+}
+
+
+/* ─────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────── */
+@media (max-width: 640px) {
+  .hero       { padding: 36px 20px 48px; }
+  .heroInner  { flex-direction: column; align-items: center; text-align: center; gap: 20px; }
+  .main       { padding: 24px 20px 60px; }
+  .fieldsGrid { grid-template-columns: 1fr; }
+  .fieldFull  { grid-column: 1; }
+  .logoutCard { flex-direction: column; align-items: flex-start; }
+}
