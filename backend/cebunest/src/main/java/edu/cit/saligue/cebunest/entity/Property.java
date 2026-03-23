@@ -36,8 +36,10 @@ public class Property {
     @Column(nullable = false)
     private String location;
 
-    @Column(nullable = false)
-    private String type; // Studio, Apartment, Boarding House
+    // Changed from String to FK → property_types
+    @ManyToOne
+    @JoinColumn(name = "type_id", nullable = false)
+    private PropertyType type;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)

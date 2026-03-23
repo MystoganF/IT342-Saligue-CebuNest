@@ -27,16 +27,10 @@ interface Property {
   ownerId: number;
 }
 
-// Values must match exactly what's stored in the `type` column in the DB
-type FilterType = "ALL" | "Boarding House" | "Apartment" | "Condo" | "Room";
-
-const TYPE_LABELS: Record<FilterType, string> = {
-  "ALL":           "All Types",
-  "Boarding House":"Boarding House",
-  "Apartment":     "Apartment",
-  "Condo":         "Condo",
-  "Room":          "Room",
-};
+interface PropertyType {
+  id: number;
+  name: string;
+}
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
@@ -155,10 +149,13 @@ const Home: React.FC = () => {
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState<string | null>(null);
 
+  // Property types for filter chips
+  const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
+
   // Filter state
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeType, setActiveType]   = useState<FilterType>("ALL");
+  const [activeType, setActiveType]   = useState<string>("ALL");
   const [minPrice, setMinPrice]       = useState("");
   const [maxPrice, setMaxPrice]       = useState("");
 
@@ -176,6 +173,16 @@ const Home: React.FC = () => {
       navigate("/");
     }
   }, [navigate]);
+
+  // ── Fetch property types for filter chips ──────────────────────────────
+  useEffect(() => {
+    fetch(`${API_BASE}/api/properties/types`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) setPropertyTypes(data.data.types ?? []);
+      })
+      .catch(() => {}); // silently fail — chips just won't show
+  }, []);
 
   // ── Fetch properties from backend ──────────────────────────────────────
   const fetchProperties = useCallback(async () => {
@@ -321,13 +328,20 @@ const Home: React.FC = () => {
         <div className={styles.filterBar}>
           <span className={styles.filterLabel}>Filter</span>
           <div className={styles.filterChips}>
-            {(Object.keys(TYPE_LABELS) as FilterType[]).map((type) => (
+            {/* "All Types" chip is always first */}
+            <button
+              className={`${styles.filterChip} ${activeType === "ALL" ? styles.filterChipActive : ""}`}
+              onClick={() => setActiveType("ALL")}
+            >
+              All Types
+            </button>
+            {propertyTypes.map((pt) => (
               <button
-                key={type}
-                className={`${styles.filterChip} ${activeType === type ? styles.filterChipActive : ""}`}
-                onClick={() => setActiveType(type)}
+                key={pt.id}
+                className={`${styles.filterChip} ${activeType === pt.name ? styles.filterChipActive : ""}`}
+                onClick={() => setActiveType(pt.name)}
               >
-                {TYPE_LABELS[type]}
+                {pt.name}
               </button>
             ))}
           </div>

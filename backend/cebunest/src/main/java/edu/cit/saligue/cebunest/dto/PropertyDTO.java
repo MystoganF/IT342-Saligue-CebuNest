@@ -19,7 +19,8 @@ public class PropertyDTO {
     private String description;
     private Double price;
     private String location;
-    private String type;
+    private Long typeId;       // FK id
+    private String type;       // type name — kept as "type" so frontend needs no changes
     private String status;
     private Integer beds;
     private Integer baths;
@@ -35,7 +36,8 @@ public class PropertyDTO {
                 .description(p.getDescription())
                 .price(p.getPrice())
                 .location(p.getLocation())
-                .type(p.getType())
+                .typeId(p.getType() != null ? p.getType().getId() : null)
+                .type(p.getType() != null ? p.getType().getName() : null)
                 .status(p.getStatus().name())
                 .beds(p.getBeds())
                 .baths(p.getBaths())
