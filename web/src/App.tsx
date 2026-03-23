@@ -5,16 +5,25 @@ import Register from "./modules/authentication_module/register_module/Register";
 import Home     from "./modules/tenant_module/tenant_landing_module/Home";
 import PropertyDetail from "./modules/tenant_module/renting_module/Property_detail";
 import Profile from "./modules/profile_module/Profile";
+import OwnerDashboard   from "./modules/owner_module/owner_dashboard_module/Owner_dashboard";
+import OwnerProperties  from "./modules/owner_module/owner_property_module/Owner_properties";
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/"         element={<Login />}    />
-        <Route path="/register" element={<Register />} />
-        <Route path="/home"     element={<Home />}     />
-        <Route path="/properties/:id"    element={<PropertyDetail />} />
-        <Route path="/profile" element={<Profile />}        />
+         {/* Auth */}
+        <Route path="/"               element={<Login />}           />
+        <Route path="/register"       element={<Register />}        />
+ 
+        {/* Tenant */}
+        <Route path="/home"           element={<Home />}            />
+        <Route path="/properties/:id" element={<PropertyDetail />}  />
+        <Route path="/profile"        element={<Profile />}         />
+ 
+        {/* Owner */}
+        <Route path="/owner/dashboard"   element={<OwnerDashboard />}  />
+        <Route path="/owner/properties"  element={<OwnerProperties />} />
       </Routes>
     </BrowserRouter>
   );

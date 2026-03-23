@@ -14,7 +14,7 @@ interface AuthResponse {
   data: {
     accessToken: string;
     refreshToken: string;
-    user: object;
+    user: { role: string; [key: string]: unknown };
     alreadyExists?: boolean;
   };
   error?: { message: string };
@@ -26,7 +26,13 @@ function storeTokensAndRedirect(data: AuthResponse) {
   localStorage.setItem("accessToken", data.data.accessToken);
   localStorage.setItem("refreshToken", data.data.refreshToken);
   localStorage.setItem("user", JSON.stringify(data.data.user));
-  setTimeout(() => { window.location.href = "/home"; }, 1200);
+
+  const role = data.data.user?.role?.toUpperCase();
+  let destination = "/home";
+  if (role === "ADMIN") destination = "/admin/dashboard";
+  if (role === "OWNER") destination = "/owner/dashboard";
+
+  setTimeout(() => { window.location.href = destination; }, 1200);
 }
 
 async function postJSON(url: string, body: object): Promise<{ res: Response; data: AuthResponse }> {

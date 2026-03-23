@@ -31,7 +31,10 @@ function storeTokensAndRedirect(data: AuthResponse) {
   localStorage.setItem("user", JSON.stringify(data.data.user));
 
   const role = data.data.user?.role?.toUpperCase();
-  const destination = role === "ADMIN" ? "/admin/dashboard" : "/home";
+  let destination = "/home";
+  if (role === "ADMIN")  destination = "/admin/dashboard";
+  if (role === "OWNER")  destination = "/owner/dashboard";
+
   setTimeout(() => { window.location.href = destination; }, 1200);
 }
 
