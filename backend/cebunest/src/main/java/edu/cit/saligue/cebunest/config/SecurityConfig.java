@@ -41,6 +41,9 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
 
+                        // ── CORS preflight ─────────────────────────────────
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
                         // ── Public auth endpoints ──────────────────────────
                         .requestMatchers(
                                 "/api/auth/register",
@@ -53,7 +56,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/properties").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/properties/{id}").permitAll()
 
-                        // ── Admin endpoints — require JWT (role checked in controller) ──
+                        // ── Admin endpoints ────────────────────────────────
                         .requestMatchers("/api/admin/**").authenticated()
 
                         // ── Everything else requires a valid JWT ───────────
@@ -92,6 +95,9 @@ public class SecurityConfig {
             String path   = request.getServletPath();
             String method = request.getMethod();
 
+            // Always let CORS preflight through without JWT
+            if ("OPTIONS".equalsIgnoreCase(method)) return true;
+
             // Skip JWT for public auth endpoints
             if (path.equals("/api/auth/google")
                     || path.equals("/api/auth/login")
@@ -99,7 +105,7 @@ public class SecurityConfig {
                 return true;
             }
 
-            // Skip JWT for public GET property endpoints
+            // Skip JWT for public GET property endpoints only
             if ("GET".equalsIgnoreCase(method)) {
                 if (path.equals("/api/properties"))          return true;
                 if (path.equals("/api/properties/types"))    return true;

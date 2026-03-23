@@ -131,7 +131,7 @@ public class PropertyController {
         }
     }
 
-    // ── PUT /api/properties/{id} — update property ────────────────────────
+    // ── PUT /api/properties/{id} ──────────────────────────────────────────
     @PutMapping("/{id}")
     public ResponseEntity<?> updateProperty(
             @PathVariable Long id,

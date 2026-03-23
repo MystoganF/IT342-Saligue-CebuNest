@@ -66,13 +66,10 @@ public class PropertyService {
                 .build();
 
         Property saved = propertyRepository.saveAndFlush(property);
-
-        // Force-initialize lazy associations inside the transaction
         saved.getOwner().getId();
         saved.getOwner().getName();
         saved.getType().getId();
         saved.getType().getName();
-
         return PropertyDTO.from(saved);
     }
 
@@ -88,7 +85,7 @@ public class PropertyService {
         PropertyType type = propertyTypeRepository.findById(dto.getTypeId())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid property type."));
 
-        // Update fields
+        // Update scalar fields
         property.setTitle(dto.getTitle().trim());
         property.setDescription(dto.getDescription() != null ? dto.getDescription().trim() : "");
         property.setPrice(dto.getPrice());
@@ -98,7 +95,7 @@ public class PropertyService {
         property.setBaths(dto.getBaths());
         property.setSqm(dto.getSqm());
 
-        // Visibility toggle — only allowed on AVAILABLE or UNAVAILABLE properties
+        // Visibility toggle — only AVAILABLE / UNAVAILABLE can be toggled
         if (dto.getStatus() != null) {
             Property.PropertyStatus current = property.getStatus();
             if (current == Property.PropertyStatus.AVAILABLE
@@ -108,23 +105,29 @@ public class PropertyService {
                 else if (dto.getStatus().equals("UNAVAILABLE"))
                     property.setStatus(Property.PropertyStatus.UNAVAILABLE);
             }
-            // Silently ignore status changes on PENDING_REVIEW / REJECTED properties
-        }
-
-        // Remove images the owner flagged for deletion
-        if (dto.getRemovedImageIds() != null && !dto.getRemovedImageIds().isEmpty()) {
-            dto.getRemovedImageIds().forEach(imageId -> {
-                PropertyImage img = propertyImageRepository.findById(imageId).orElse(null);
-                if (img != null && img.getProperty().getId().equals(propertyId)) {
-                    propertyImageRepository.delete(img);
-                }
-            });
         }
 
         propertyRepository.save(property);
 
-        // Reload fresh with updated images
-        return PropertyDTO.from(propertyRepository.findById(propertyId).get());
+        // ── Delete images using a direct JPQL query ──────────────────────
+        // This is the most reliable approach — it bypasses the Hibernate
+        // first-level cache and lazy-collection issues entirely, issuing
+        // a direct DELETE statement with an ownership check built in.
+        if (dto.getRemovedImageIds() != null && !dto.getRemovedImageIds().isEmpty()) {
+            for (Long imageId : dto.getRemovedImageIds()) {
+                propertyImageRepository.deleteByIdAndPropertyId(imageId, propertyId);
+            }
+        }
+
+        // Flush everything and clear the session so the reload below sees
+        // the freshly deleted rows, not the cached state
+        propertyImageRepository.flush();
+        propertyRepository.flush();
+
+        return PropertyDTO.from(
+                propertyRepository.findById(propertyId)
+                        .orElseThrow(() -> new IllegalArgumentException("Property not found after update."))
+        );
     }
 
     // ── Upload images ────────────────────────────────────────────────────
