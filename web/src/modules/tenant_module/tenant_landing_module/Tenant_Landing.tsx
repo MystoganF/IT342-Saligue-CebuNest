@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import "./Tenant_Landing.css";
+import styles from "./Tenant_Landing..module.css";
 import Navbar from "../../../components/Navbar/Navbar";
 import Footer from "../../../components/Navbar/Footer";
 
-/* ─── Types ─── */
+/* ─────────────────────────────────────────
+   Types
+───────────────────────────────────────── */
 interface Property {
   id: number;
   title: string;
@@ -17,8 +19,20 @@ interface Property {
   sqm: number;
 }
 
+/* ─────────────────────────────────────────
+   Constants
+───────────────────────────────────────── */
+const API_BASE = "http://localhost:8080/api";
+
 const PROPERTY_TYPES = ["All", "Studio", "Apartment", "Boarding House"];
-const GRADIENTS = [
+
+const PROPERTY_ICONS: Record<string, string> = {
+  Studio: "🏢",
+  Apartment: "🏠",
+  "Boarding House": "🏘",
+};
+
+const CARD_GRADIENTS = [
   "linear-gradient(135deg, #1f5d71 0%, #2d8c8a 100%)",
   "linear-gradient(135deg, #2d6a4f 0%, #52b788 100%)",
   "linear-gradient(135deg, #5c4033 0%, #a07850 100%)",
@@ -26,66 +40,233 @@ const GRADIENTS = [
   "linear-gradient(135deg, #4a2060 0%, #8a4fbf 100%)",
   "linear-gradient(135deg, #7c3030 0%, #c06060 100%)",
 ];
-const ICONS: Record<string, string> = {
-  Studio: "🏢", Apartment: "🏠", "Boarding House": "🏘",
-};
-const API_BASE = "http://localhost:8080/api";
 
+const HERO_STATS = [
+  { value: "240+", label: "Listings" },
+  { value: "1.2k", label: "Tenants" },
+  { value: "98%",  label: "Satisfaction" },
+];
+
+/* ─────────────────────────────────────────
+   Helper: get auth token from storage
+───────────────────────────────────────── */
+function getAuthHeaders(): HeadersInit {
+  const token =
+    localStorage.getItem("accessToken") || localStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    ...(token && { Authorization: `Bearer ${token}` }),
+  };
+}
+
+/* ─────────────────────────────────────────
+   Helper: build query string from filters
+───────────────────────────────────────── */
+function buildQueryParams(
+  search: string,
+  type: string,
+  minPrice: string,
+  maxPrice: string
+): string {
+  const params = new URLSearchParams();
+  if (search)         params.append("search",   search);
+  if (type !== "All") params.append("type",     type);
+  if (minPrice)       params.append("minPrice", minPrice);
+  if (maxPrice)       params.append("maxPrice", maxPrice);
+  return params.toString();
+}
+
+/* ─────────────────────────────────────────
+   Helper: normalise API response shapes
+───────────────────────────────────────── */
+function extractProperties(json: any): Property[] {
+  return (
+    json?.data?.properties ??
+    json?.properties ??
+    (Array.isArray(json) ? json : [])
+  );
+}
+
+/* ─────────────────────────────────────────
+   Sub-component: Hero stats row
+───────────────────────────────────────── */
+function HeroStats() {
+  return (
+    <div className={styles.heroStats}>
+      {HERO_STATS.map((stat, i) => (
+        <React.Fragment key={stat.label}>
+          {i > 0 && <div className={styles.heroStatDivider} />}
+          <div className={styles.heroStat}>
+            <span className={styles.heroStatNum}>{stat.value}</span>
+            <span className={styles.heroStatLbl}>{stat.label}</span>
+          </div>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
+   Sub-component: Skeleton loading cards
+───────────────────────────────────────── */
+function SkeletonGrid() {
+  return (
+    <div className={styles.grid}>
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className={`${styles.card} ${styles.cardSkeleton}`}>
+          <div
+            className={`${styles.cardImage} ${styles.skeletonBlock}`}
+            style={{ height: 185 }}
+          />
+          <div className={styles.cardBodySkeleton}>
+            <div className={styles.skeletonLine} style={{ width: "70%", height: 18 }} />
+            <div className={styles.skeletonLine} style={{ width: "45%", height: 14 }} />
+            <div className={styles.skeletonLine} style={{ width: "90%", height: 12 }} />
+            <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+              <div className={styles.skeletonLine} style={{ width: 48, height: 12 }} />
+              <div className={styles.skeletonLine} style={{ width: 48, height: 12 }} />
+              <div className={styles.skeletonLine} style={{ width: 48, height: 12 }} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
+   Sub-component: Empty / error state
+───────────────────────────────────────── */
+interface EmptyStateProps {
+  icon: string;
+  title: string;
+  subtitle: string;
+  action?: React.ReactNode;
+}
+
+function EmptyState({ icon, title, subtitle, action }: EmptyStateProps) {
+  return (
+    <div className={styles.empty}>
+      <div className={styles.emptyIcon}>{icon}</div>
+      <p className={styles.emptyTitle}>{title}</p>
+      <p className={styles.emptySub}>{subtitle}</p>
+      {action}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
+   Sub-component: Single property card
+───────────────────────────────────────── */
+interface PropertyCardProps {
+  property: Property;
+  gradientIndex: number;
+  onView: () => void;
+}
+
+function PropertyCard({ property, gradientIndex, onView }: PropertyCardProps) {
+  const isUnavailable = property.status === "UNAVAILABLE";
+  const icon          = PROPERTY_ICONS[property.type] || "🏠";
+  const gradient      = CARD_GRADIENTS[gradientIndex % CARD_GRADIENTS.length];
+
+  return (
+    <div
+      className={`${styles.card}${isUnavailable ? ` ${styles.cardUnavailable}` : ""}`}
+      style={{ animationDelay: `${gradientIndex * 0.07}s` }}
+      onClick={() => !isUnavailable && onView()}
+    >
+      {/* Card thumbnail */}
+      <div className={styles.cardImage} style={{ background: gradient }}>
+        <span className={styles.cardImageIcon}>{icon}</span>
+        <div className={styles.cardTypeBadge}>{property.type}</div>
+        {isUnavailable && (
+          <div className={styles.cardUnavailBadge}>Unavailable</div>
+        )}
+      </div>
+
+      {/* Card body */}
+      <div className={styles.cardBody}>
+        {/* Title + price */}
+        <div className={styles.cardTop}>
+          <h3 className={styles.cardTitle}>{property.title}</h3>
+          <div className={styles.cardPrice}>
+            <span className={styles.cardPriceAmount}>
+              ₱{property.price.toLocaleString()}
+            </span>
+            <span className={styles.cardPricePeriod}>/mo</span>
+          </div>
+        </div>
+
+        {/* Location */}
+        <div className={styles.cardLocation}>
+          <span className={styles.cardLocationIcon}>📍</span>
+          <span>{property.location}</span>
+        </div>
+
+        {/* Beds / baths / sqm */}
+        <div className={styles.cardMeta}>
+          <span className={styles.cardMetaItem}>🛏 {property.beds  ?? "—"} Bed</span>
+          <span className={styles.cardMetaItem}>🚿 {property.baths ?? "—"} Bath</span>
+          <span className={styles.cardMetaItem}>📐 {property.sqm   ?? "—"} m²</span>
+        </div>
+
+        {/* Rating + CTA */}
+        <div className={styles.cardFooter}>
+          <div className={styles.cardRating}>
+            <span className={styles.cardStar}>★</span>
+            <span className={styles.cardRatingNum}>—</span>
+            <span className={styles.cardRatingCount}>(0)</span>
+          </div>
+          <button
+            className={styles.cardBtn}
+            disabled={isUnavailable}
+            onClick={(e) => { e.stopPropagation(); onView(); }}
+          >
+            {isUnavailable ? "Unavailable" : "View Details"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────
+   Main page component
+───────────────────────────────────────── */
 const TenantLanding: React.FC = () => {
   const navigate = useNavigate();
 
-  const [search, setSearch]             = useState("");
+  // Filter state
+  const [search,       setSearch]       = useState("");
   const [selectedType, setSelectedType] = useState("All");
-  const [minPrice, setMinPrice]         = useState("");
-  const [maxPrice, setMaxPrice]         = useState("");
-  const [properties, setProperties]     = useState<Property[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState<string | null>(null);
+  const [minPrice,     setMinPrice]     = useState("");
+  const [maxPrice,     setMaxPrice]     = useState("");
 
+  // Data state
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState<string | null>(null);
+
+  // Debounce the search input so we don't fire on every keystroke
   const [debouncedSearch, setDebouncedSearch] = useState("");
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 400);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebouncedSearch(search), 400);
+    return () => clearTimeout(timer);
   }, [search]);
 
-  useEffect(() => {
-    const html = document.documentElement;
-    const body = document.body;
-    const root = document.getElementById("root");
-    const prevHtmlPos = html.style.position;
-    const prevBodyPos = body.style.position;
-    const prevBodyOverflow = body.style.overflow;
-    html.style.position = "static"; html.style.width = "100%"; html.style.height = "auto"; html.style.overflow = "auto";
-    body.style.position = "static"; body.style.width = "100%"; body.style.height = "auto"; body.style.overflow = "auto";
-    if (root) { root.style.position = "static"; root.style.width = "100%"; root.style.height = "auto"; }
-    return () => {
-      html.style.position = prevHtmlPos;
-      body.style.position = prevBodyPos;
-      body.style.overflow = prevBodyOverflow;
-    };
-  }, []);
-
+  // Fetch properties whenever filters change
   const fetchProperties = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (debouncedSearch) params.append("search", debouncedSearch);
-      if (selectedType !== "All") params.append("type", selectedType);
-      if (minPrice) params.append("minPrice", minPrice);
-      if (maxPrice) params.append("maxPrice", maxPrice);
-
-      const token = localStorage.getItem("accessToken") || localStorage.getItem("token");
-      const headers: HeadersInit = { "Content-Type": "application/json" };
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-
-      const res = await fetch(`${API_BASE}/properties?${params.toString()}`, { headers });
+      const query = buildQueryParams(debouncedSearch, selectedType, minPrice, maxPrice);
+      const res   = await fetch(`${API_BASE}/properties?${query}`, {
+        headers: getAuthHeaders(),
+      });
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
 
       const json = await res.json();
-      const list: Property[] =
-        json?.data?.properties ?? json?.properties ?? (Array.isArray(json) ? json : []);
-      setProperties(list);
+      setProperties(extractProperties(json));
     } catch (err: any) {
       console.error("Failed to fetch properties:", err);
       setError("Could not load properties. Please try again.");
@@ -98,176 +279,152 @@ const TenantLanding: React.FC = () => {
   useEffect(() => { fetchProperties(); }, [fetchProperties]);
 
   const clearFilters = () => {
-    setSearch(""); setSelectedType("All"); setMinPrice(""); setMaxPrice("");
+    setSearch("");
+    setSelectedType("All");
+    setMinPrice("");
+    setMaxPrice("");
   };
+
   const hasActiveFilters = search || selectedType !== "All" || minPrice || maxPrice;
 
+  /* ── Render ── */
   return (
-    <div className="tl-page">
-
+    <div className={styles.page}>
       <Navbar />
 
       {/* ══ HERO ══ */}
-      <section className="tl-hero">
-        <div className="tl-hero-bg">
-          <div className="tl-hero-orb tl-hero-orb--1" />
-          <div className="tl-hero-orb tl-hero-orb--2" />
-          <div className="tl-hero-orb tl-hero-orb--3" />
-          <div className="tl-hero-grid" />
+      <section className={styles.hero}>
+        {/* Decorative background layers */}
+        <div className={styles.heroBg}>
+          <div className={`${styles.heroOrb} ${styles.heroOrb1}`} />
+          <div className={`${styles.heroOrb} ${styles.heroOrb2}`} />
+          <div className={`${styles.heroOrb} ${styles.heroOrb3}`} />
+          <div className={styles.heroGrid} />
         </div>
-        <div className="tl-hero-content">
-          <div className="tl-hero-eyebrow">
-            <div className="tl-hero-eyebrow-dot" />
+
+        <div className={styles.heroContent}>
+          <div className={styles.heroEyebrow}>
+            <div className={styles.heroEyebrowDot} />
             <span>Cebu City Rentals</span>
           </div>
-          <h1 className="tl-hero-heading">
+
+          <h1 className={styles.heroHeading}>
             Find Your Home<br />
-            <span className="tl-hero-heading-accent">in Cebu</span>
+            <span className={styles.heroHeadingAccent}>in Cebu</span>
           </h1>
-          <p className="tl-hero-subtext">
-            Browse verified boarding houses, apartments, and studios across Cebu City — all in one place.
+
+          <p className={styles.heroSubtext}>
+            Browse verified boarding houses, apartments, and studios across
+            Cebu City — all in one place.
           </p>
-          <div className="tl-hero-search">
-            <span className="tl-search-icon">🔍</span>
+
+          {/* Search bar */}
+          <div className={styles.heroSearch}>
+            <span className={styles.searchIcon}>🔍</span>
             <input
-              className="tl-search-input"
+              className={styles.searchInput}
               type="text"
               placeholder="Search by location or property name…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <button className="tl-search-btn" onClick={fetchProperties}>Search</button>
+            <button className={styles.searchBtn} onClick={fetchProperties}>
+              Search
+            </button>
           </div>
-          <div className="tl-hero-stats">
-            <div className="tl-hero-stat">
-              <span className="tl-hero-stat-num">240+</span>
-              <span className="tl-hero-stat-lbl">Listings</span>
-            </div>
-            <div className="tl-hero-stat-divider" />
-            <div className="tl-hero-stat">
-              <span className="tl-hero-stat-num">1.2k</span>
-              <span className="tl-hero-stat-lbl">Tenants</span>
-            </div>
-            <div className="tl-hero-stat-divider" />
-            <div className="tl-hero-stat">
-              <span className="tl-hero-stat-num">98%</span>
-              <span className="tl-hero-stat-lbl">Satisfaction</span>
-            </div>
-          </div>
+
+          <HeroStats />
         </div>
       </section>
 
       {/* ══ LISTINGS ══ */}
-      <section className="tl-listings" id="listings">
-        <div className="tl-listings-inner">
+      <section className={styles.listings} id="listings">
+        <div className={styles.listingsInner}>
 
-          <div className="tl-filter-bar">
-            <div className="tl-filter-types">
-              {PROPERTY_TYPES.map((t) => (
+          {/* Filter bar */}
+          <div className={styles.filterBar}>
+            {/* Type chips */}
+            <div className={styles.filterTypes}>
+              {PROPERTY_TYPES.map((type) => (
                 <button
-                  key={t}
-                  className={`tl-filter-chip${selectedType === t ? " tl-filter-chip--active" : ""}`}
-                  onClick={() => setSelectedType(t)}
+                  key={type}
+                  className={`${styles.filterChip}${selectedType === type ? ` ${styles.filterChipActive}` : ""}`}
+                  onClick={() => setSelectedType(type)}
                 >
-                  {t !== "All" && <span>{ICONS[t]}</span>} {t}
+                  {type !== "All" && <span>{PROPERTY_ICONS[type]}</span>}
+                  {type}
                 </button>
               ))}
             </div>
-            <div className="tl-filter-price">
-              <span className="tl-filter-price-label">₱ Price Range</span>
-              <input className="tl-price-input" type="number" placeholder="Min" value={minPrice} onChange={(e) => setMinPrice(e.target.value)} />
-              <span className="tl-price-sep">—</span>
-              <input className="tl-price-input" type="number" placeholder="Max" value={maxPrice} onChange={(e) => setMaxPrice(e.target.value)} />
+
+            {/* Price range */}
+            <div className={styles.filterPrice}>
+              <span className={styles.filterPriceLabel}>₱ Price Range</span>
+              <input
+                className={styles.priceInput}
+                type="number"
+                placeholder="Min"
+                value={minPrice}
+                onChange={(e) => setMinPrice(e.target.value)}
+              />
+              <span className={styles.priceSep}>—</span>
+              <input
+                className={styles.priceInput}
+                type="number"
+                placeholder="Max"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(e.target.value)}
+              />
             </div>
           </div>
 
-          <div className="tl-results-meta">
-            <span className="tl-results-count">
-              {loading ? "Loading…" : `${properties.length} ${properties.length === 1 ? "property" : "properties"} found`}
+          {/* Results count + clear button */}
+          <div className={styles.resultsMeta}>
+            <span className={styles.resultsCount}>
+              {loading
+                ? "Loading…"
+                : `${properties.length} ${properties.length === 1 ? "property" : "properties"} found`}
             </span>
             {hasActiveFilters && !loading && (
-              <button className="tl-clear-btn" onClick={clearFilters}>✕ Clear filters</button>
+              <button className={styles.clearBtn} onClick={clearFilters}>
+                ✕ Clear filters
+              </button>
             )}
           </div>
 
+          {/* Content area: skeleton / error / empty / grid */}
           {loading ? (
-            <div className="tl-grid">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="tl-card tl-card--skeleton">
-                  <div className="tl-card-image tl-skeleton-block" style={{ height: 185 }} />
-                  <div className="tl-card-body" style={{ gap: 12 }}>
-                    <div className="tl-skeleton-line" style={{ width: "70%", height: 18 }} />
-                    <div className="tl-skeleton-line" style={{ width: "45%", height: 14 }} />
-                    <div className="tl-skeleton-line" style={{ width: "90%", height: 12 }} />
-                    <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
-                      <div className="tl-skeleton-line" style={{ width: 48, height: 12 }} />
-                      <div className="tl-skeleton-line" style={{ width: 48, height: 12 }} />
-                      <div className="tl-skeleton-line" style={{ width: 48, height: 12 }} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <SkeletonGrid />
           ) : error ? (
-            <div className="tl-empty">
-              <div className="tl-empty-icon">⚠️</div>
-              <p className="tl-empty-title">Something went wrong</p>
-              <p className="tl-empty-sub">{error}</p>
-              <button className="tl-search-btn" style={{ marginTop: 20 }} onClick={fetchProperties}>Try Again</button>
-            </div>
-          ) : properties.length === 0 ? (
-            <div className="tl-empty">
-              <div className="tl-empty-icon">🏚</div>
-              <p className="tl-empty-title">No properties found</p>
-              <p className="tl-empty-sub">Try adjusting your search or filters.</p>
-            </div>
-          ) : (
-            <div className="tl-grid">
-              {properties.map((prop, idx) => (
-                <div
-                  key={prop.id}
-                  className={`tl-card${prop.status === "UNAVAILABLE" ? " tl-card--unavailable" : ""}`}
-                  style={{ animationDelay: `${idx * 0.07}s` }}
-                  onClick={() => prop.status !== "UNAVAILABLE" && navigate(`/properties/${prop.id}`)}
+            <EmptyState
+              icon="⚠️"
+              title="Something went wrong"
+              subtitle={error}
+              action={
+                <button
+                  className={styles.searchBtn}
+                  style={{ marginTop: 20 }}
+                  onClick={fetchProperties}
                 >
-                  <div className="tl-card-image" style={{ background: GRADIENTS[idx % GRADIENTS.length] }}>
-                    <span className="tl-card-image-icon">{ICONS[prop.type] || "🏠"}</span>
-                    <div className="tl-card-type-badge">{prop.type}</div>
-                    {prop.status === "UNAVAILABLE" && <div className="tl-card-unavail-badge">Unavailable</div>}
-                  </div>
-                  <div className="tl-card-body">
-                    <div className="tl-card-top">
-                      <h3 className="tl-card-title">{prop.title}</h3>
-                      <div className="tl-card-price">
-                        <span className="tl-card-price-amount">₱{prop.price.toLocaleString()}</span>
-                        <span className="tl-card-price-period">/mo</span>
-                      </div>
-                    </div>
-                    <div className="tl-card-location">
-                      <span className="tl-card-location-icon">📍</span>
-                      <span>{prop.location}</span>
-                    </div>
-                    <div className="tl-card-meta">
-                      <span className="tl-card-meta-item">🛏 {prop.beds ?? "—"} Bed</span>
-                      <span className="tl-card-meta-item">🚿 {prop.baths ?? "—"} Bath</span>
-                      <span className="tl-card-meta-item">📐 {prop.sqm ?? "—"} m²</span>
-                    </div>
-                    <div className="tl-card-footer">
-                      <div className="tl-card-rating">
-                        <span className="tl-card-star">★</span>
-                        <span className="tl-card-rating-num">—</span>
-                        <span className="tl-card-rating-count">(0)</span>
-                      </div>
-                      <button
-                        className="tl-card-btn"
-                        disabled={prop.status === "UNAVAILABLE"}
-                        onClick={(e) => { e.stopPropagation(); navigate(`/properties/${prop.id}`); }}
-                      >
-                        {prop.status === "UNAVAILABLE" ? "Unavailable" : "View Details"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                  Try Again
+                </button>
+              }
+            />
+          ) : properties.length === 0 ? (
+            <EmptyState
+              icon="🏚"
+              title="No properties found"
+              subtitle="Try adjusting your search or filters."
+            />
+          ) : (
+            <div className={styles.grid}>
+              {properties.map((property, idx) => (
+                <PropertyCard
+                  key={property.id}
+                  property={property}
+                  gradientIndex={idx}
+                  onView={() => navigate(`/properties/${property.id}`)}
+                />
               ))}
             </div>
           )}
@@ -276,7 +433,6 @@ const TenantLanding: React.FC = () => {
       </section>
 
       <Footer />
-
     </div>
   );
 };
