@@ -424,3 +424,10 @@
   .submitRow  { flex-direction: column; align-items: stretch; }
   .submitBtn, .cancelBtn { width: 100%; justify-content: center; }
 }
+
+.submitMsgWarning {
+  color: #92600a;
+  background: #fef9ec;
+  border: 1px solid #f6d860;
+  /* copy padding/border-radius from your existing .submitMsgError */
+}

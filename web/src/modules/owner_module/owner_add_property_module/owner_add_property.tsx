@@ -29,7 +29,7 @@ interface MapCoords {
 
 async function geocode(query: string): Promise<MapCoords | null> {
   try {
-    const res  = await fetch(
+    const res = await fetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
       { headers: { "Accept-Language": "en" } }
     );
@@ -53,7 +53,7 @@ function buildMapSrc(coords: MapCoords): string {
 // ─── component ─────────────────────────────────────────────────────────────
 
 const AddProperty: React.FC = () => {
-  const navigate    = useNavigate();
+  const navigate     = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Auth
@@ -73,19 +73,22 @@ const AddProperty: React.FC = () => {
   const [sqm, setSqm]                 = useState("");
 
   // Map
-  const [mapQuery, setMapQuery]       = useState("");
-  const [mapCoords, setMapCoords]     = useState<MapCoords | null>(null);
-  const [mapSearching, setMapSearching] = useState(false);
-  const [mapError, setMapError]       = useState<string | null>(null);
+  const [mapQuery, setMapQuery]           = useState("");
+  const [mapCoords, setMapCoords]         = useState<MapCoords | null>(null);
+  const [mapSearching, setMapSearching]   = useState(false);
+  const [mapError, setMapError]           = useState<string | null>(null);
 
   // Images
-  const [imageFiles, setImageFiles]     = useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
-  const [dragOver, setDragOver]         = useState(false);
+  const [imageFiles, setImageFiles]         = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews]   = useState<string[]>([]);
+  const [dragOver, setDragOver]             = useState(false);
 
-  // Submit
-  const [submitting, setSubmitting]   = useState(false);
-  const [submitMsg, setSubmitMsg]     = useState<{ type: "success" | "error"; text: string } | null>(null);
+  // Submit — added "warning" as a third type
+  const [submitting, setSubmitting] = useState(false);
+  const [submitMsg, setSubmitMsg]   = useState<{
+    type: "success" | "error" | "warning";
+    text: string;
+  } | null>(null);
 
   // ── Auth guard ─────────────────────────────────────────────────────────
   useEffect(() => {
@@ -117,7 +120,6 @@ const AddProperty: React.FC = () => {
     const coords = await geocode(mapQuery.trim());
     if (coords) {
       setMapCoords(coords);
-      // Auto-fill location field if empty
       if (!location.trim()) setLocation(mapQuery.trim());
     } else {
       setMapError("Location not found. Try a more specific address.");
@@ -173,12 +175,28 @@ const AddProperty: React.FC = () => {
       });
       const createData = await createRes.json();
 
+      // Hard failure — property was NOT created
       if (!createRes.ok || !createData.success) {
-        setSubmitMsg({ type: "error", text: createData?.error?.message ?? "Failed to create property." });
+        setSubmitMsg({
+          type: "error",
+          text: createData?.error?.message ?? "Failed to create property.",
+        });
         return;
       }
 
-      const propertyId: number = createData.data.property.id;
+      // Controller returns: { success, data: { property: {...} } }
+      const propertyId: number = createData.data?.property?.id;
+
+      // Property was created but we can't get the ID to upload images
+      // Use "warning" — it's not a failure
+      if (!propertyId) {
+        setSubmitMsg({
+          type: "warning",
+          text: "Property created but ID not returned. Check your listings.",
+        });
+        setTimeout(() => navigate("/owner/properties"), 2000);
+        return;
+      }
 
       // Step 2 — Upload images if any
       if (imageFiles.length > 0) {
@@ -192,17 +210,22 @@ const AddProperty: React.FC = () => {
         });
         const imgData = await imgRes.json();
 
+        // Property was created; only images failed — use "warning"
         if (!imgRes.ok || !imgData.success) {
-          // Property was created but images failed — still navigate, show warning
-          setSubmitMsg({ type: "error", text: "Property created but image upload failed. You can add images later." });
+          setSubmitMsg({
+            type: "warning",
+            text: "Property created! Some images failed to upload — you can add them later.",
+          });
           setTimeout(() => navigate("/owner/properties"), 2000);
           return;
         }
       }
 
+      // Full success
       setSubmitMsg({ type: "success", text: "Property listed successfully! Redirecting…" });
       setTimeout(() => navigate("/owner/properties"), 1500);
     } catch {
+      // True network / unexpected failure
       setSubmitMsg({ type: "error", text: "Network error. Please try again." });
     } finally {
       setSubmitting(false);
@@ -210,6 +233,17 @@ const AddProperty: React.FC = () => {
   };
 
   if (!user) return null;
+
+  // ── Resolve submit message icon ────────────────────────────────────────
+  const submitIcon =
+    submitMsg?.type === "success" ? "✓"
+    : submitMsg?.type === "warning" ? "⚠"
+    : "✕";
+
+  const submitMsgClass =
+    submitMsg?.type === "success" ? styles.submitMsgSuccess
+    : submitMsg?.type === "warning" ? styles.submitMsgWarning
+    : styles.submitMsgError;
 
   return (
     <div className={styles.page}>
@@ -452,10 +486,8 @@ const AddProperty: React.FC = () => {
           {/* ── Submit Row ── */}
           <div className={styles.submitRow}>
             {submitMsg && (
-              <span className={`${styles.submitMsg} ${
-                submitMsg.type === "success" ? styles.submitMsgSuccess : styles.submitMsgError
-              }`}>
-                {submitMsg.type === "success" ? "✓" : "⚠"} {submitMsg.text}
+              <span className={`${styles.submitMsg} ${submitMsgClass}`}>
+                {submitIcon} {submitMsg.text}
               </span>
             )}
             <button

@@ -40,16 +40,24 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+
+                        // ── Public auth endpoints ──────────────────────────
                         .requestMatchers(
                                 "/api/auth/register",
                                 "/api/auth/login",
                                 "/api/auth/google"
                         ).permitAll()
+
+                        // ── Public property reads ──────────────────────────
+                        // NOTE: specific sub-paths must come BEFORE the wildcard {id} matcher
+                        .requestMatchers(HttpMethod.GET, "/api/properties/types").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/properties").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/properties/{id}").permitAll()
+
+                        // ── Everything else requires a valid JWT ───────────
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(new SkipGoogleEndpointFilter(jwtAuthFilter),
+                .addFilterBefore(new SkipPublicEndpointsFilter(jwtAuthFilter),
                         UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -68,21 +76,35 @@ public class SecurityConfig {
         return source;
     }
 
-    /* ── Wrapper that skips JWT filter for public auth endpoints ── */
-    static class SkipGoogleEndpointFilter extends org.springframework.web.filter.OncePerRequestFilter {
+    /* ── Skip JWT filter for public endpoints ── */
+    static class SkipPublicEndpointsFilter extends org.springframework.web.filter.OncePerRequestFilter {
 
         private final JwtAuthFilter jwtAuthFilter;
 
-        SkipGoogleEndpointFilter(JwtAuthFilter jwtAuthFilter) {
+        SkipPublicEndpointsFilter(JwtAuthFilter jwtAuthFilter) {
             this.jwtAuthFilter = jwtAuthFilter;
         }
 
         @Override
         protected boolean shouldNotFilter(HttpServletRequest request) {
-            String path = request.getServletPath();
-            return path.equals("/api/auth/google")
+            String path   = request.getServletPath();
+            String method = request.getMethod();
+
+            // Skip JWT for public auth endpoints
+            if (path.equals("/api/auth/google")
                     || path.equals("/api/auth/login")
-                    || path.equals("/api/auth/register");
+                    || path.equals("/api/auth/register")) {
+                return true;
+            }
+
+            // Skip JWT for public GET property endpoints
+            if ("GET".equalsIgnoreCase(method)) {
+                if (path.equals("/api/properties"))          return true;
+                if (path.equals("/api/properties/types"))    return true;
+                if (path.matches("/api/properties/\\d+"))    return true;
+            }
+
+            return false;
         }
 
         @Override

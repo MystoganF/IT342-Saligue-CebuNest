@@ -22,6 +22,7 @@ public class PropertyService {
     private final SupabaseStorageService  storageService;
 
     // ── All available properties (tenant view) ──────────────────────────
+    @Transactional(readOnly = true)
     public List<PropertyDTO> getProperties(
             String search, String type, Double minPrice, Double maxPrice) {
         String cleanSearch = blank(search) ? null : search.trim();
@@ -31,6 +32,7 @@ public class PropertyService {
     }
 
     // ── Owner's own properties ───────────────────────────────────────────
+    @Transactional(readOnly = true)
     public List<PropertyDTO> getMyProperties(
             User owner, String search, Double minPrice, Double maxPrice) {
         String cleanSearch = blank(search) ? null : search.trim();
@@ -62,7 +64,12 @@ public class PropertyService {
                 .sqm(dto.getSqm())
                 .build();
 
-        return PropertyDTO.from(propertyRepository.save(property));
+        // saveAndFlush forces the INSERT so the generated ID is populated immediately
+        Property saved = propertyRepository.saveAndFlush(property);
+
+        // Map directly from `saved` — no re-fetch needed.
+        // images is already an empty ArrayList from @Builder.Default, so no lazy load occurs.
+        return PropertyDTO.from(saved);
     }
 
     // ── Upload images for a property ─────────────────────────────────────

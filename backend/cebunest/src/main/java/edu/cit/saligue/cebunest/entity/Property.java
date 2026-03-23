@@ -49,8 +49,9 @@ public class Property {
     private Integer baths;
     private Integer sqm;
 
-    @OneToMany(mappedBy = "property", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    private List<PropertyImage> images;
+    @OneToMany(mappedBy = "property", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @Builder.Default
+    private List<PropertyImage> images = new java.util.ArrayList<>();
 
     private LocalDateTime createdAt = LocalDateTime.now();
 

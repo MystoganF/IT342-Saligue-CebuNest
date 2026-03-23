@@ -6,7 +6,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -29,7 +28,7 @@ public class PropertyDTO {
     private Long    ownerId;
     private String  ownerName;
     private List<ImageDTO> images;
-    private LocalDateTime  createdAt;
+    private String  createdAt;
 
     @Data
     @AllArgsConstructor
@@ -39,7 +38,7 @@ public class PropertyDTO {
     }
 
     public static PropertyDTO from(Property p) {
-        List<ImageDTO> images = (p.getImages() == null) ? List.of() :
+        List<ImageDTO> images = (p.getImages() == null || p.getImages().isEmpty()) ? List.of() :
                 p.getImages().stream()
                         .map(i -> new ImageDTO(i.getId(), i.getImageUrl()))
                         .toList();
@@ -59,7 +58,9 @@ public class PropertyDTO {
                 .ownerId(p.getOwner().getId())
                 .ownerName(p.getOwner().getName())
                 .images(images)
-                .createdAt(p.getCreatedAt())
+                .createdAt(p.getCreatedAt() != null
+                        ? p.getCreatedAt().format(java.time.format.DateTimeFormatter.ISO_DATE_TIME)
+                        : null)
                 .build();
     }
 }

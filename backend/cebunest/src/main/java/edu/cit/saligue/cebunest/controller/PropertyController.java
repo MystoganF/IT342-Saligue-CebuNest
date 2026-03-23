@@ -98,8 +98,11 @@ public class PropertyController {
             @RequestBody CreatePropertyDTO dto,
             @AuthenticationPrincipal User currentUser
     ) {
+        if (currentUser == null) {
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+        }
+
         try {
-            // Basic validation
             if (dto.getTitle()    == null || dto.getTitle().isBlank())
                 return buildError("VALID-001", "Title is required.", HttpStatus.BAD_REQUEST);
             if (dto.getPrice()    == null || dto.getPrice() <= 0)
@@ -110,15 +113,22 @@ public class PropertyController {
                 return buildError("VALID-001", "Property type is required.", HttpStatus.BAD_REQUEST);
 
             PropertyDTO created = propertyService.createProperty(dto, currentUser);
-            return ResponseEntity.status(HttpStatus.CREATED).body(
-                    Map.of("success", true, "data", Map.of("property", created),
-                            "error", null,
-                            "timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME))
-            );
+
+            // ── Use HashMap, NOT Map.of() — Map.of() forbids null values ──
+            Map<String, Object> body = new HashMap<>();
+            body.put("success",   true);
+            body.put("data",      Map.of("property", created));
+            body.put("error",     null);
+            body.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
+            return ResponseEntity.status(HttpStatus.CREATED).body(body);
+
         } catch (IllegalArgumentException e) {
             return buildError("VALID-001", e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
-            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            e.printStackTrace();
+            return buildError("SYSTEM-001",
+                    e.getClass().getName() + ": " + e.getMessage(),
+                    HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
