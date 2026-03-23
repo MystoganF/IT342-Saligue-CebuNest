@@ -9,7 +9,10 @@ import java.util.List;
 
 public interface PropertyRepository extends JpaRepository<Property, Long> {
 
-    // ── Public listing — available only, filter by type name via JOIN ──
+    // ── Find by status (used by admin) ────────────────────────────────────
+    List<Property> findByStatus(Property.PropertyStatus status);
+
+    // ── Public listing — available only, filter by type name via JOIN ─────
     @Query(value = """
         SELECT p.* FROM properties p
         JOIN property_types pt ON p.type_id = pt.id
@@ -28,7 +31,7 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
             @Param("maxPrice") Double maxPrice
     );
 
-    // ── Owner's own properties (all statuses) ──
+    // ── Owner's own properties (all statuses) ─────────────────────────────
     @Query(value = """
         SELECT p.* FROM properties p
         WHERE p.owner_id = :ownerId

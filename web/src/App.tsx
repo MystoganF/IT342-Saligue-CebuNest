@@ -8,7 +8,7 @@ import Profile from "./modules/profile_module/Profile";
 import OwnerDashboard   from "./modules/owner_module/owner_dashboard_module/Owner_dashboard";
 import OwnerProperties  from "./modules/owner_module/owner_property_module/Owner_properties";
 import AddProperty      from "./modules/owner_module/owner_add_property_module/owner_add_property";
-
+import AdminRentalRequests from "./modules/admin_module/admin_rental_request/admin_rental_request";
 function App() {
   return (
     <BrowserRouter>
@@ -26,6 +26,8 @@ function App() {
         <Route path="/owner/dashboard"   element={<OwnerDashboard />}  />
         <Route path="/owner/properties"  element={<OwnerProperties />} />
         <Route path="/owner/properties/new"   element={<AddProperty />}     />
+
+        <Route path="/admin/rental-requests" element={<AdminRentalRequests />} />
       </Routes>
     </BrowserRouter>
   );

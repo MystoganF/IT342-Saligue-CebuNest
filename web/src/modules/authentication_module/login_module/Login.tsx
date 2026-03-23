@@ -32,7 +32,7 @@ function storeTokensAndRedirect(data: AuthResponse) {
 
   const role = data.data.user?.role?.toUpperCase();
   let destination = "/home";
-  if (role === "ADMIN")  destination = "/admin/dashboard";
+  if (role === "ADMIN")  destination = "/admin/rental-requests";
   if (role === "OWNER")  destination = "/owner/dashboard";
 
   setTimeout(() => { window.location.href = destination; }, 1200);

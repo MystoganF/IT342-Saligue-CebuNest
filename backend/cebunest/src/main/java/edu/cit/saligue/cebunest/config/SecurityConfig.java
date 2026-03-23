@@ -49,10 +49,12 @@ public class SecurityConfig {
                         ).permitAll()
 
                         // ── Public property reads ──────────────────────────
-                        // NOTE: specific sub-paths must come BEFORE the wildcard {id} matcher
                         .requestMatchers(HttpMethod.GET, "/api/properties/types").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/properties").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/properties/{id}").permitAll()
+
+                        // ── Admin endpoints — require JWT (role checked in controller) ──
+                        .requestMatchers("/api/admin/**").authenticated()
 
                         // ── Everything else requires a valid JWT ───────────
                         .anyRequest().authenticated()

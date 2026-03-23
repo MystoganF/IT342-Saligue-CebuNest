@@ -58,7 +58,7 @@ public class PropertyService {
                 .price(dto.getPrice())
                 .location(dto.getLocation().trim())
                 .type(type)
-                .status(Property.PropertyStatus.AVAILABLE)
+                .status(Property.PropertyStatus.PENDING_REVIEW)
                 .beds(dto.getBeds())
                 .baths(dto.getBaths())
                 .sqm(dto.getSqm())
