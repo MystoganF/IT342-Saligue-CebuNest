@@ -138,7 +138,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, notificationCount = 0 }) => {
                     role="menuitem"
                     onClick={() => setOpen(false)}
                   >
-                    <span className={styles.dropdownItemIcon}>👤</span>
+                    <span className={styles.dropdownItemIcon}></span>
                     Profile
                   </a>
 
@@ -149,7 +149,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, notificationCount = 0 }) => {
                     role="menuitem"
                     onClick={handleLogout}
                   >
-                    <span className={styles.dropdownItemIcon}>🚪</span>
+                    <span className={styles.dropdownItemIcon}></span>
                     Logout
                   </button>
                 </div>
