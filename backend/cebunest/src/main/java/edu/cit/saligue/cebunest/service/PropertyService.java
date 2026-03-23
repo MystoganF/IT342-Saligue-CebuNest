@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -95,7 +96,7 @@ public class PropertyService {
         property.setBaths(dto.getBaths());
         property.setSqm(dto.getSqm());
 
-        // Visibility toggle — only AVAILABLE / UNAVAILABLE can be toggled
+        // Visibility toggle
         if (dto.getStatus() != null) {
             Property.PropertyStatus current = property.getStatus();
             if (current == Property.PropertyStatus.AVAILABLE
@@ -109,25 +110,28 @@ public class PropertyService {
 
         propertyRepository.save(property);
 
-        // ── Delete images using a direct JPQL query ──────────────────────
-        // This is the most reliable approach — it bypasses the Hibernate
-        // first-level cache and lazy-collection issues entirely, issuing
-        // a direct DELETE statement with an ownership check built in.
+        // ── Delete removed images via direct JPQL ────────────────────────
         if (dto.getRemovedImageIds() != null && !dto.getRemovedImageIds().isEmpty()) {
             for (Long imageId : dto.getRemovedImageIds()) {
                 propertyImageRepository.deleteByIdAndPropertyId(imageId, propertyId);
             }
         }
 
-        // Flush everything and clear the session so the reload below sees
-        // the freshly deleted rows, not the cached state
         propertyImageRepository.flush();
         propertyRepository.flush();
 
-        return PropertyDTO.from(
-                propertyRepository.findById(propertyId)
-                        .orElseThrow(() -> new IllegalArgumentException("Property not found after update."))
-        );
+        // ── Reorder images so cover is first ─────────────────────────────
+        // The frontend sends coverImageId — we reorder by updating the DB
+        // row order so PropertyDTO.from() returns images with cover first.
+        // We achieve this by deleting and re-inserting in the right order,
+        // or simply relying on the DTO sorting below since we don't have
+        // a sortOrder column. We handle it in the DTO layer instead.
+        // (See PropertyDTO.from — it now sorts by coverImageId)
+
+        Property reloaded = propertyRepository.findById(propertyId)
+                .orElseThrow(() -> new IllegalArgumentException("Property not found after update."));
+
+        return PropertyDTO.fromWithCover(reloaded, dto.getCoverImageId());
     }
 
     // ── Upload images ────────────────────────────────────────────────────

@@ -1,11 +1,13 @@
 package edu.cit.saligue.cebunest.dto;
 
 import edu.cit.saligue.cebunest.entity.Property;
+import edu.cit.saligue.cebunest.entity.PropertyImage;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
@@ -37,11 +39,29 @@ public class PropertyDTO {
         private String imageUrl;
     }
 
+    // ── Standard mapping (no cover reordering) ───────────────────────────
     public static PropertyDTO from(Property p) {
-        List<ImageDTO> images = (p.getImages() == null || p.getImages().isEmpty()) ? List.of() :
-                p.getImages().stream()
-                        .map(i -> new ImageDTO(i.getId(), i.getImageUrl()))
-                        .toList();
+        return fromWithCover(p, null);
+    }
+
+    // ── Mapping with cover photo placed first ────────────────────────────
+    public static PropertyDTO fromWithCover(Property p, Long coverImageId) {
+        List<PropertyImage> raw = p.getImages() == null
+                ? List.of()
+                : new ArrayList<>(p.getImages());
+
+        // Move the chosen cover image to position 0
+        if (coverImageId != null) {
+            raw.sort((a, b) -> {
+                if (a.getId().equals(coverImageId)) return -1;
+                if (b.getId().equals(coverImageId)) return  1;
+                return Long.compare(a.getId(), b.getId());
+            });
+        }
+
+        List<ImageDTO> images = raw.stream()
+                .map(i -> new ImageDTO(i.getId(), i.getImageUrl()))
+                .toList();
 
         return PropertyDTO.builder()
                 .id(p.getId())
@@ -49,8 +69,8 @@ public class PropertyDTO {
                 .description(p.getDescription())
                 .price(p.getPrice())
                 .location(p.getLocation())
-                .typeId(p.getType()   != null ? p.getType().getId()   : null)
-                .type(p.getType()     != null ? p.getType().getName() : null)
+                .typeId(p.getType()  != null ? p.getType().getId()   : null)
+                .type(p.getType()    != null ? p.getType().getName() : null)
                 .status(p.getStatus().name())
                 .beds(p.getBeds())
                 .baths(p.getBaths())

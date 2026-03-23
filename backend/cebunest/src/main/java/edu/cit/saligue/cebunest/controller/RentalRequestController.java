@@ -4,6 +4,7 @@ import edu.cit.saligue.cebunest.dto.CreateRentalRequestDTO;
 import edu.cit.saligue.cebunest.dto.RentalRequestDTO;
 import edu.cit.saligue.cebunest.entity.User;
 import edu.cit.saligue.cebunest.service.RentalRequestService;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,16 +25,50 @@ public class RentalRequestController {
 
     private final RentalRequestService rentalRequestService;
 
+    // ── POST /api/rental-requests — tenant submits a request ─────────────
     @PostMapping
     public ResponseEntity<?> createRequest(
             @RequestBody CreateRentalRequestDTO dto,
             @AuthenticationPrincipal User currentUser
     ) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
         try {
-            RentalRequestDTO result = rentalRequestService.createRequest(dto, currentUser);
-            Map<String, Object> data = new HashMap<>();
-            data.put("rentalRequest", result);
-            return ResponseEntity.status(HttpStatus.CREATED).body(buildSuccess(data));
+            RentalRequestDTO created = rentalRequestService.createRequest(dto, currentUser);
+            return buildSuccess(Map.of("request", created));
+        } catch (IllegalArgumentException e) {
+            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── GET /api/rental-requests/my — tenant views own requests ──────────
+    @GetMapping("/my")
+    public ResponseEntity<?> getMyRequests(@AuthenticationPrincipal User currentUser) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+        try {
+            List<RentalRequestDTO> requests = rentalRequestService.getMyRequests(currentUser);
+            return buildSuccess(Map.of("requests", requests));
+        } catch (Exception e) {
+            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── GET /api/rental-requests/property/{propertyId} — owner views requests
+    @GetMapping("/property/{propertyId}")
+    public ResponseEntity<?> getRequestsForProperty(
+            @PathVariable Long propertyId,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+        try {
+            List<RentalRequestDTO> requests =
+                    rentalRequestService.getRequestsForProperty(propertyId, currentUser);
+            return buildSuccess(Map.of("requests", requests));
         } catch (IllegalArgumentException e) {
             return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
@@ -41,41 +76,60 @@ public class RentalRequestController {
         }
     }
 
-    @GetMapping("/my")
-    public ResponseEntity<?> getMyRequests(
+    // ── PUT /api/rental-requests/{id}/status — owner approves or rejects ─
+    @PutMapping("/{id}/status")
+    public ResponseEntity<?> updateStatus(
+            @PathVariable Long id,
+            @RequestBody StatusUpdateDTO body,
             @AuthenticationPrincipal User currentUser
     ) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+
+        if (body.getStatus() == null || body.getStatus().isBlank())
+            return buildError("VALID-001", "Status is required.", HttpStatus.BAD_REQUEST);
+
+        String s = body.getStatus().toUpperCase();
+        if (!s.equals("APPROVED") && !s.equals("REJECTED"))
+            return buildError("VALID-001", "Status must be APPROVED or REJECTED.", HttpStatus.BAD_REQUEST);
+
         try {
-            List<RentalRequestDTO> requests = rentalRequestService.getMyRequests(currentUser);
-            Map<String, Object> data = new HashMap<>();
-            data.put("rentalRequests", requests);
-            return ResponseEntity.ok(buildSuccess(data));
+            RentalRequestDTO updated = rentalRequestService.updateRequestStatus(id, s, currentUser);
+            return buildSuccess(Map.of("request", updated));
+        } catch (IllegalArgumentException e) {
+            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
+            e.printStackTrace();
             return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
-    private Map<String, Object> buildSuccess(Map<String, Object> data) {
+    // ── Inner DTO ─────────────────────────────────────────────────────────
+    @Data
+    public static class StatusUpdateDTO {
+        private String status;
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+    private ResponseEntity<?> buildSuccess(Object data) {
         Map<String, Object> body = new HashMap<>();
-        body.put("success", true);
-        body.put("data", data);
-        body.put("error", null);
+        body.put("success",   true);
+        body.put("data",      data);
+        body.put("error",     null);
         body.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
-        return body;
+        return ResponseEntity.ok(body);
     }
 
     private ResponseEntity<?> buildError(String code, String message, HttpStatus status) {
         Map<String, Object> error = new HashMap<>();
-        error.put("code", code);
+        error.put("code",    code);
         error.put("message", message);
         error.put("details", null);
-
         Map<String, Object> body = new HashMap<>();
-        body.put("success", false);
-        body.put("data", null);
-        body.put("error", error);
+        body.put("success",   false);
+        body.put("data",      null);
+        body.put("error",     error);
         body.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
-
         return ResponseEntity.status(status).body(body);
     }
 }

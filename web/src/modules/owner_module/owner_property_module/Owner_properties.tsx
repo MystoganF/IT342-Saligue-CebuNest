@@ -334,7 +334,7 @@ const OwnerProperties: React.FC = () => {
                         href={`/owner/properties/${p.id}/edit`}
                         className={styles.cardEditBtn}
                       >
-                        ✏️ Edit
+                        ✏️ View
                       </a>
                       <button
                         className={styles.cardDeleteBtn}

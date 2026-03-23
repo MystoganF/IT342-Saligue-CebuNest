@@ -28,6 +28,17 @@ interface MapCoords {
   lon: number;
 }
 
+interface RentalRequest {
+  id: number;
+  tenantId: number;
+  tenantName: string;
+  tenantEmail: string;
+  startDate: string;
+  leaseDurationMonths: number;
+  status: string;
+  createdAt: string;
+}
+
 async function geocode(query: string): Promise<MapCoords | null> {
   try {
     const res = await fetch(
@@ -37,9 +48,7 @@ async function geocode(query: string): Promise<MapCoords | null> {
     const data = await res.json();
     if (!data.length) return null;
     return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 function buildMapSrc(coords: MapCoords): string {
@@ -49,6 +58,25 @@ function buildMapSrc(coords: MapCoords): string {
     `?bbox=${lon - 0.01},${lat - 0.01},${lon + 0.01},${lat + 0.01}` +
     `&layer=mapnik&marker=${lat},${lon}`
   );
+}
+
+function timeAgo(dateStr: string): string {
+  const diff  = Date.now() - new Date(dateStr).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  if (mins < 60)  return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return `${days}d ago`;
+}
+
+function statusColor(status: string): string {
+  switch (status) {
+    case "APPROVED":  return "#1a7a4a";
+    case "REJECTED":  return "#c0392b";
+    case "CONFIRMED": return "#1f5d71";
+    default:          return "#b78e42";
+  }
 }
 
 const EditProperty: React.FC = () => {
@@ -83,10 +111,19 @@ const EditProperty: React.FC = () => {
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
   const [dragOver, setDragOver]                 = useState(false);
 
-  // ── Lightbox state ─────────────────────────────────────────────────────
+  // Lightbox
   const [lightboxSrc, setLightboxSrc]     = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number>(0);
   const [lightboxList, setLightboxList]   = useState<string[]>([]);
+
+  // Rental requests
+  const [requests, setRequests]               = useState<RentalRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [requestsError, setRequestsError]     = useState<string | null>(null);
+  const [actionTarget, setActionTarget]       = useState<RentalRequest | null>(null);
+  const [actionType, setActionType]           = useState<"APPROVED" | "REJECTED" | null>(null);
+  const [actionSubmitting, setActionSubmitting] = useState(false);
+  const [actionError, setActionError]         = useState<string | null>(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitMsg, setSubmitMsg]   = useState<{
@@ -146,48 +183,56 @@ const EditProperty: React.FC = () => {
       .finally(() => setPageLoading(false));
   }, [user, id]);
 
-  // ── Keyboard nav for lightbox ──────────────────────────────────────────
+  useEffect(() => {
+    if (!user || !id) return;
+    const token = localStorage.getItem("accessToken");
+    setRequestsLoading(true);
+    fetch(`${API_BASE}/api/rental-requests/property/${id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) setRequests(data.data.requests ?? []);
+        else setRequestsError("Failed to load requests.");
+      })
+      .catch(() => setRequestsError("Unable to load rental requests."))
+      .finally(() => setRequestsLoading(false));
+  }, [user, id]);
+
+  // ── Keyboard lightbox nav ──────────────────────────────────────────────
   useEffect(() => {
     if (!lightboxSrc) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape")      closeLightbox();
-      if (e.key === "ArrowRight")  goNext();
-      if (e.key === "ArrowLeft")   goPrev();
+      if (e.key === "Escape")     closeLightbox();
+      if (e.key === "ArrowRight") goNext();
+      if (e.key === "ArrowLeft")  goPrev();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [lightboxSrc, lightboxIndex, lightboxList]);
 
-  // ── Lightbox helpers ───────────────────────────────────────────────────
   const openLightbox = (srcs: string[], index: number) => {
-    setLightboxList(srcs);
-    setLightboxIndex(index);
-    setLightboxSrc(srcs[index]);
+    setLightboxList(srcs); setLightboxIndex(index); setLightboxSrc(srcs[index]);
   };
   const closeLightbox = () => setLightboxSrc(null);
   const goNext = () => {
     const next = (lightboxIndex + 1) % lightboxList.length;
-    setLightboxIndex(next);
-    setLightboxSrc(lightboxList[next]);
+    setLightboxIndex(next); setLightboxSrc(lightboxList[next]);
   };
   const goPrev = () => {
     const prev = (lightboxIndex - 1 + lightboxList.length) % lightboxList.length;
-    setLightboxIndex(prev);
-    setLightboxSrc(lightboxList[prev]);
+    setLightboxIndex(prev); setLightboxSrc(lightboxList[prev]);
   };
 
-  // ── Map ────────────────────────────────────────────────────────────────
   const handleMapSearch = async () => {
     if (!mapQuery.trim()) return;
-    setMapSearching(true);
-    setMapError(null);
+    setMapSearching(true); setMapError(null);
     const coords = await geocode(mapQuery.trim());
     if (coords) { setMapCoords(coords); if (!location.trim()) setLocation(mapQuery.trim()); }
     else setMapError("Location not found. Try a more specific address.");
     setMapSearching(false);
   };
 
-  // ── Images ─────────────────────────────────────────────────────────────
   const addFiles = (files: FileList | null) => {
     if (!files) return;
     const valid = Array.from(files).filter(
@@ -208,12 +253,44 @@ const EditProperty: React.FC = () => {
     setNewImagePreviews(updated.map((f) => URL.createObjectURL(f)));
   };
 
-  // ── Submit ─────────────────────────────────────────────────────────────
+  // ── Rental request actions ─────────────────────────────────────────────
+  const openAction = (req: RentalRequest, type: "APPROVED" | "REJECTED") => {
+    setActionTarget(req); setActionType(type); setActionError(null);
+  };
+  const closeAction = () => {
+    if (actionSubmitting) return;
+    setActionTarget(null); setActionType(null); setActionError(null);
+  };
+  const handleRequestAction = async () => {
+    if (!actionTarget || !actionType) return;
+    setActionSubmitting(true); setActionError(null);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(`${API_BASE}/api/rental-requests/${actionTarget.id}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ status: actionType }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) { setActionError(data?.error?.message ?? "Action failed."); return; }
+      setRequests((prev) =>
+        prev.map((r) => r.id === actionTarget.id ? { ...r, status: actionType } : r)
+      );
+      closeAction();
+    } catch {
+      setActionError("Network error. Please try again.");
+    } finally {
+      setActionSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !id) return;
-    setSubmitting(true);
-    setSubmitMsg(null);
+    setSubmitting(true); setSubmitMsg(null);
     try {
       const token = localStorage.getItem("accessToken");
       const updateRes = await fetch(`${API_BASE}/api/properties/${id}`, {
@@ -251,7 +328,7 @@ const EditProperty: React.FC = () => {
         });
         const imgData = await imgRes.json();
         if (!imgRes.ok || !imgData.success) {
-          setSubmitMsg({ type: "warning", text: "Property updated! Some new images failed to upload." });
+          setSubmitMsg({ type: "warning", text: "Property updated! Some images failed to upload." });
           setTimeout(() => navigate("/owner/properties"), 2000);
           return;
         }
@@ -267,14 +344,15 @@ const EditProperty: React.FC = () => {
 
   if (!user) return null;
 
-  const submitIcon      = submitMsg?.type === "success" ? "✓" : submitMsg?.type === "warning" ? "⚠" : "✕";
-  const submitMsgClass  = submitMsg?.type === "success" ? styles.submitMsgSuccess
-                        : submitMsg?.type === "warning" ? styles.submitMsgWarning
-                        : styles.submitMsgError;
+  const submitIcon     = submitMsg?.type === "success" ? "✓" : submitMsg?.type === "warning" ? "⚠" : "✕";
+  const submitMsgClass = submitMsg?.type === "success" ? styles.submitMsgSuccess
+                       : submitMsg?.type === "warning" ? styles.submitMsgWarning
+                       : styles.submitMsgError;
   const canToggleStatus = currentStatus === "AVAILABLE" || currentStatus === "UNAVAILABLE";
   const visibleExisting = existingImages.filter((img) => !removedImageIds.includes(img.id));
   const totalPhotos     = visibleExisting.length + newImageFiles.length;
   const existingSrcs    = visibleExisting.map((img) => img.imageUrl);
+  const pendingCount    = requests.filter((r) => r.status === "PENDING").length;
 
   if (pageLoading) return (
     <div className={styles.page}>
@@ -282,7 +360,6 @@ const EditProperty: React.FC = () => {
       <div style={{ padding: "60px 40px", textAlign: "center", color: "#6e7071" }}>Loading property…</div>
     </div>
   );
-
   if (pageError) return (
     <div className={styles.page}>
       <OwnerNavbar user={user} onAddProperty={() => {}} />
@@ -297,57 +374,72 @@ const EditProperty: React.FC = () => {
       {/* ── Lightbox ── */}
       {lightboxSrc && (
         <div className={styles.lightboxOverlay} onClick={closeLightbox}>
-
-          {/* Close */}
           <button className={styles.lightboxClose} onClick={closeLightbox} type="button">✕</button>
-
-          {/* Counter */}
           {lightboxList.length > 1 && (
-            <div className={styles.lightboxCounter}>
-              {lightboxIndex + 1} / {lightboxList.length}
-            </div>
+            <div className={styles.lightboxCounter}>{lightboxIndex + 1} / {lightboxList.length}</div>
           )}
-
-          {/* Prev */}
           {lightboxList.length > 1 && (
-            <button
-              className={`${styles.lightboxNav} ${styles.lightboxNavPrev}`}
-              onClick={(e) => { e.stopPropagation(); goPrev(); }}
-              type="button"
-            >‹</button>
+            <button className={`${styles.lightboxNav} ${styles.lightboxNavPrev}`}
+              onClick={(e) => { e.stopPropagation(); goPrev(); }} type="button">‹</button>
           )}
-
-          {/* Image */}
-          <img
-            src={lightboxSrc}
-            alt="Full preview"
-            className={styles.lightboxImg}
-            onClick={(e) => e.stopPropagation()}
-          />
-
-          {/* Next */}
+          <img src={lightboxSrc} alt="Full preview" className={styles.lightboxImg}
+            onClick={(e) => e.stopPropagation()} />
           {lightboxList.length > 1 && (
-            <button
-              className={`${styles.lightboxNav} ${styles.lightboxNavNext}`}
-              onClick={(e) => { e.stopPropagation(); goNext(); }}
-              type="button"
-            >›</button>
+            <button className={`${styles.lightboxNav} ${styles.lightboxNavNext}`}
+              onClick={(e) => { e.stopPropagation(); goNext(); }} type="button">›</button>
           )}
-
-          {/* Thumbnail strip */}
           {lightboxList.length > 1 && (
             <div className={styles.lightboxStrip} onClick={(e) => e.stopPropagation()}>
               {lightboxList.map((src, i) => (
-                <img
-                  key={i}
-                  src={src}
-                  alt={`Thumb ${i + 1}`}
+                <img key={i} src={src} alt={`Thumb ${i + 1}`}
                   className={`${styles.lightboxThumb} ${i === lightboxIndex ? styles.lightboxThumbActive : ""}`}
-                  onClick={() => { setLightboxIndex(i); setLightboxSrc(src); }}
-                />
+                  onClick={() => { setLightboxIndex(i); setLightboxSrc(src); }} />
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Request Action Modal ── */}
+      {actionTarget && actionType && (
+        <div className={styles.modalOverlay} onClick={closeAction}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={`${styles.reqModalHeader} ${
+              actionType === "APPROVED" ? styles.reqModalHeaderApprove : styles.reqModalHeaderReject
+            }`}>
+              <span>{actionType === "APPROVED" ? "✅" : "❌"}</span>
+              <h3 className={styles.reqModalTitle}>
+                {actionType === "APPROVED" ? "Approve Request" : "Reject Request"}
+              </h3>
+            </div>
+            <div className={styles.reqModalBody}>
+              <p className={styles.reqModalDesc}>
+                {actionType === "APPROVED"
+                  ? <><strong>{actionTarget.tenantName}</strong>'s request will be approved. They'll be notified by email.</>
+                  : <><strong>{actionTarget.tenantName}</strong>'s request will be rejected. They'll be notified by email.</>
+                }
+              </p>
+              <div className={styles.reqModalMeta}>
+                <span>👤 {actionTarget.tenantName}</span>
+                <span>✉️ {actionTarget.tenantEmail}</span>
+                <span>📅 {actionTarget.startDate}</span>
+                <span>🗓 {actionTarget.leaseDurationMonths} month{actionTarget.leaseDurationMonths !== 1 ? "s" : ""}</span>
+              </div>
+              {actionError && <p className={styles.reqModalError}>⚠ {actionError}</p>}
+            </div>
+            <div className={styles.reqModalFooter}>
+              <button className={styles.modalCancelBtn} onClick={closeAction}
+                disabled={actionSubmitting} type="button">Cancel</button>
+              <button
+                className={actionType === "APPROVED" ? styles.modalApproveBtn : styles.modalRejectBtn}
+                onClick={handleRequestAction} disabled={actionSubmitting} type="button"
+              >
+                {actionSubmitting
+                  ? <><span className={styles.spinner} /> Processing…</>
+                  : actionType === "APPROVED" ? "✓ Approve" : "✕ Reject"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -424,11 +516,9 @@ const EditProperty: React.FC = () => {
                       : "This property is hidden and won't appear in search results."}
                   </div>
                 </div>
-                <button
-                  type="button"
+                <button type="button"
                   className={`${styles.toggleBtn} ${status === "AVAILABLE" ? styles.toggleBtnOn : styles.toggleBtnOff}`}
-                  onClick={() => setStatus((s) => s === "AVAILABLE" ? "UNAVAILABLE" : "AVAILABLE")}
-                >
+                  onClick={() => setStatus((s) => s === "AVAILABLE" ? "UNAVAILABLE" : "AVAILABLE")}>
                   <span className={styles.toggleThumb} />
                 </button>
               </div>
@@ -466,14 +556,13 @@ const EditProperty: React.FC = () => {
             </div>
             {mapError && <p style={{ color: "#c0392b", fontSize: "13px", marginBottom: "10px" }}>⚠ {mapError}</p>}
             <div className={styles.mapFrame}>
-              {mapCoords ? (
-                <iframe src={buildMapSrc(mapCoords)} title="Property location" loading="lazy" referrerPolicy="no-referrer" />
-              ) : (
-                <div className={styles.mapPlaceholder}>
-                  <div className={styles.mapPlaceholderIcon}>🗺️</div>
-                  <span>Search an address above to pin it on the map</span>
-                </div>
-              )}
+              {mapCoords
+                ? <iframe src={buildMapSrc(mapCoords)} title="Property location" loading="lazy" referrerPolicy="no-referrer" />
+                : <div className={styles.mapPlaceholder}>
+                    <div className={styles.mapPlaceholderIcon}>🗺️</div>
+                    <span>Search an address above to pin it on the map</span>
+                  </div>
+              }
             </div>
             {mapCoords && (
               <div className={styles.mapCoordsBadge}>
@@ -501,6 +590,12 @@ const EditProperty: React.FC = () => {
               </div>
             </div>
 
+            {/* Thumbnail note */}
+            <div className={styles.thumbnailNote}>
+              🖼 The <strong>last photo uploaded</strong> will be used as the listing thumbnail.
+            </div>
+
+            {/* Existing images */}
             {visibleExisting.length > 0 && (
               <div className={styles.existingImagesWrap}>
                 <p className={styles.existingImagesLabel}>Current photos — click to preview</p>
@@ -513,18 +608,16 @@ const EditProperty: React.FC = () => {
                         className={`${styles.imagePreview} ${styles.imagePreviewClickable}`}
                         onClick={() => openLightbox(existingSrcs, idx)}
                       />
-                      <button
-                        type="button"
-                        className={styles.imagePreviewRemove}
+                      <button type="button" className={styles.imagePreviewRemove}
                         onClick={(e) => { e.stopPropagation(); removeExistingImage(img.id); }}
-                        aria-label="Remove image"
-                      >✕</button>
+                        aria-label="Remove image">✕</button>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
+            {/* Upload area */}
             {totalPhotos < 10 && (
               <div
                 className={`${styles.imageUploadArea} ${dragOver ? styles.imageUploadAreaActive : ""}`}
@@ -548,25 +641,80 @@ const EditProperty: React.FC = () => {
               </div>
             )}
 
+            {/* New previews */}
             {newImagePreviews.length > 0 && (
               <div className={styles.imagePreviewGrid} style={{ marginTop: "12px" }}>
                 {newImagePreviews.map((src, i) => (
                   <div key={i} className={styles.imagePreviewWrap}>
-                    <img
-                      src={src}
-                      alt={`New ${i + 1}`}
+                    <img src={src} alt={`New ${i + 1}`}
                       className={`${styles.imagePreview} ${styles.imagePreviewClickable}`}
-                      onClick={() => openLightbox(newImagePreviews, i)}
-                    />
+                      onClick={() => openLightbox(newImagePreviews, i)} />
                     <div className={styles.imagePreviewNewBadge}>New</div>
-                    <button
-                      type="button"
-                      className={styles.imagePreviewRemove}
+                    <button type="button" className={styles.imagePreviewRemove}
                       onClick={(e) => { e.stopPropagation(); removeNewImage(i); }}
-                      aria-label="Remove image"
-                    >✕</button>
+                      aria-label="Remove image">✕</button>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Rental Requests ── */}
+          <div className={styles.card}>
+            <div className={styles.cardTitle}>
+              Rental Requests
+              {pendingCount > 0 && (
+                <span className={styles.requestsBadge}>{pendingCount} pending</span>
+              )}
+            </div>
+
+            {requestsLoading && (
+              <div className={styles.requestsLoading}>Loading requests…</div>
+            )}
+            {!requestsLoading && requestsError && (
+              <div className={styles.requestsError}>⚠ {requestsError}</div>
+            )}
+            {!requestsLoading && !requestsError && requests.length === 0 && (
+              <div className={styles.requestsEmpty}>
+                <span className={styles.requestsEmptyIcon}>📭</span>
+                <p>No rental requests yet for this property.</p>
+              </div>
+            )}
+            {!requestsLoading && !requestsError && requests.length > 0 && (
+              <div className={styles.requestsList}>
+                {requests.map((req) => {
+                  const isPending = req.status === "PENDING";
+                  return (
+                    <div key={req.id} className={styles.requestRow}>
+                      <div className={styles.requestAvatar}>
+                        {req.tenantName?.charAt(0).toUpperCase()}
+                      </div>
+                      <div className={styles.requestInfo}>
+                        <div className={styles.requestName}>{req.tenantName}</div>
+                        <div className={styles.requestMeta}>
+                          <span>✉️ {req.tenantEmail}</span>
+                          <span>📅 Move in: {req.startDate}</span>
+                          <span>🗓 {req.leaseDurationMonths} month{req.leaseDurationMonths !== 1 ? "s" : ""}</span>
+                          <span>🕐 {timeAgo(req.createdAt)}</span>
+                        </div>
+                      </div>
+                      <div className={styles.requestRight}>
+                        <span className={styles.requestStatus}
+                          style={{ color: statusColor(req.status), borderColor: statusColor(req.status) }}>
+                          {req.status}
+                        </span>
+                        {isPending && (
+                          <div className={styles.requestActions}>
+                            <button type="button" className={styles.requestRejectBtn}
+                              onClick={() => openAction(req, "REJECTED")}>✕ Reject</button>
+                            <button type="button" className={styles.requestApproveBtn}
+                              onClick={() => openAction(req, "APPROVED")}>✓ Approve</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -578,9 +726,8 @@ const EditProperty: React.FC = () => {
                 {submitIcon} {submitMsg.text}
               </span>
             )}
-            <button type="button" className={styles.cancelBtn} onClick={() => navigate(-1)} disabled={submitting}>
-              Cancel
-            </button>
+            <button type="button" className={styles.cancelBtn}
+              onClick={() => navigate(-1)} disabled={submitting}>Cancel</button>
             <button type="submit" className={styles.submitBtn} disabled={submitting}>
               {submitting ? <><span className={styles.submitSpinner} /> Saving…</> : "Save Changes"}
             </button>

@@ -13,8 +13,10 @@ public class UpdatePropertyDTO {
     private Integer beds;
     private Integer baths;
     private Integer sqm;
-    // null = don't change status; "AVAILABLE" or "UNAVAILABLE" = toggle visibility
+    // null = don't change; "AVAILABLE" or "UNAVAILABLE" = toggle visibility
     private String  status;
     // IDs of existing images the owner wants to remove
     private List<Long> removedImageIds;
+    // ID of the image to use as the cover/thumbnail (moved to front of list)
+    private Long coverImageId;
 }
