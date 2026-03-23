@@ -24,18 +24,32 @@
   border-bottom: 1px solid rgba(31, 93, 113, 0.1);
   display: flex;
   align-items: center;
-  padding: 0 40px;
+  padding: 0;
   box-shadow: 0 2px 16px rgba(31, 93, 113, 0.06);
   font-family: 'DM Sans', sans-serif;
 }
 
-/* ─────────────────────────────────────
-   INNER LAYOUT
-───────────────────────────────────── */
+/* Reset global button styles bleeding in from index.css */
+.navbar button {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+.navbar button:hover {
+  border-color: transparent;
+}
+.navbar button:focus,
+.navbar button:focus-visible {
+  outline: none;
+}
 .inner {
   width: 100%;
   max-width: 1280px;
   margin: 0 auto;
+  padding: 0 max(40px, 4vw);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -53,7 +67,6 @@
   flex-shrink: 0;
 }
 .brandLogo {
- 
   width: 36px;
   height: 36px;
   object-fit: contain;
@@ -70,7 +83,8 @@
   height: 5px;
   border-radius: 50%;
   background: var(--gold);
-  margin-bottom: 10px;
+  align-self: flex-end;
+  margin-bottom: 4px;
   flex-shrink: 0;
 }
 
