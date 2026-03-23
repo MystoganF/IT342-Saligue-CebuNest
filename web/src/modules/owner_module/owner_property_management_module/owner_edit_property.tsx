@@ -487,6 +487,20 @@ const EditProperty: React.FC = () => {
           <div className={styles.card}>
             <div className={styles.cardTitle}>Photos ({totalPhotos}/10)</div>
 
+            {/* Tip banner */}
+            <div className={styles.photoTip}>
+              <span className={styles.photoTipIcon}>💡</span>
+              <div>
+                <div className={styles.photoTipTitle}>Improve your chances of approval</div>
+                <div className={styles.photoTipBody}>
+                  Include clear photos of the actual property (living area, bedroom, bathroom, kitchen)
+                  and supporting documents such as your <strong>business permit</strong> or{" "}
+                  <strong>barangay certificate</strong>. Listings with complete photos and credentials
+                  are reviewed and approved faster.
+                </div>
+              </div>
+            </div>
+
             {visibleExisting.length > 0 && (
               <div className={styles.existingImagesWrap}>
                 <p className={styles.existingImagesLabel}>Current photos — click to preview</p>

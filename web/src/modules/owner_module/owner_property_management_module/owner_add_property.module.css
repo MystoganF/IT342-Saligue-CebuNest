@@ -669,3 +669,263 @@
   transform: scale(1.04);
   box-shadow: 0 4px 16px rgba(31,93,113,0.18);
 }
+/* ─────────────────────────────────────
+   LIGHTBOX
+   Append these to owner_add_property.module.css
+───────────────────────────────────── */
+
+.lightboxOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+.lightboxImg {
+  max-width: min(90vw, 900px);
+  max-height: 75vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+  display: block;
+}
+
+.lightboxClose {
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  z-index: 2001;
+}
+.lightboxClose:hover { background: rgba(255,255,255,0.28); }
+
+.lightboxCounter {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+  background: rgba(0,0,0,0.4);
+  padding: 4px 14px;
+  border-radius: 20px;
+  z-index: 2001;
+}
+
+.lightboxNav {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: #fff;
+  font-size: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  z-index: 2001;
+  line-height: 1;
+}
+.lightboxNav:hover { background: rgba(255,255,255,0.28); }
+.lightboxNavPrev   { left: 16px; }
+.lightboxNavNext   { right: 16px; }
+
+.lightboxStrip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+  max-width: min(90vw, 900px);
+}
+.lightboxStrip::-webkit-scrollbar { height: 4px; }
+.lightboxStrip::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 2px; }
+
+.lightboxThumb {
+  width: 60px;
+  height: 46px;
+  object-fit: cover;
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0.5;
+  flex-shrink: 0;
+  border: 2px solid transparent;
+  transition: opacity 0.15s, border-color 0.15s;
+}
+.lightboxThumb:hover   { opacity: 0.8; }
+.lightboxThumbActive   { opacity: 1; border-color: #fff; }
+
+.imagePreviewClickable {
+  cursor: zoom-in;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.imagePreviewClickable:hover {
+  transform: scale(1.04);
+  box-shadow: 0 4px 16px rgba(31,93,113,0.18);
+}
+
+
+/* ─────────────────────────────────────
+   PHOTO TIP BANNER
+   (also append to owner_add_property.module.css)
+───────────────────────────────────── */
+
+.photoTip {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #fffbea;
+  border: 1.5px solid #f6d860;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+}
+
+.photoTipIcon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+
+.photoTipTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: #92600a;
+  margin-bottom: 4px;
+  letter-spacing: 0.2px;
+}
+
+.photoTipBody {
+  font-size: 13px;
+  color: #7a5210;
+  line-height: 1.55;
+}
+
+.photoTipBody strong {
+  font-weight: 700;
+  color: #92600a;
+}
+
+
+/* ─────────────────────────────────────
+   VISIBILITY TOGGLE
+   (also append if not already present)
+───────────────────────────────────── */
+
+.visibilityWrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 4px 0;
+}
+.visibilityInfo { flex: 1; }
+.visibilityLabel {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a2a2e;
+  margin-bottom: 4px;
+}
+.visibilitySub {
+  font-size: 13px;
+  color: #6e7071;
+  line-height: 1.5;
+}
+
+.toggleBtn {
+  width: 48px;
+  height: 26px;
+  border-radius: 13px;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.25s;
+  padding: 0;
+}
+.toggleBtnOn  { background: #1f5d71; }
+.toggleBtnOff { background: #ccd6d8; }
+
+.toggleThumb {
+  position: absolute;
+  top: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+  transition: left 0.25s;
+}
+.toggleBtnOn  .toggleThumb { left: 25px; }
+.toggleBtnOff .toggleThumb { left: 3px; }
+
+.visibilityLocked {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #f8f9fa;
+  border: 1.5px solid #e5eced;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.visibilityLockedIcon { font-size: 20px; flex-shrink: 0; }
+.visibilityLockedLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a2a2e;
+  margin-bottom: 4px;
+}
+.visibilityLockedSub {
+  font-size: 13px;
+  color: #6e7071;
+  line-height: 1.5;
+}
+
+.existingImagesWrap { margin-bottom: 4px; }
+.existingImagesLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f5d71;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.imagePreviewNewBadge {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  background: #1f5d71;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+.submitMsgWarning {
+  color: #92600a;
+  background: #fef9ec;
+  border: 1px solid #f6d860;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
