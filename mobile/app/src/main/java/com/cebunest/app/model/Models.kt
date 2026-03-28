@@ -9,7 +9,7 @@ data class RegisterRequest(
     val email: String,
     val password: String,
     @SerializedName("confirmPassword") val confirmPassword: String,
-    val phoneNumber: String = "",
+    @SerializedName("phoneNumber") val phoneNumber: String = "",
     val role: String = "TENANT"
 )
 

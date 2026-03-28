@@ -58,12 +58,14 @@ class RegisterActivity : AppCompatActivity() {
 
     private fun attemptRegister() {
         val name            = binding.etName.text.toString().trim()
+        val phoneNumber     = binding.etPhoneNumber.text.toString().trim()
         val email           = binding.etEmail.text.toString().trim()
         val password        = binding.etPassword.text.toString().trim()
         val confirmPassword = binding.etConfirmPassword.text.toString().trim()
 
         // Validation
         if (name.isEmpty())    { binding.etName.error = "Name is required"; return }
+        if (phoneNumber.isEmpty()) { binding.etPhoneNumber.error = "Phone number is required"; return }
         if (email.isEmpty())   { binding.etEmail.error = "Email is required"; return }
         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             binding.etEmail.error = "Enter a valid email address"; return
@@ -80,6 +82,7 @@ class RegisterActivity : AppCompatActivity() {
                 val response = RetrofitClient.apiService.register(
                     RegisterRequest(
                         name            = name,
+                        phoneNumber     = phoneNumber,
                         email           = email,
                         password        = password,
                         confirmPassword = confirmPassword,
