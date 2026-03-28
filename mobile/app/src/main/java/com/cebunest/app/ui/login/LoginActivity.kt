@@ -3,7 +3,6 @@ package com.cebunest.app.ui.login
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.cebunest.app.api.RetrofitClient
@@ -64,7 +63,8 @@ class LoginActivity : AppCompatActivity() {
                     )
                     data.user?.let { SessionManager.saveUser(it) }
 
-                    showSuccess("Login successful! Welcome back.")
+                    showSuccess()
+                    kotlinx.coroutines.delay(1000)
                     goToHome()
                 } else {
                     val msg = body?.error?.message
@@ -98,10 +98,12 @@ class LoginActivity : AppCompatActivity() {
     private fun showError(msg: String) {
         binding.tvError.text       = msg
         binding.tvError.visibility = View.VISIBLE
+        binding.tvSuccess.visibility = View.GONE
     }
 
-    private fun showSuccess(msg: String) {
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-        binding.tvError.visibility = View.GONE
+    private fun showSuccess() {
+        binding.tvSuccess.visibility = View.VISIBLE
+        binding.tvError.visibility   = View.GONE
+        binding.btnLogin.isEnabled   = false
     }
 }

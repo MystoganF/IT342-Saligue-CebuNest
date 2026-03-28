@@ -3,7 +3,6 @@ package com.cebunest.app.ui.register
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.cebunest.app.api.RetrofitClient
@@ -99,8 +98,8 @@ class RegisterActivity : AppCompatActivity() {
                     )
                     data.user?.let { SessionManager.saveUser(it) }
 
-                    Toast.makeText(this@RegisterActivity,
-                        "Account created! Welcome to CebuNest.", Toast.LENGTH_SHORT).show()
+                    showSuccess()
+                    kotlinx.coroutines.delay(1000)
                     goToHome()
                 } else {
                     val msg = body?.error?.message
@@ -133,7 +132,14 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     private fun showError(msg: String) {
-        binding.tvError.text       = msg
-        binding.tvError.visibility = View.VISIBLE
+        binding.tvError.text         = msg
+        binding.tvError.visibility   = View.VISIBLE
+        binding.tvSuccess.visibility = View.GONE
+    }
+
+    private fun showSuccess() {
+        binding.tvSuccess.visibility  = View.VISIBLE
+        binding.tvError.visibility    = View.GONE
+        binding.btnRegister.isEnabled = false
     }
 }

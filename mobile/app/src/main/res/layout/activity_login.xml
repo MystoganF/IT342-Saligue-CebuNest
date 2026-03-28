@@ -170,6 +170,20 @@
                     android:textStyle="bold"
                     android:letterSpacing="0.08" />
 
+                <!-- Success message -->
+                <TextView
+                    android:id="@+id/tvSuccess"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_success"
+                    android:padding="12dp"
+                    android:text="✓  Welcome back! Redirecting you now…"
+                    android:textColor="#1F5D71"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
                 <!-- Go to Register -->
                 <LinearLayout
                     android:layout_width="match_parent"
