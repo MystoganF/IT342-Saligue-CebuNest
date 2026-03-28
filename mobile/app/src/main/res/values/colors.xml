@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <color name="teal_deep">#1F5D71</color>
+    <color name="teal_aero">#53A4A3</color>
+    <color name="teal_soft">#98C1C1</color>
+    <color name="gold">#B78E42</color>
+    <color name="slate">#6E7071</color>
+    <color name="cloud">#DCDDDD</color>
+    <color name="bg">#F0F4F5</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <!-- Material defaults -->
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
 </resources>
