@@ -8,9 +8,9 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
-    // ── Change this to your deployed backend URL before demo ──────────────
-    private const val BASE_URL = "https://api.cebunest.com/"
-    // For local testing:  "http://10.0.2.2:8080/"  (Android emulator → localhost)
+    // RetrofitClient.kt
+    private const val BASE_URL = "http://10.0.2.2:8080/"
+
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
