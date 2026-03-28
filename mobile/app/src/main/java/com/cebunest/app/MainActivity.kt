@@ -1,4 +1,4 @@
-package com.example.cebunest
+package com.cebunest.app
 
 import android.os.Bundle
 import androidx.activity.enableEdgeToEdge

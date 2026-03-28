@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.cebunest"
+    namespace = "com.cebunest.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.cebunest"
+        applicationId = "com.cebunest.app"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

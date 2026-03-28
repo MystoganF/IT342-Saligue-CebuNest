@@ -1,4 +1,4 @@
-package com.example.cebunest
+package com.cebunest.app
 
 import org.junit.Test
 
