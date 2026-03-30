@@ -1,14 +1,10 @@
 package edu.cit.saligue.cebunest.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Data
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class UserDTO {
     private Long id;
     private String name;
@@ -16,4 +12,7 @@ public class UserDTO {
     private String phoneNumber;
     private String role;
     private String avatarUrl;
+    private String facebookUrl;
+    private String instagramUrl;
+    private String twitterUrl;
 }

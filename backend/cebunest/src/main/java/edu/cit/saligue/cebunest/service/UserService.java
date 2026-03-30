@@ -38,6 +38,15 @@ public class UserService {
         if (request.getAvatarUrl() != null) {
             user.setAvatarUrl(request.getAvatarUrl());
         }
+        if (request.getFacebookUrl() != null) {
+            user.setFacebookUrl(request.getFacebookUrl().isBlank() ? null : request.getFacebookUrl().trim());
+        }
+        if (request.getInstagramUrl() != null) {
+            user.setInstagramUrl(request.getInstagramUrl().isBlank() ? null : request.getInstagramUrl().trim());
+        }
+        if (request.getTwitterUrl() != null) {
+            user.setTwitterUrl(request.getTwitterUrl().isBlank() ? null : request.getTwitterUrl().trim());
+        }
 
         userRepository.save(user);
         return toDTO(user);
@@ -51,6 +60,9 @@ public class UserService {
                 .phoneNumber(user.getPhoneNumber())
                 .role(user.getRole().getName())
                 .avatarUrl(user.getAvatarUrl())
+                .facebookUrl(user.getFacebookUrl())
+                .instagramUrl(user.getInstagramUrl())
+                .twitterUrl(user.getTwitterUrl())
                 .build();
     }
 }

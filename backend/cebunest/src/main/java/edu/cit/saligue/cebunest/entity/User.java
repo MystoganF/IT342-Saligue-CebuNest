@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-
 @Entity
 @Table(name = "users")
 @Data
@@ -38,4 +37,8 @@ public class User {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     private String avatarUrl;
+
+    private String facebookUrl;
+    private String instagramUrl;
+    private String twitterUrl;
 }

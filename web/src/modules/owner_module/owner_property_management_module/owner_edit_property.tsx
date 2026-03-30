@@ -581,12 +581,13 @@ const EditProperty: React.FC = () => {
               <span className={styles.photoTipIcon}>💡</span>
               <div>
                 <div className={styles.photoTipTitle}>Improve your chances of approval</div>
-                <div className={styles.photoTipBody}>
-                  Include clear photos of the actual property (living area, bedroom, bathroom, kitchen)
-                  and supporting documents such as your <strong>business permit</strong> or{" "}
-                  <strong>barangay certificate</strong>. Listings with complete photos and credentials
-                  are reviewed and approved faster.
-                </div>
+                  <div className={styles.photoTipBody}>
+                    Include clear photos of the actual property
+                    and supporting documents such as your <strong>business permit</strong> or{" "}
+                    <strong>barangay certificate</strong>. Listings with complete photos and credentials
+                    are reviewed and approved faster—and will also be visible to tenants browsing listings,
+                    helping build trust and attract more inquiries.
+                  </div>
               </div>
             </div>
 

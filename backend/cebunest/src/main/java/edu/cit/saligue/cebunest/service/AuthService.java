@@ -44,6 +44,9 @@ public class AuthService {
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(role)
                 .createdAt(LocalDateTime.now())
+                .facebookUrl(request.getFacebookUrl())
+                .instagramUrl(request.getInstagramUrl())
+                .twitterUrl(request.getTwitterUrl())
                 .build();
 
         userRepository.save(user);
@@ -51,11 +54,9 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        // 1. Find user by email — use a vague error to avoid user enumeration
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid email or password."));
 
-        // 2. Verify BCrypt password
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new IllegalArgumentException("Invalid email or password.");
         }
@@ -65,7 +66,7 @@ public class AuthService {
     }
 
     private AuthResponse buildAuthResponse(User user, String roleName) {
-        String accessToken = jwtUtil.generateAccessToken(user.getEmail(), roleName);
+        String accessToken  = jwtUtil.generateAccessToken(user.getEmail(), roleName);
         String refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
 
         UserDTO userDTO = UserDTO.builder()
@@ -75,6 +76,9 @@ public class AuthService {
                 .phoneNumber(user.getPhoneNumber())
                 .role(roleName)
                 .avatarUrl(user.getAvatarUrl())
+                .facebookUrl(user.getFacebookUrl())
+                .instagramUrl(user.getInstagramUrl())
+                .twitterUrl(user.getTwitterUrl())
                 .build();
 
         return AuthResponse.builder()

@@ -7,8 +7,6 @@ type Role = "TENANT" | "OWNER";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
-// ─── types ─────────────────────────────────────────────────────────────────
-
 interface AuthResponse {
   success: boolean;
   data: {
@@ -19,8 +17,6 @@ interface AuthResponse {
   };
   error?: { message: string };
 }
-
-// ─── helpers ───────────────────────────────────────────────────────────────
 
 function storeTokensAndRedirect(data: AuthResponse) {
   localStorage.setItem("accessToken", data.data.accessToken);
@@ -45,8 +41,6 @@ async function postJSON(url: string, body: object): Promise<{ res: Response; dat
   return { res, data };
 }
 
-// ─── static data ───────────────────────────────────────────────────────────
-
 const FEATURES = [
   { icon: "🏠", title: "Browse Listings",  desc: "Filter by location and price" },
   { icon: "📋", title: "Submit Requests",  desc: "Easy rental applications"      },
@@ -58,10 +52,13 @@ const ROLES: { value: Role; label: string }[] = [
   { value: "OWNER",  label: "🔑 Owner"  },
 ];
 
-// ─── component ─────────────────────────────────────────────────────────────
+const SOCIAL_FIELDS = [
+  { id: "cn-reg-fb",  label: "Facebook",    icon: "f",  placeholder: "https://facebook.com/yourprofile",  key: "facebookUrl"  },
+  { id: "cn-reg-ig",  label: "Instagram",   icon: "in", placeholder: "https://instagram.com/yourhandle", key: "instagramUrl" },
+  { id: "cn-reg-tw",  label: "X / Twitter", icon: "𝕏",  placeholder: "https://x.com/yourhandle",         key: "twitterUrl"   },
+] as const;
 
 const Register: React.FC = () => {
-  // Form fields
   const [name, setName]                       = useState("");
   const [phoneNumber, setPhoneNumber]         = useState("");
   const [email, setEmail]                     = useState("");
@@ -69,30 +66,41 @@ const Register: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole]                       = useState<Role>("TENANT");
 
-  // UI state
-  const [loading, setLoading]           = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [message, setMessage]           = useState<string | null>(null);
-  const [isError, setIsError]           = useState(false);
+  const [facebookUrl, setFacebookUrl]   = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
+  const [twitterUrl, setTwitterUrl]     = useState("");
+  const [showSocial, setShowSocial]     = useState(false);
+
+  const [loading, setLoading]               = useState(false);
+  const [googleLoading, setGoogleLoading]   = useState(false);
+  const [message, setMessage]               = useState<string | null>(null);
+  const [isError, setIsError]               = useState(false);
   const [showAlreadyExists, setShowAlreadyExists] = useState(false);
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
-
-  const setSuccess = (msg: string) => { setIsError(false); setMessage(msg); };
+  const setSuccess  = (msg: string) => { setIsError(false); setMessage(msg); };
   const setErrorMsg = (msg: string) => { setIsError(true);  setMessage(msg); };
 
-  // ── Standard e-mail / password registration ──────────────────────────────
+  const socialValues: Record<string, string> = { facebookUrl, instagramUrl, twitterUrl };
+  const socialSetters: Record<string, React.Dispatch<React.SetStateAction<string>>> = {
+    facebookUrl: setFacebookUrl,
+    instagramUrl: setInstagramUrl,
+    twitterUrl: setTwitterUrl,
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
 
-    if (password !== confirmPassword) { setErrorMsg("Passwords do not match.");             return; }
+    if (password !== confirmPassword) { setErrorMsg("Passwords do not match.");               return; }
     if (password.length < 8)          { setErrorMsg("Password must be at least 8 characters."); return; }
 
     setLoading(true);
     try {
       const { res, data } = await postJSON(`${API_BASE}/api/auth/register`, {
         name, phoneNumber, email, password, confirmPassword, role,
+        facebookUrl:  facebookUrl.trim()  || undefined,
+        instagramUrl: instagramUrl.trim() || undefined,
+        twitterUrl:   twitterUrl.trim()   || undefined,
       });
 
       if (!res.ok || !data.success) {
@@ -109,7 +117,6 @@ const Register: React.FC = () => {
     }
   };
 
-  // ── Google OAuth registration ─────────────────────────────────────────────
   const handleGoogleRegister = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setGoogleLoading(true);
@@ -117,13 +124,11 @@ const Register: React.FC = () => {
       setIsError(false);
 
       try {
-        // 1. Fetch the user's Google profile
         const profileRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
           headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
         });
         const profile = await profileRes.json();
 
-        // 2. Attempt to register with our backend
         const { res, data } = await postJSON(`${API_BASE}/api/auth/google`, {
           email: profile.email,
           name: profile.name,
@@ -135,13 +140,11 @@ const Register: React.FC = () => {
           return;
         }
 
-        // 3a. Account already existed — show modal, do NOT log in
         if (data.data?.alreadyExists) {
           setShowAlreadyExists(true);
           return;
         }
 
-        // 3b. New account created successfully
         storeTokensAndRedirect(data);
         setSuccess("Account created! Redirecting...");
       } catch {
@@ -153,38 +156,27 @@ const Register: React.FC = () => {
     onError: () => setErrorMsg("Google sign-in was cancelled or failed."),
   });
 
-  // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className={styles.page}>
 
-      {/* ══ ALREADY EXISTS MODAL ═══════════════════════════════════════════ */}
+      {/* Already Exists Modal */}
       {showAlreadyExists && (
-        <div
-          className={styles.modalOverlay}
-          onClick={() => setShowAlreadyExists(false)}
-        >
+        <div className={styles.modalOverlay} onClick={() => setShowAlreadyExists(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <div className={styles.modalIcon}>⚠️</div>
               <h3 className={styles.modalTitle}>Account Already Exists</h3>
               <p className={styles.modalSubtitle}>
-                This Google account is already registered with CebuNest.
-                Please sign in instead.
+                This Google account is already registered with CebuNest. Please sign in instead.
               </p>
             </div>
-
-            <a href="/" className={styles.modalSigninBtn}>
-              Go to Sign In →
-            </a>
-
-            <p className={styles.modalNote}>
-              Or close this and try a different Google account.
-            </p>
+            <a href="/" className={styles.modalSigninBtn}>Go to Sign In →</a>
+            <p className={styles.modalNote}>Or close this and try a different Google account.</p>
           </div>
         </div>
       )}
 
-      {/* ══ LEFT PANEL ═════════════════════════════════════════════════════ */}
+      {/* Left Panel */}
       <div className={styles.leftPanel}>
         <div className={`${styles.deco} ${styles.deco1}`} />
         <div className={`${styles.deco} ${styles.deco2}`} />
@@ -220,11 +212,10 @@ const Register: React.FC = () => {
         </div>
       </div>
 
-      {/* ══ RIGHT PANEL ════════════════════════════════════════════════════ */}
+      {/* Right Panel */}
       <div className={styles.rightPanel}>
         <div className={styles.formCard}>
 
-          {/* Header */}
           <div className={styles.formHeader}>
             <div className={styles.formEyebrow}>
               <div className={styles.headerDot} />
@@ -251,7 +242,7 @@ const Register: React.FC = () => {
             </div>
           </div>
 
-          {/* Google sign-up */}
+          {/* Google */}
           <button
             className={styles.googleBtn}
             type="button"
@@ -275,7 +266,6 @@ const Register: React.FC = () => {
             </span>
           </button>
 
-          {/* Divider */}
           <div className={styles.divider}>
             <div className={styles.dividerLine} />
             <span className={styles.dividerText}>or sign up with email</span>
@@ -286,11 +276,11 @@ const Register: React.FC = () => {
           <form className={styles.formFields} onSubmit={handleRegister}>
 
             {[
-              { id: "cn-reg-name",    label: "Name",            icon: "👤", type: "text",     placeholder: "Juan dela Cruz",     value: name,            onChange: setName            },
-              { id: "cn-reg-phone",   label: "Phone Number",    icon: "📞", type: "tel",      placeholder: "+63 912 345 6789",   value: phoneNumber,     onChange: setPhoneNumber     },
-              { id: "cn-reg-email",   label: "Email Address",   icon: "✉",  type: "email",    placeholder: "you@example.com",    value: email,           onChange: setEmail           },
-              { id: "cn-reg-pass",    label: "Password",        icon: "🔒", type: "password", placeholder: "Min. 8 characters",  value: password,        onChange: setPassword        },
-              { id: "cn-reg-confirm", label: "Confirm Password",icon: "🔒", type: "password", placeholder: "Re-enter your password", value: confirmPassword, onChange: setConfirmPassword },
+              { id: "cn-reg-name",    label: "Name",             icon: "👤", type: "text",     placeholder: "Juan dela Cruz",        value: name,            onChange: setName            },
+              { id: "cn-reg-phone",   label: "Phone Number",     icon: "📞", type: "tel",      placeholder: "+63 912 345 6789",      value: phoneNumber,     onChange: setPhoneNumber     },
+              { id: "cn-reg-email",   label: "Email Address",    icon: "✉",  type: "email",    placeholder: "you@example.com",       value: email,           onChange: setEmail           },
+              { id: "cn-reg-pass",    label: "Password",         icon: "🔒", type: "password", placeholder: "Min. 8 characters",     value: password,        onChange: setPassword        },
+              { id: "cn-reg-confirm", label: "Confirm Password", icon: "🔒", type: "password", placeholder: "Re-enter your password", value: confirmPassword, onChange: setConfirmPassword },
             ].map(({ id, label, icon, type, placeholder, value, onChange }) => (
               <div key={id} className={styles.fieldGroup}>
                 <label className={styles.fieldLabel} htmlFor={id}>{label}</label>
@@ -310,6 +300,41 @@ const Register: React.FC = () => {
               </div>
             ))}
 
+            {/* Social links toggle */}
+            <button
+              type="button"
+              className={styles.socialToggle}
+              onClick={() => setShowSocial((v) => !v)}
+            >
+              <span className={styles.socialToggleIcon}>{showSocial ? "▲" : "▼"}</span>
+              {showSocial ? "Hide social links" : "Add social links"}{" "}
+              <span className={styles.socialToggleOptional}>(optional)</span>
+            </button>
+
+            {showSocial && (
+              <div className={styles.socialSection}>
+                {SOCIAL_FIELDS.map(({ id, label, icon, placeholder, key }) => (
+                  <div key={id} className={styles.fieldGroup}>
+                    <label className={styles.fieldLabel} htmlFor={id}>
+                      <span className={styles.socialBadge}>{icon}</span>
+                      {label}
+                    </label>
+                    <div className={styles.fieldWrap}>
+                      <span className={`${styles.fieldIcon} ${styles.socialFieldIcon}`}>{icon}</span>
+                      <input
+                        id={id}
+                        type="url"
+                        className={styles.fieldInput}
+                        placeholder={placeholder}
+                        value={socialValues[key]}
+                        onChange={(e) => socialSetters[key](e.target.value)}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <button
               type="submit"
               className={styles.submitBtn}
@@ -325,7 +350,6 @@ const Register: React.FC = () => {
             )}
           </form>
 
-          {/* Divider + sign-in link */}
           <div className={styles.divider}>
             <div className={styles.dividerLine} />
             <span className={styles.dividerText}>or</span>
