@@ -48,27 +48,29 @@ function formatDate(dateStr: string): string {
 
 function statusLabel(status: string): string {
   switch (status) {
-    case "PENDING":   return "⏳ Awaiting Approval";
-    case "APPROVED":  return "✅ Approved — Action Required";
-    case "REJECTED":  return "❌ Rejected";
-    case "CONFIRMED": return "🏠 Active Rental";
-    case "COMPLETED": return "✓ Completed";
-    default:          return status;
+    case "PENDING":    return "⏳ Awaiting Approval";
+    case "APPROVED":   return "✅ Approved — Action Required";
+    case "REJECTED":   return "❌ Rejected";
+    case "CONFIRMED":  return "🏠 Active Rental";
+    case "TERMINATED": return "🚫 Lease Terminated";
+    case "COMPLETED":  return "✓ Completed";
+    default:           return status;
   }
 }
 
 function statusBadgeStyle(status: string): React.CSSProperties {
   switch (status) {
-    case "CONFIRMED": return { background: "rgba(26,122,74,0.1)",  color: "#1a7a4a" };
-    case "APPROVED":  return { background: "rgba(31,93,113,0.1)",  color: "#1f5d71" };
-    case "REJECTED":  return { background: "rgba(192,57,43,0.1)",  color: "#c0392b" };
-    case "COMPLETED": return { background: "rgba(110,112,113,0.1)", color: "#6e7071" };
-    default:          return { background: "rgba(183,142,66,0.1)", color: "#b78e42" };
+    case "CONFIRMED":  return { background: "rgba(26,122,74,0.1)",   color: "#1a7a4a" };
+    case "APPROVED":   return { background: "rgba(31,93,113,0.1)",   color: "#1f5d71" };
+    case "REJECTED":   return { background: "rgba(192,57,43,0.1)",   color: "#c0392b" };
+    case "TERMINATED": return { background: "rgba(125,60,152,0.1)",  color: "#7d3c98" };
+    case "COMPLETED":  return { background: "rgba(110,112,113,0.1)", color: "#6e7071" };
+    default:           return { background: "rgba(183,142,66,0.1)",  color: "#b78e42" };
   }
 }
 
 const MyRentals: React.FC = () => {
-  const navigate      = useNavigate();
+  const navigate       = useNavigate();
   const [searchParams] = useSearchParams();
 
   const [user, setUser]         = useState<User | null>(null);
@@ -77,7 +79,6 @@ const MyRentals: React.FC = () => {
   const [error, setError]       = useState<string | null>(null);
   const [tab, setTab]           = useState<Tab>("active");
 
-  // Confirm plan modal (for APPROVED cards — quick action without leaving page)
   const [confirmTarget, setConfirmTarget] = useState<RentalRequest | null>(null);
   const [selectedPlan, setSelectedPlan]   = useState<"MONTHLY" | "FULL">("MONTHLY");
   const [confirming, setConfirming]       = useState(false);
@@ -100,8 +101,8 @@ const MyRentals: React.FC = () => {
   // ── PayMongo redirect banner ───────────────────────────────────────────
   useEffect(() => {
     const ps = searchParams.get("payment");
-    if (ps === "success")    setBanner({ type: "success", text: "Payment received! Open your rental to verify." });
-    if (ps === "cancelled")  setBanner({ type: "error",   text: "Payment cancelled. You can try again from the rental detail page." });
+    if (ps === "success")   setBanner({ type: "success", text: "Payment received! Open your rental to verify." });
+    if (ps === "cancelled") setBanner({ type: "error",   text: "Payment cancelled. You can try again from the rental detail page." });
   }, [searchParams]);
 
   // ── Fetch ──────────────────────────────────────────────────────────────
@@ -124,7 +125,7 @@ const MyRentals: React.FC = () => {
 
   useEffect(() => { if (user) fetchRequests(); }, [user, fetchRequests]);
 
-  // ── Confirm plan (APPROVED → CONFIRMED) ────────────────────────────────
+  // ── Confirm plan (APPROVED → CONFIRMED) ───────────────────────────────
   const handleConfirm = async () => {
     if (!confirmTarget) return;
     setConfirming(true); setConfirmError(null);
@@ -159,7 +160,7 @@ const MyRentals: React.FC = () => {
       case "active":   return r.status === "CONFIRMED";
       case "pending":  return r.status === "PENDING" || r.status === "APPROVED";
       case "rejected": return r.status === "REJECTED";
-      case "past":     return r.status === "COMPLETED";
+      case "past":     return r.status === "COMPLETED" || r.status === "TERMINATED";
       default:         return false;
     }
   });
@@ -168,7 +169,21 @@ const MyRentals: React.FC = () => {
     active:   requests.filter((r) => r.status === "CONFIRMED").length,
     pending:  requests.filter((r) => r.status === "PENDING" || r.status === "APPROVED").length,
     rejected: requests.filter((r) => r.status === "REJECTED").length,
-    past:     requests.filter((r) => r.status === "COMPLETED").length,
+    past:     requests.filter((r) => r.status === "COMPLETED" || r.status === "TERMINATED").length,
+  };
+
+  const tabConfig: { key: Tab; label: string; icon: string }[] = [
+    { key: "active",   icon: "🏠", label: "Active"   },
+    { key: "pending",  icon: "⏳", label: "Pending"  },
+    { key: "rejected", icon: "❌", label: "Rejected" },
+    { key: "past",     icon: "✓",  label: "Past"     },
+  ];
+
+  const emptyText: Record<Tab, string> = {
+    active:   "No active rentals yet.",
+    pending:  "No pending requests.",
+    rejected: "No rejected requests.",
+    past:     "No past rentals.",
   };
 
   return (
@@ -252,17 +267,14 @@ const MyRentals: React.FC = () => {
 
         {/* ── Tabs ── */}
         <div className={styles.tabs}>
-          {(["active", "pending", "rejected", "past"] as Tab[]).map((t) => (
-            <button key={t} type="button"
-              className={`${styles.tab} ${tab === t ? styles.tabActive : ""}`}
-              onClick={() => setTab(t)}>
-              {t === "active"   && "🏠 Active"}
-              {t === "pending"  && "⏳ Pending"}
-              {t === "rejected" && "❌ Rejected"}
-              {t === "past"     && "✓ Past"}
-              {counts[t] > 0 && (
-                <span className={`${styles.tabBadge} ${tab === t ? styles.tabBadgeActive : ""}`}>
-                  {counts[t]}
+          {tabConfig.map(({ key, icon, label }) => (
+            <button key={key} type="button"
+              className={`${styles.tab} ${tab === key ? styles.tabActive : ""}`}
+              onClick={() => setTab(key)}>
+              {icon} {label}
+              {counts[key] > 0 && (
+                <span className={`${styles.tabBadge} ${tab === key ? styles.tabBadgeActive : ""}`}>
+                  {counts[key]}
                 </span>
               )}
             </button>
@@ -272,7 +284,7 @@ const MyRentals: React.FC = () => {
         {/* ── Skeletons ── */}
         {loading && (
           <div className={styles.skeletonList}>
-            {[1,2,3].map((i) => (
+            {[1, 2, 3].map((i) => (
               <div key={i} className={styles.skeletonCard}>
                 <div className={styles.skeletonImg} />
                 <div className={styles.skeletonBody}>
@@ -300,12 +312,7 @@ const MyRentals: React.FC = () => {
             <span className={styles.stateIcon}>
               {tab === "active" ? "🏠" : tab === "pending" ? "⏳" : tab === "rejected" ? "❌" : "📋"}
             </span>
-            <p className={styles.stateText}>
-              {tab === "active"   && "No active rentals yet."}
-              {tab === "pending"  && "No pending requests."}
-              {tab === "rejected" && "No rejected requests."}
-              {tab === "past"     && "No past rentals."}
-            </p>
+            <p className={styles.stateText}>{emptyText[tab]}</p>
             {tab !== "rejected" && (
               <button className={styles.stateBtn} onClick={() => navigate("/home")} type="button">
                 Browse Properties
@@ -320,7 +327,7 @@ const MyRentals: React.FC = () => {
             {filtered.map((req) => (
               <div
                 key={req.id}
-                className={styles.rentalCard}
+                className={`${styles.rentalCard} ${req.status === "TERMINATED" ? styles.rentalCardTerminated : ""}`}
                 onClick={() => navigate(`/my-rentals/${req.id}`)}
                 role="button"
                 tabIndex={0}
@@ -332,6 +339,9 @@ const MyRentals: React.FC = () => {
                     ? <img src={req.propertyImage} alt={req.propertyTitle} className={styles.cardThumbImg} />
                     : <div className={styles.cardThumbPlaceholder}>🏠</div>
                   }
+                  {req.status === "TERMINATED" && (
+                    <div className={styles.terminatedOverlay}>🚫</div>
+                  )}
                 </div>
 
                 {/* Info */}
@@ -360,7 +370,6 @@ const MyRentals: React.FC = () => {
                       {statusLabel(req.status)}
                     </span>
 
-                    {/* Approved: quick confirm button — stop propagation so card click doesn't fire */}
                     {req.status === "APPROVED" && (
                       <button
                         className={styles.actionBtn}

@@ -3,14 +3,17 @@ package edu.cit.saligue.cebunest.service;
 import edu.cit.saligue.cebunest.dto.CreateRentalRequestDTO;
 import edu.cit.saligue.cebunest.dto.RentalRequestDTO;
 import edu.cit.saligue.cebunest.entity.Property;
+import edu.cit.saligue.cebunest.entity.RentalPayment;
 import edu.cit.saligue.cebunest.entity.RentalRequest;
 import edu.cit.saligue.cebunest.entity.User;
 import edu.cit.saligue.cebunest.repository.PropertyRepository;
+import edu.cit.saligue.cebunest.repository.RentalPaymentRepository;
 import edu.cit.saligue.cebunest.repository.RentalRequestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -21,7 +24,7 @@ public class RentalRequestService {
     private final RentalRequestRepository rentalRequestRepository;
     private final PropertyRepository      propertyRepository;
     private final EmailService            emailService;
-
+    private final RentalPaymentRepository rentalPaymentRepository;
     // ── Tenant: submit a request ─────────────────────────────────────────
     @Transactional
     public RentalRequestDTO createRequest(CreateRentalRequestDTO dto, User tenant) {
@@ -92,6 +95,8 @@ public class RentalRequestService {
                 .stream().map(RentalRequestDTO::from).toList();
     }
 
+
+
     // ── Owner: approve or reject a request ───────────────────────────────
     @Transactional
     public RentalRequestDTO updateRequestStatus(Long requestId, String newStatus, User owner) {
@@ -127,5 +132,141 @@ public class RentalRequestService {
         }
 
         return RentalRequestDTO.from(request);
+    }
+
+    // ── Owner: get active (CONFIRMED) tenant for a property ──────────────
+    @Transactional(readOnly = true)
+    public RentalRequestDTO getActiveTenant(Long propertyId, User owner) {
+        Property property = propertyRepository.findById(propertyId)
+                .orElseThrow(() -> new IllegalArgumentException("Property not found."));
+
+        if (!property.getOwner().getId().equals(owner.getId()))
+            throw new IllegalArgumentException("You do not own this property.");
+
+        return rentalRequestRepository
+                .findByPropertyIdAndStatus(propertyId, RentalRequest.RentalStatus.CONFIRMED)
+                .map(RentalRequestDTO::from)
+                .orElse(null); // null = no active tenant
+    }
+
+    @Transactional
+    public RentalRequestDTO updateLease(Long requestId, int adjustMonths, User owner) {
+        RentalRequest request = rentalRequestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Request not found."));
+
+        if (!request.getProperty().getOwner().getId().equals(owner.getId()))
+            throw new IllegalArgumentException("You do not own this property.");
+
+        if (request.getStatus() != RentalRequest.RentalStatus.CONFIRMED)
+            throw new IllegalArgumentException("Lease can only be modified for active (CONFIRMED) tenants.");
+
+        int oldDuration = request.getLeaseDurationMonths();
+        int newDuration = oldDuration + adjustMonths;
+        if (newDuration < 1)
+            throw new IllegalArgumentException("Lease duration cannot be less than 1 month.");
+
+        request.setLeaseDurationMonths(newDuration);
+        rentalRequestRepository.save(request);
+
+        // ── Sync payment schedule ─────────────────────────────────────────
+        String plan = request.getPaymentPlan(); // may be null if tenant hasn't confirmed yet
+
+        if ("MONTHLY".equals(plan)) {
+            List<RentalPayment> allPayments = rentalPaymentRepository
+                    .findByRentalRequestIdOrderByInstallmentNumberAsc(requestId);
+
+            if (adjustMonths < 0) {
+                // Reducing: delete PENDING/OVERDUE rows beyond newDuration
+                allPayments.stream()
+                        .filter(p -> p.getInstallmentNumber() > newDuration
+                                && p.getStatus() != RentalPayment.PaymentStatus.PAID)
+                        .forEach(rentalPaymentRepository::delete);
+
+            } else {
+                // Extending: add new PENDING rows for the added months
+                double monthlyAmount = request.getProperty().getPrice();
+                LocalDate startDate  = request.getStartDate();
+
+                // Find the highest installment number already present
+                int lastInstallment = allPayments.stream()
+                        .mapToInt(RentalPayment::getInstallmentNumber)
+                        .max().orElse(0);
+
+                for (int i = lastInstallment + 1; i <= newDuration; i++) {
+                    RentalPayment p = RentalPayment.builder()
+                            .rentalRequest(request)
+                            .installmentNumber(i)
+                            .amount(monthlyAmount)
+                            .dueDate(startDate.plusMonths(i - 1))
+                            .status(RentalPayment.PaymentStatus.PENDING)
+                            .build();
+                    rentalPaymentRepository.save(p);
+                }
+            }
+
+        } else if ("FULL".equals(plan)) {
+            // Single payment — update amount if still PENDING or OVERDUE
+            rentalPaymentRepository
+                    .findByRentalRequestIdOrderByInstallmentNumberAsc(requestId)
+                    .stream()
+                    .filter(p -> p.getStatus() != RentalPayment.PaymentStatus.PAID)
+                    .findFirst()
+                    .ifPresent(p -> {
+                        p.setAmount(request.getProperty().getPrice() * newDuration);
+                        rentalPaymentRepository.save(p);
+                    });
+        }
+        // If plan is null (tenant hasn't confirmed yet), nothing to sync — payments don't exist yet
+
+        String action = adjustMonths > 0
+                ? "extended by " + adjustMonths
+                : "reduced by " + Math.abs(adjustMonths);
+        emailService.sendEmail(
+                request.getTenant().getEmail(),
+                "CebuNest – Lease Duration Updated",
+                "Hi " + request.getTenant().getName() + ",\n\n" +
+                        "Your lease for \"" + request.getProperty().getTitle() + "\" has been " + action + " month(s).\n" +
+                        "New total duration: " + newDuration + " month(s).\n\n— CebuNest Team");
+
+        return RentalRequestDTO.from(request);
+    }
+
+    // ── Owner: terminate lease (evict tenant) ────────────────────────────
+    @Transactional
+    public RentalRequestDTO terminateLease(Long requestId, User owner) {
+        RentalRequest request = rentalRequestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Request not found."));
+
+        if (!request.getProperty().getOwner().getId().equals(owner.getId()))
+            throw new IllegalArgumentException("You do not own this property.");
+
+        if (request.getStatus() != RentalRequest.RentalStatus.CONFIRMED)
+            throw new IllegalArgumentException("Only active (CONFIRMED) leases can be terminated.");
+
+        request.setStatus(RentalRequest.RentalStatus.TERMINATED);
+        rentalRequestRepository.save(request);
+
+        // Free the property back to AVAILABLE
+        Property property = request.getProperty();
+        property.setStatus(Property.PropertyStatus.AVAILABLE);
+        propertyRepository.save(property);
+
+        emailService.sendEmail(
+                request.getTenant().getEmail(),
+                "CebuNest – Lease Terminated",
+                "Hi " + request.getTenant().getName() + ",\n\n" +
+                        "Your lease for \"" + property.getTitle() + "\" has been terminated by the owner.\n" +
+                        "Please make arrangements to vacate the property.\n\n— CebuNest Team");
+
+        return RentalRequestDTO.from(request);
+    }
+
+    // ── Tenant: get their own request for a specific property ─────────────
+    @Transactional(readOnly = true)
+    public RentalRequestDTO getMyRequestForProperty(Long propertyId, User tenant) {
+        return rentalRequestRepository
+                .findFirstByTenantIdAndPropertyIdOrderByCreatedAtDesc(tenant.getId(), propertyId)
+                .map(RentalRequestDTO::from)
+                .orElse(null);
     }
 }

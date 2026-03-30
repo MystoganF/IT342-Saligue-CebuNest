@@ -48,6 +48,11 @@ interface Review {
   createdAt: string;
 }
 
+interface ExistingRequest {
+  id: number;
+  status: string; // PENDING | APPROVED | CONFIRMED | REJECTED | TERMINATED | COMPLETED
+}
+
 // ─── helpers ───────────────────────────────────────────────────────────────
 
 function formatPrice(price: number): string {
@@ -202,6 +207,29 @@ const Lightbox: React.FC<LightboxProps> = ({ images, startIndex, onClose }) => {
   );
 };
 
+// ─── Booking status helpers ─────────────────────────────────────────────────
+
+function getBookingBlockReason(req: ExistingRequest | null): string | null {
+  if (!req) return null;
+  switch (req.status) {
+    case "PENDING":   return "pending";
+    case "APPROVED":  return "approved";
+    case "CONFIRMED": return "confirmed";
+    default:          return null;
+  }
+}
+
+function getBookingBtnLabel(req: ExistingRequest | null, submitted: boolean): string {
+  if (submitted) return "✓ Request Sent";
+  if (!req) return "Request to Rent";
+  switch (req.status) {
+    case "PENDING":   return "Request Pending…";
+    case "APPROVED":  return "Awaiting Confirmation";
+    case "CONFIRMED": return "Already a Tenant";
+    default:          return "Request to Rent";
+  }
+}
+
 // ─── component ─────────────────────────────────────────────────────────────
 
 const PropertyDetail: React.FC = () => {
@@ -227,8 +255,12 @@ const PropertyDetail: React.FC = () => {
   const [submitting, setSubmitting]                   = useState(false);
   const [bookingMsg, setBookingMsg]                   = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // Existing request check
+  const [existingRequest, setExistingRequest]         = useState<ExistingRequest | null>(null);
+  const [requestCheckLoading, setRequestCheckLoading] = useState(false);
+
   // Reviews
-  const [reviews, setReviews]           = useState<Review[]>([]);
+  const [reviews, setReviews]               = useState<Review[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
 
   // ── Auth ───────────────────────────────────────────────────────────────
@@ -266,6 +298,33 @@ const PropertyDetail: React.FC = () => {
       .finally(() => setReviewsLoading(false));
   }, [id]);
 
+  // ── Check tenant's existing request for this property ─────────────────
+  useEffect(() => {
+    if (!id || !user) return;
+    const token = localStorage.getItem("accessToken");
+    setRequestCheckLoading(true);
+    fetch(`${API_BASE}/api/rental-requests/my/property/${id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (
+          data.success &&
+          data.data.request &&
+          data.data.request.status
+        ) {
+          setExistingRequest({
+            id:     data.data.request.id,
+            status: data.data.request.status,
+          });
+        } else {
+          setExistingRequest(null);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setRequestCheckLoading(false));
+  }, [id, user]);
+
   // ── Geocode ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!property?.location) return;
@@ -292,6 +351,8 @@ const PropertyDetail: React.FC = () => {
         return;
       }
       setBookingMsg({ type: "success", text: "Rental request submitted! The owner will review it shortly." });
+      // Update local existing request state so the button changes immediately
+      setExistingRequest({ id: data.data.request.id, status: "PENDING" });
     } catch {
       setBookingMsg({ type: "error", text: "Network error. Please try again." });
     } finally {
@@ -300,14 +361,16 @@ const PropertyDetail: React.FC = () => {
   };
 
   // ── Derived ────────────────────────────────────────────────────────────
-  const isAvailable = property?.status?.toUpperCase() === "AVAILABLE";
-  const totalCost   = property ? property.price * leaseDurationMonths : 0;
-  const today       = new Date().toISOString().split("T")[0];
-  const images      = property?.images ?? [];
-  const hasImages   = images.length > 0;
-  const moveOutDate = calcMoveOut(startDate, leaseDurationMonths);
-  const hasSocials  = property && (property.ownerFacebookUrl || property.ownerInstagramUrl || property.ownerTwitterUrl);
-  const avg         = avgRating(reviews);
+  const isAvailable    = property?.status?.toUpperCase() === "AVAILABLE";
+  const totalCost      = property ? property.price * leaseDurationMonths : 0;
+  const today          = new Date().toISOString().split("T")[0];
+  const images         = property?.images ?? [];
+  const hasImages      = images.length > 0;
+  const moveOutDate    = calcMoveOut(startDate, leaseDurationMonths);
+  const hasSocials     = property && (property.ownerFacebookUrl || property.ownerInstagramUrl || property.ownerTwitterUrl);
+  const avg            = avgRating(reviews);
+  const blockReason    = getBookingBlockReason(existingRequest);
+  const isBookingBlocked = blockReason !== null;
 
   // ── Loading ────────────────────────────────────────────────────────────
   if (loading) {
@@ -344,7 +407,7 @@ const PropertyDetail: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      {user && <Navbar user={user} />}
+      <Navbar user={user!} />
 
       {lightboxOpen && hasImages && (
         <Lightbox images={images} startIndex={activeImg} onClose={() => setLightboxOpen(false)} />
@@ -407,7 +470,6 @@ const PropertyDetail: React.FC = () => {
                   <span className={styles.infoLocationIcon}>📍</span>
                   {property.location}
                 </div>
-                {/* Average rating pill under location */}
                 {reviews.length > 0 && (
                   <div className={styles.infoRatingPill}>
                     <StarDisplay rating={Math.round(avg)} size={14} />
@@ -541,42 +603,91 @@ const PropertyDetail: React.FC = () => {
 
             {isAvailable ? (
               <form className={styles.bookingForm} onSubmit={handleBooking}>
-                <div className={styles.bookingField}>
-                  <label className={styles.bookingLabel}>Move-in Date</label>
-                  <input type="date" className={styles.bookingInput} value={startDate} onChange={e => setStartDate(e.target.value)} min={today} required />
-                </div>
-                <div className={styles.bookingField}>
-                  <label className={styles.bookingLabel}>Lease Duration (months)</label>
-                  <input type="number" className={styles.bookingInput} value={leaseDurationMonths} onChange={e => setLeaseDurationMonths(Math.max(1, parseInt(e.target.value) || 1))} min={1} max={24} required />
-                </div>
-                {startDate && (
-                  <div className={styles.moveOutRow}>
-                    <div className={styles.moveOutIcon}>🏁</div>
-                    <div className={styles.moveOutInfo}>
-                      <span className={styles.moveOutLabel}>Move-out Date</span>
-                      <span className={styles.moveOutDate}>{formatDate(moveOutDate)}</span>
+
+                {/* ── Existing request status banners ── */}
+                {existingRequest?.status === "PENDING" && (
+                  <div className={`${styles.bookingMessage} ${styles.bookingMessagePending}`}>
+                    <span>⏳</span>
+                    Your rental request is awaiting owner review. You cannot submit another until it is decided.
+                  </div>
+                )}
+                {existingRequest?.status === "APPROVED" && (
+                  <div className={`${styles.bookingMessage} ${styles.bookingMessagePending}`}>
+                    <span>✅</span>
+                    Your request has been approved! Please confirm your rental to proceed.
+                  </div>
+                )}
+                {existingRequest?.status === "CONFIRMED" && (
+                  <div className={`${styles.bookingMessage} ${styles.bookingMessageSuccess}`}>
+                    <span>🏠</span>
+                    You are currently an active tenant of this property.
+                  </div>
+                )}
+
+                {/* Only show the form fields when not blocked */}
+                {!isBookingBlocked && (
+                  <>
+                    <div className={styles.bookingField}>
+                      <label className={styles.bookingLabel}>Move-in Date</label>
+                      <input type="date" className={styles.bookingInput} value={startDate} onChange={e => setStartDate(e.target.value)} min={today} required />
                     </div>
-                  </div>
+                    <div className={styles.bookingField}>
+                      <label className={styles.bookingLabel}>Lease Duration (months)</label>
+                      <input type="number" className={styles.bookingInput} value={leaseDurationMonths} onChange={e => setLeaseDurationMonths(Math.max(1, parseInt(e.target.value) || 1))} min={1} max={24} required />
+                    </div>
+                    {startDate && (
+                      <div className={styles.moveOutRow}>
+                        <div className={styles.moveOutIcon}>🏁</div>
+                        <div className={styles.moveOutInfo}>
+                          <span className={styles.moveOutLabel}>Move-out Date</span>
+                          <span className={styles.moveOutDate}>{formatDate(moveOutDate)}</span>
+                        </div>
+                      </div>
+                    )}
+                    {startDate && (
+                      <div className={styles.bookingSummary}>
+                        <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Move-in</span><span className={styles.bookingSummaryValue}>{formatDate(startDate)}</span></div>
+                        <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Move-out</span><span className={styles.bookingSummaryValue}>{formatDate(moveOutDate)}</span></div>
+                        <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Monthly rent</span><span className={styles.bookingSummaryValue}>{formatPrice(property.price)}</span></div>
+                        <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Duration</span><span className={styles.bookingSummaryValue}>{leaseDurationMonths} month{leaseDurationMonths > 1 ? "s" : ""}</span></div>
+                        <div className={`${styles.bookingSummaryRow} ${styles.bookingSummaryTotal}`}><span className={styles.bookingSummaryTotalLabel}>Total</span><span className={styles.bookingSummaryTotalValue}>{formatPrice(totalCost)}</span></div>
+                      </div>
+                    )}
+                  </>
                 )}
-                {startDate && (
-                  <div className={styles.bookingSummary}>
-                    <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Move-in</span><span className={styles.bookingSummaryValue}>{formatDate(startDate)}</span></div>
-                    <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Move-out</span><span className={styles.bookingSummaryValue}>{formatDate(moveOutDate)}</span></div>
-                    <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Monthly rent</span><span className={styles.bookingSummaryValue}>{formatPrice(property.price)}</span></div>
-                    <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Duration</span><span className={styles.bookingSummaryValue}>{leaseDurationMonths} month{leaseDurationMonths > 1 ? "s" : ""}</span></div>
-                    <div className={`${styles.bookingSummaryRow} ${styles.bookingSummaryTotal}`}><span className={styles.bookingSummaryTotalLabel}>Total</span><span className={styles.bookingSummaryTotalValue}>{formatPrice(totalCost)}</span></div>
-                  </div>
-                )}
-                <button type="submit" className={styles.bookingBtn} disabled={submitting || bookingMsg?.type === "success"}>
-                  {submitting ? <span className={styles.bookingSpinner} /> : bookingMsg?.type === "success" ? "✓ Request Sent" : "Request to Rent"}
+
+                <button
+                  type="submit"
+                  className={styles.bookingBtn}
+                  disabled={
+                    submitting ||
+                    bookingMsg?.type === "success" ||
+                    requestCheckLoading ||
+                    isBookingBlocked
+                  }
+                >
+                  {submitting
+                    ? <span className={styles.bookingSpinner} />
+                    : getBookingBtnLabel(existingRequest, bookingMsg?.type === "success")}
                 </button>
+
                 {bookingMsg && (
                   <div className={`${styles.bookingMessage} ${bookingMsg.type === "success" ? styles.bookingMessageSuccess : styles.bookingMessageError}`}>
                     <span>{bookingMsg.type === "success" ? "✓" : "⚠"}</span>
                     {bookingMsg.text}
                   </div>
                 )}
-                <p className={styles.bookingNote}>No payment yet — the owner will review your request first.</p>
+
+                {!isBookingBlocked && (
+                  <p className={styles.bookingNote}>No payment yet — the owner will review your request first.</p>
+                )}
+
+                {/* Allow re-request if previous was REJECTED or TERMINATED */}
+                {(existingRequest?.status === "REJECTED" || existingRequest?.status === "TERMINATED") && (
+                  <p className={styles.bookingNote}>
+                    Your previous request was {existingRequest.status.toLowerCase()}. You may submit a new request.
+                  </p>
+                )}
               </form>
             ) : (
               <>

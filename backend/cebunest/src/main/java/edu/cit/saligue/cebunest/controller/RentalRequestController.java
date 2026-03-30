@@ -132,4 +132,85 @@ public class RentalRequestController {
         body.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
         return ResponseEntity.status(status).body(body);
     }
+
+    // ── GET /api/rental-requests/property/{propertyId}/active — owner gets active tenant ──
+    @GetMapping("/property/{propertyId}/active")
+    public ResponseEntity<?> getActiveTenant(
+            @PathVariable Long propertyId,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+        try {
+            RentalRequestDTO active = rentalRequestService.getActiveTenant(propertyId, currentUser);
+            return buildSuccess(Map.of("activeTenant", active != null ? active : Map.of()));
+        } catch (IllegalArgumentException e) {
+            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── PUT /api/rental-requests/{id}/lease — owner extends or reduces lease ──
+    @PutMapping("/{id}/lease")
+    public ResponseEntity<?> updateLease(
+            @PathVariable Long id,
+            @RequestBody LeaseUpdateDTO body,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+        if (body.getAdjustMonths() == null || body.getAdjustMonths() == 0)
+            return buildError("VALID-001", "adjustMonths must be a non-zero integer.", HttpStatus.BAD_REQUEST);
+        try {
+            RentalRequestDTO updated = rentalRequestService.updateLease(id, body.getAdjustMonths(), currentUser);
+            return buildSuccess(Map.of("request", updated));
+        } catch (IllegalArgumentException e) {
+            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── PUT /api/rental-requests/{id}/terminate — owner terminates lease ──
+    @PutMapping("/{id}/terminate")
+    public ResponseEntity<?> terminateLease(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+        try {
+            RentalRequestDTO terminated = rentalRequestService.terminateLease(id, currentUser);
+            return buildSuccess(Map.of("request", terminated));
+        } catch (IllegalArgumentException e) {
+            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── GET /api/rental-requests/my/property/{propertyId} — tenant checks own request ──
+    @GetMapping("/my/property/{propertyId}")
+    public ResponseEntity<?> getMyRequestForProperty(
+            @PathVariable Long propertyId,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+        try {
+            RentalRequestDTO req = rentalRequestService.getMyRequestForProperty(propertyId, currentUser);
+            return buildSuccess(Map.of("request", req != null ? req : Map.of()));
+        } catch (Exception e) {
+            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // Add this inner DTO class alongside StatusUpdateDTO:
+    @Data
+    public static class LeaseUpdateDTO {
+        private Integer adjustMonths;
+    }
 }

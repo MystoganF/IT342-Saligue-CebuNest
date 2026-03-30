@@ -38,22 +38,27 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7);
 
         if (!jwtUtil.isTokenValid(token)) {
-            filterChain.doFilter(request, response);
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
             return;
         }
 
         String email = jwtUtil.extractEmail(token);
+        var userOpt = userRepository.findByEmail(email);
 
-        userRepository.findByEmail(email).ifPresent(user -> {
-            String roleName = "ROLE_" + user.getRole().getName(); // e.g. ROLE_TENANT
-            UsernamePasswordAuthenticationToken auth =
-                    new UsernamePasswordAuthenticationToken(
-                            user,
-                            null,
-                            List.of(new SimpleGrantedAuthority(roleName))
-                    );
-            SecurityContextHolder.getContext().setAuthentication(auth);
-        });
+        if (userOpt.isEmpty()) {
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "User not found");
+            return;
+        }
+
+        var user = userOpt.get();
+        String roleName = "ROLE_" + user.getRole().getName();
+        UsernamePasswordAuthenticationToken auth =
+                new UsernamePasswordAuthenticationToken(
+                        user,
+                        null,
+                        List.of(new SimpleGrantedAuthority(roleName))
+                );
+        SecurityContextHolder.getContext().setAuthentication(auth);
 
         filterChain.doFilter(request, response);
     }

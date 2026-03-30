@@ -43,10 +43,11 @@ public class RentalRequest {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     public enum RentalStatus {
-        PENDING,    // submitted by tenant, awaiting owner review
-        APPROVED,   // owner approved, tenant must confirm
-        REJECTED,   // owner rejected
-        CONFIRMED,  // tenant confirmed + chose payment plan → active rental
-        COMPLETED   // lease ended
+        PENDING,     // submitted by tenant, awaiting owner review
+        APPROVED,    // owner approved, tenant must confirm
+        REJECTED,    // owner rejected
+        CONFIRMED,   // tenant confirmed → active rental
+        TERMINATED,  // owner ended lease early (eviction)
+        COMPLETED    // lease ended naturally
     }
 }

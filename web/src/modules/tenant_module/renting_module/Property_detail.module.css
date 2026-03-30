@@ -442,3 +442,9 @@
   .ownerSocials { width: 100%; padding-top: 8px; border-top: 1px solid rgba(31,93,113,0.08); }
   .reviewsHeader { flex-direction: column; align-items: flex-start; }
 }
+
+.bookingMessagePending {
+  background: rgba(183, 142, 66, 0.08);
+  border: 1px solid rgba(183, 142, 66, 0.25);
+  color: #92600a;
+}

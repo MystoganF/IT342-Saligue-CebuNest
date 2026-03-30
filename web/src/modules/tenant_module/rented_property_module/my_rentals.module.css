@@ -269,3 +269,42 @@
   .cardThumb   { width: 100%; height: 140px; }
   .rentalCard  { flex-direction: column; }
 }
+/* ── APPEND TO my_rentals.module.css ── */
+
+/* Terminated tab */
+.tabTerminated:not(.tabActive):hover {
+  border-color: #7d3c98;
+  color: #7d3c98;
+}
+.tabTerminated.tabActive {
+  background: #7d3c98;
+  border-color: #7d3c98;
+}
+.tabBadgeTerminated {
+  background: rgba(125,60,152,0.12);
+  color: #7d3c98;
+}
+
+/* Terminated card */
+.rentalCardTerminated {
+  opacity: 0.82;
+  border-color: rgba(125,60,152,0.15) !important;
+}
+.rentalCardTerminated:hover {
+  border-color: rgba(125,60,152,0.4) !important;
+  box-shadow: 0 6px 20px rgba(125,60,152,0.1) !important;
+}
+
+/* Thumbnail overlay for terminated */
+.cardThumb {
+  position: relative;
+}
+.terminatedOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(125,60,152,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+}

@@ -5,6 +5,8 @@ import styles from "./owner_add_property.module.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
+// ─── types ─────────────────────────────────────────────────────────────────
+
 interface User {
   id: number;
   name: string;
@@ -39,6 +41,18 @@ interface RentalRequest {
   createdAt: string;
 }
 
+interface ActiveTenant {
+  id: number;          // rental request id
+  tenantId: number;
+  tenantName: string;
+  tenantEmail: string;
+  startDate: string;
+  leaseDurationMonths: number;
+  status: string;
+}
+
+// ─── helpers ───────────────────────────────────────────────────────────────
+
 async function geocode(query: string): Promise<MapCoords | null> {
   try {
     const res = await fetch(
@@ -72,23 +86,35 @@ function timeAgo(dateStr: string): string {
 
 function statusColor(status: string): string {
   switch (status) {
-    case "APPROVED":  return "#1a7a4a";
-    case "REJECTED":  return "#c0392b";
-    case "CONFIRMED": return "#1f5d71";
-    default:          return "#b78e42";
+    case "APPROVED":    return "#1a7a4a";
+    case "REJECTED":    return "#c0392b";
+    case "CONFIRMED":   return "#1f5d71";
+    case "TERMINATED":  return "#7d3c98";
+    case "COMPLETED":   return "#2e86c1";
+    default:            return "#b78e42";
   }
 }
+
+function calcMoveOut(startDate: string, months: number): string {
+  const d = new Date(startDate + "T00:00:00");
+  d.setMonth(d.getMonth() + months);
+  return d.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+}
+
+// ─── component ─────────────────────────────────────────────────────────────
 
 const EditProperty: React.FC = () => {
   const navigate     = useNavigate();
   const { id }       = useParams<{ id: string }>();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Auth & metadata ────────────────────────────────────────────────────
   const [user, setUser]                   = useState<User | null>(null);
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
   const [pageLoading, setPageLoading]     = useState(true);
   const [pageError, setPageError]         = useState<string | null>(null);
 
+  // ── Form fields ────────────────────────────────────────────────────────
   const [title, setTitle]             = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice]             = useState("");
@@ -100,31 +126,45 @@ const EditProperty: React.FC = () => {
   const [status, setStatus]           = useState<"AVAILABLE" | "UNAVAILABLE">("AVAILABLE");
   const [currentStatus, setCurrentStatus] = useState<string>("");
 
+  // ── Map ────────────────────────────────────────────────────────────────
   const [mapQuery, setMapQuery]         = useState("");
   const [mapCoords, setMapCoords]       = useState<MapCoords | null>(null);
   const [mapSearching, setMapSearching] = useState(false);
   const [mapError, setMapError]         = useState<string | null>(null);
 
-  const [existingImages, setExistingImages]     = useState<ExistingImage[]>([]);
-  const [removedImageIds, setRemovedImageIds]   = useState<number[]>([]);
-  const [newImageFiles, setNewImageFiles]       = useState<File[]>([]);
+  // ── Images ─────────────────────────────────────────────────────────────
+  const [existingImages, setExistingImages]   = useState<ExistingImage[]>([]);
+  const [removedImageIds, setRemovedImageIds] = useState<number[]>([]);
+  const [newImageFiles, setNewImageFiles]     = useState<File[]>([]);
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
-  const [dragOver, setDragOver]                 = useState(false);
+  const [dragOver, setDragOver]               = useState(false);
 
-  // Lightbox
+  // ── Lightbox ───────────────────────────────────────────────────────────
   const [lightboxSrc, setLightboxSrc]     = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number>(0);
   const [lightboxList, setLightboxList]   = useState<string[]>([]);
 
-  // Rental requests
-  const [requests, setRequests]               = useState<RentalRequest[]>([]);
-  const [requestsLoading, setRequestsLoading] = useState(false);
-  const [requestsError, setRequestsError]     = useState<string | null>(null);
-  const [actionTarget, setActionTarget]       = useState<RentalRequest | null>(null);
-  const [actionType, setActionType]           = useState<"APPROVED" | "REJECTED" | null>(null);
+  // ── Rental requests ────────────────────────────────────────────────────
+  const [requests, setRequests]                 = useState<RentalRequest[]>([]);
+  const [requestsLoading, setRequestsLoading]   = useState(false);
+  const [requestsError, setRequestsError]       = useState<string | null>(null);
+  const [actionTarget, setActionTarget]         = useState<RentalRequest | null>(null);
+  const [actionType, setActionType]             = useState<"APPROVED" | "REJECTED" | null>(null);
   const [actionSubmitting, setActionSubmitting] = useState(false);
-  const [actionError, setActionError]         = useState<string | null>(null);
+  const [actionError, setActionError]           = useState<string | null>(null);
 
+  // ── Active tenant ──────────────────────────────────────────────────────
+  const [activeTenant, setActiveTenant]               = useState<ActiveTenant | null>(null);
+  const [activeTenantLoading, setActiveTenantLoading] = useState(false);
+
+  // ── Lease management modal ─────────────────────────────────────────────
+  const [leaseModal, setLeaseModal]           = useState<"extend" | "reduce" | "terminate" | null>(null);
+  const [leaseMonths, setLeaseMonths]         = useState<number>(1);
+  const [leaseSubmitting, setLeaseSubmitting] = useState(false);
+  const [leaseError, setLeaseError]           = useState<string | null>(null);
+  const [leaseSuccess, setLeaseSuccess]       = useState<string | null>(null);
+
+  // ── Submit ─────────────────────────────────────────────────────────────
   const [submitting, setSubmitting] = useState(false);
   const [submitMsg, setSubmitMsg]   = useState<{
     type: "success" | "error" | "warning";
@@ -143,6 +183,7 @@ const EditProperty: React.FC = () => {
     } catch { navigate("/"); }
   }, [navigate]);
 
+  // ── Property types ─────────────────────────────────────────────────────
   useEffect(() => {
     fetch(`${API_BASE}/api/properties/types`)
       .then((r) => r.json())
@@ -150,6 +191,7 @@ const EditProperty: React.FC = () => {
       .catch(() => {});
   }, []);
 
+  // ── Load property ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!user || !id) return;
     const token = localStorage.getItem("accessToken");
@@ -183,6 +225,7 @@ const EditProperty: React.FC = () => {
       .finally(() => setPageLoading(false));
   }, [user, id]);
 
+  // ── Load rental requests ───────────────────────────────────────────────
   useEffect(() => {
     if (!user || !id) return;
     const token = localStorage.getItem("accessToken");
@@ -199,18 +242,52 @@ const EditProperty: React.FC = () => {
       .finally(() => setRequestsLoading(false));
   }, [user, id]);
 
+  // ── Load active tenant ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!user || !id) return;
+    const token = localStorage.getItem("accessToken");
+    setActiveTenantLoading(true);
+    fetch(`${API_BASE}/api/rental-requests/property/${id}/active`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (
+          data.success &&
+          data.data.activeTenant &&
+          data.data.activeTenant.tenantId
+        ) {
+          const t = data.data.activeTenant;
+          setActiveTenant({
+            id:                  t.id,
+            tenantId:            t.tenantId,
+            tenantName:          t.tenantName,
+            tenantEmail:         t.tenantEmail,
+            startDate:           t.startDate,
+            leaseDurationMonths: t.leaseDurationMonths,
+            status:              t.status,
+          });
+        } else {
+          setActiveTenant(null);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setActiveTenantLoading(false));
+  }, [user, id]);
+
   // ── Keyboard lightbox nav ──────────────────────────────────────────────
   useEffect(() => {
     if (!lightboxSrc) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape")     closeLightbox();
-      if (e.key === "ArrowRight") goNext();
-      if (e.key === "ArrowLeft")  goPrev();
+      if (e.key === "Escape")      closeLightbox();
+      if (e.key === "ArrowRight")  goNext();
+      if (e.key === "ArrowLeft")   goPrev();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [lightboxSrc, lightboxIndex, lightboxList]);
 
+  // ── Lightbox helpers ───────────────────────────────────────────────────
   const openLightbox = (srcs: string[], index: number) => {
     setLightboxList(srcs); setLightboxIndex(index); setLightboxSrc(srcs[index]);
   };
@@ -224,6 +301,7 @@ const EditProperty: React.FC = () => {
     setLightboxIndex(prev); setLightboxSrc(lightboxList[prev]);
   };
 
+  // ── Map search ─────────────────────────────────────────────────────────
   const handleMapSearch = async () => {
     if (!mapQuery.trim()) return;
     setMapSearching(true); setMapError(null);
@@ -233,6 +311,7 @@ const EditProperty: React.FC = () => {
     setMapSearching(false);
   };
 
+  // ── Image helpers ──────────────────────────────────────────────────────
   const addFiles = (files: FileList | null) => {
     if (!files) return;
     const valid = Array.from(files).filter(
@@ -287,6 +366,77 @@ const EditProperty: React.FC = () => {
     }
   };
 
+  // ── Lease management ───────────────────────────────────────────────────
+  const openLeaseModal = (type: "extend" | "reduce" | "terminate") => {
+    setLeaseModal(type);
+    setLeaseMonths(1);
+    setLeaseError(null);
+    setLeaseSuccess(null);
+  };
+
+  const closeLeaseModal = () => {
+    if (leaseSubmitting) return;
+    setLeaseModal(null);
+    setLeaseError(null);
+    setLeaseSuccess(null);
+  };
+
+  const handleLeaseAction = async () => {
+    if (!activeTenant) return;
+    setLeaseSubmitting(true);
+    setLeaseError(null);
+    const token = localStorage.getItem("accessToken");
+    try {
+      if (leaseModal === "terminate") {
+        const res = await fetch(`${API_BASE}/api/rental-requests/${activeTenant.id}/terminate`, {
+          method: "PUT",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          setLeaseError(data?.error?.message ?? "Failed to terminate lease.");
+          return;
+        }
+        setActiveTenant(null);
+        setStatus("AVAILABLE");
+        setCurrentStatus("AVAILABLE");
+        setLeaseSuccess("Lease terminated. Property is now available.");
+        setTimeout(closeLeaseModal, 1800);
+      } else {
+        const adjust = leaseModal === "extend" ? leaseMonths : -leaseMonths;
+        const res = await fetch(`${API_BASE}/api/rental-requests/${activeTenant.id}/lease`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ adjustMonths: adjust }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          setLeaseError(data?.error?.message ?? "Failed to update lease.");
+          return;
+        }
+        setActiveTenant((prev) =>
+          prev
+            ? { ...prev, leaseDurationMonths: data.data.request.leaseDurationMonths }
+            : prev
+        );
+        setLeaseSuccess(
+          leaseModal === "extend"
+            ? `Lease extended by ${leaseMonths} month(s).`
+            : `Lease reduced by ${leaseMonths} month(s).`
+        );
+        setTimeout(closeLeaseModal, 1800);
+      }
+    } catch {
+      setLeaseError("Network error. Please try again.");
+    } finally {
+      setLeaseSubmitting(false);
+    }
+  };
+
+  // ── Form submit ────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !id) return;
@@ -342,6 +492,7 @@ const EditProperty: React.FC = () => {
     }
   };
 
+  // ── Derived ────────────────────────────────────────────────────────────
   if (!user) return null;
 
   const submitIcon     = submitMsg?.type === "success" ? "✓" : submitMsg?.type === "warning" ? "⚠" : "✕";
@@ -354,6 +505,7 @@ const EditProperty: React.FC = () => {
   const existingSrcs    = visibleExisting.map((img) => img.imageUrl);
   const pendingCount    = requests.filter((r) => r.status === "PENDING").length;
 
+  // ── Loading / error states ─────────────────────────────────────────────
   if (pageLoading) return (
     <div className={styles.page}>
       <OwnerNavbar user={user} onAddProperty={() => {}} />
@@ -443,6 +595,144 @@ const EditProperty: React.FC = () => {
         </div>
       )}
 
+      {/* ── Lease Management Modal ── */}
+      {leaseModal && activeTenant && (
+        <div className={styles.modalOverlay} onClick={closeLeaseModal}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={`${styles.reqModalHeader} ${
+              leaseModal === "terminate" ? styles.reqModalHeaderReject : styles.reqModalHeaderApprove
+            }`}>
+              <span>
+                {leaseModal === "extend" ? "➕" : leaseModal === "reduce" ? "➖" : "🚫"}
+              </span>
+              <h3 className={styles.reqModalTitle}>
+                {leaseModal === "extend"
+                  ? "Extend Lease"
+                  : leaseModal === "reduce"
+                  ? "Reduce Lease"
+                  : "End Lease"}
+              </h3>
+            </div>
+
+            <div className={styles.reqModalBody}>
+              {leaseModal !== "terminate" ? (
+                <>
+                  <p className={styles.reqModalDesc}>
+                    Current lease: <strong>{activeTenant.leaseDurationMonths} month(s)</strong> for{" "}
+                    <strong>{activeTenant.tenantName}</strong>.{" "}
+                    {leaseModal === "extend"
+                      ? "How many months would you like to add?"
+                      : "How many months would you like to remove?"}
+                  </p>
+
+                  {/* Month picker */}
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: "14px",
+                    margin: "16px 0", padding: "14px 16px",
+                    background: "#f8fbfb", borderRadius: "12px",
+                    border: "1px solid #e5eced",
+                  }}>
+                    <button
+                      type="button"
+                      style={{
+                        width: 34, height: 34, borderRadius: "50%",
+                        border: "1.5px solid #e5eced", background: "#fff",
+                        fontSize: 20, cursor: "pointer", display: "flex",
+                        alignItems: "center", justifyContent: "center",
+                        color: "#1f5d71", fontWeight: 700,
+                      }}
+                      onClick={() => setLeaseMonths((m) => Math.max(1, m - 1))}
+                    >−</button>
+                    <span style={{
+                      fontSize: 24, fontWeight: 800, color: "#1f5d71",
+                      minWidth: 40, textAlign: "center",
+                    }}>
+                      {leaseMonths}
+                    </span>
+                    <button
+                      type="button"
+                      style={{
+                        width: 34, height: 34, borderRadius: "50%",
+                        border: "1.5px solid #e5eced", background: "#fff",
+                        fontSize: 20, cursor: "pointer", display: "flex",
+                        alignItems: "center", justifyContent: "center",
+                        color: "#1f5d71", fontWeight: 700,
+                      }}
+                      onClick={() => setLeaseMonths((m) => m + 1)}
+                    >+</button>
+                    <span style={{ fontSize: 13, color: "#6e7071" }}>month(s)</span>
+                  </div>
+
+                  <div className={styles.reqModalMeta}>
+                    <span>
+                      New total:{" "}
+                      <strong>
+                        {leaseModal === "extend"
+                          ? activeTenant.leaseDurationMonths + leaseMonths
+                          : Math.max(1, activeTenant.leaseDurationMonths - leaseMonths)}{" "}
+                        month(s)
+                      </strong>
+                    </span>
+                    <span>👤 {activeTenant.tenantName}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className={styles.reqModalDesc}>
+                    This will <strong>immediately terminate</strong> the lease for{" "}
+                    <strong>{activeTenant.tenantName}</strong> and mark this property
+                    as <strong>Available</strong>. The tenant will be notified by email.
+                    This action <strong>cannot be undone</strong>.
+                  </p>
+                  <div className={styles.reqModalMeta}>
+                    <span>👤 {activeTenant.tenantName}</span>
+                    <span>✉️ {activeTenant.tenantEmail}</span>
+                    <span>📅 {activeTenant.startDate}</span>
+                    <span>🗓 {activeTenant.leaseDurationMonths} month(s)</span>
+                  </div>
+                </>
+              )}
+
+              {leaseSuccess && (
+                <p style={{ fontSize: 13, fontWeight: 600, color: "#2d8c6a", marginTop: 12 }}>
+                  ✓ {leaseSuccess}
+                </p>
+              )}
+              {leaseError && (
+                <p className={styles.reqModalError}>⚠ {leaseError}</p>
+              )}
+            </div>
+
+            <div className={styles.reqModalFooter}>
+              <button
+                className={styles.modalCancelBtn}
+                onClick={closeLeaseModal}
+                disabled={leaseSubmitting}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className={leaseModal === "terminate" ? styles.modalRejectBtn : styles.modalApproveBtn}
+                onClick={handleLeaseAction}
+                disabled={leaseSubmitting || !!leaseSuccess}
+                type="button"
+              >
+                {leaseSubmitting ? (
+                  <><span className={styles.spinner} /> Processing…</>
+                ) : leaseModal === "extend" ? (
+                  `➕ Add ${leaseMonths} Month(s)`
+                ) : leaseModal === "reduce" ? (
+                  `➖ Remove ${leaseMonths} Month(s)`
+                ) : (
+                  "🚫 End Lease Now"
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Page Header ── */}
       <div className={styles.pageBar}>
         <div className={styles.pageBarDeco} />
@@ -463,7 +753,8 @@ const EditProperty: React.FC = () => {
             <div className={styles.fieldsGrid}>
               <div className={`${styles.field} ${styles.fieldFull}`}>
                 <label className={styles.fieldLabel}>Title <span className={styles.fieldRequired}>*</span></label>
-                <input type="text" className={styles.fieldInput} placeholder="e.g. Cozy Studio near IT Park"
+                <input type="text" className={styles.fieldInput}
+                  placeholder="e.g. Cozy Studio near IT Park"
                   value={title} onChange={(e) => setTitle(e.target.value)} required />
               </div>
               <div className={`${styles.field} ${styles.fieldFull}`}>
@@ -501,10 +792,27 @@ const EditProperty: React.FC = () => {
             </div>
           </div>
 
-          {/* ── Visibility ── */}
+          {/* ── Listing Visibility ── */}
           <div className={styles.card}>
             <div className={styles.cardTitle}>Listing Visibility</div>
-            {canToggleStatus ? (
+
+            {activeTenant ? (
+              /* Occupied — block toggle */
+              <div className={styles.visibilityLocked}>
+                <span className={styles.visibilityLockedIcon}>🔒</span>
+                <div>
+                  <div className={styles.visibilityLockedLabel}>
+                    Property is <strong>Occupied</strong>
+                  </div>
+                  <div className={styles.visibilityLockedSub}>
+                    This property has an active tenant (
+                    <strong>{activeTenant.tenantName}</strong>). It cannot be listed
+                    as Available until the lease ends or is terminated. Manage the
+                    tenant in the <em>Active Tenant</em> section below.
+                  </div>
+                </div>
+              </div>
+            ) : canToggleStatus ? (
               <div className={styles.visibilityWrap}>
                 <div className={styles.visibilityInfo}>
                   <div className={styles.visibilityLabel}>
@@ -516,9 +824,11 @@ const EditProperty: React.FC = () => {
                       : "This property is hidden and won't appear in search results."}
                   </div>
                 </div>
-                <button type="button"
+                <button
+                  type="button"
                   className={`${styles.toggleBtn} ${status === "AVAILABLE" ? styles.toggleBtnOn : styles.toggleBtnOff}`}
-                  onClick={() => setStatus((s) => s === "AVAILABLE" ? "UNAVAILABLE" : "AVAILABLE")}>
+                  onClick={() => setStatus((s) => s === "AVAILABLE" ? "UNAVAILABLE" : "AVAILABLE")}
+                >
                   <span className={styles.toggleThumb} />
                 </button>
               </div>
@@ -530,8 +840,76 @@ const EditProperty: React.FC = () => {
                     Status: <strong>{currentStatus?.replace("_", " ")}</strong>
                   </div>
                   <div className={styles.visibilityLockedSub}>
-                    Visibility can only be toggled on approved properties. This property is currently under review or rejected.
+                    Visibility can only be toggled on approved properties. This
+                    property is currently under review or rejected.
                   </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Active Tenant ── */}
+          <div className={styles.card}>
+            <div className={styles.cardTitle}>Active Tenant</div>
+
+            {activeTenantLoading ? (
+              <div className={styles.requestsLoading}>Loading tenant info…</div>
+            ) : !activeTenant ? (
+              <div className={styles.requestsEmpty}>
+                <span className={styles.requestsEmptyIcon}>🏠</span>
+                <p>No active tenant. Property is currently vacant.</p>
+              </div>
+            ) : (
+              <div className={styles.activeTenantWrap}>
+                {/* Identity row */}
+                <div className={styles.activeTenantRow}>
+                  <div className={styles.activeTenantAvatar}>
+                    {activeTenant.tenantName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className={styles.activeTenantInfo}>
+                    <div className={styles.activeTenantName}>{activeTenant.tenantName}</div>
+                    <div className={styles.activeTenantEmail}>✉️ {activeTenant.tenantEmail}</div>
+                  </div>
+                  <span className={styles.activeTenantBadge}>ACTIVE</span>
+                </div>
+
+                {/* Lease stats */}
+                <div className={styles.activeTenantStats}>
+                  <div className={styles.activeTenantStat}>
+                    <span className={styles.activeTenantStatIcon}>📅</span>
+                    <span className={styles.activeTenantStatLabel}>Move-in</span>
+                    <span className={styles.activeTenantStatValue}>{activeTenant.startDate}</span>
+                  </div>
+                  <div className={styles.activeTenantStat}>
+                    <span className={styles.activeTenantStatIcon}>🗓</span>
+                    <span className={styles.activeTenantStatLabel}>Lease</span>
+                    <span className={styles.activeTenantStatValue}>
+                      {activeTenant.leaseDurationMonths} month{activeTenant.leaseDurationMonths !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <div className={styles.activeTenantStat}>
+                    <span className={styles.activeTenantStatIcon}>🏁</span>
+                    <span className={styles.activeTenantStatLabel}>Move-out</span>
+                    <span className={styles.activeTenantStatValue}>
+                      {calcMoveOut(activeTenant.startDate, activeTenant.leaseDurationMonths)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Management actions */}
+                <div className={styles.activeTenantActions}>
+                  <button type="button" className={styles.leaseExtendBtn}
+                    onClick={() => openLeaseModal("extend")}>
+                    ➕ Extend Lease
+                  </button>
+                  <button type="button" className={styles.leaseReduceBtn}
+                    onClick={() => openLeaseModal("reduce")}>
+                    ➖ Reduce Lease
+                  </button>
+                  <button type="button" className={styles.leaseTerminateBtn}
+                    onClick={() => openLeaseModal("terminate")}>
+                    🚫 End Lease
+                  </button>
                 </div>
               </div>
             )}
@@ -576,27 +954,23 @@ const EditProperty: React.FC = () => {
           <div className={styles.card}>
             <div className={styles.cardTitle}>Photos ({totalPhotos}/10)</div>
 
-            {/* Tip banner */}
             <div className={styles.photoTip}>
               <span className={styles.photoTipIcon}>💡</span>
               <div>
                 <div className={styles.photoTipTitle}>Improve your chances of approval</div>
-                  <div className={styles.photoTipBody}>
-                    Include clear photos of the actual property
-                    and supporting documents such as your <strong>business permit</strong> or{" "}
-                    <strong>barangay certificate</strong>. Listings with complete photos and credentials
-                    are reviewed and approved faster—and will also be visible to tenants browsing listings,
-                    helping build trust and attract more inquiries.
-                  </div>
+                <div className={styles.photoTipBody}>
+                  Include clear photos of the actual property and supporting documents
+                  such as your <strong>business permit</strong> or{" "}
+                  <strong>barangay certificate</strong>. Listings with complete photos
+                  are reviewed faster and attract more inquiries.
+                </div>
               </div>
             </div>
 
-            {/* Thumbnail note */}
             <div className={styles.thumbnailNote}>
               🖼 The <strong>last photo uploaded</strong> will be used as the listing thumbnail.
             </div>
 
-            {/* Existing images */}
             {visibleExisting.length > 0 && (
               <div className={styles.existingImagesWrap}>
                 <p className={styles.existingImagesLabel}>Current photos — click to preview</p>
@@ -618,7 +992,6 @@ const EditProperty: React.FC = () => {
               </div>
             )}
 
-            {/* Upload area */}
             {totalPhotos < 10 && (
               <div
                 className={`${styles.imageUploadArea} ${dragOver ? styles.imageUploadAreaActive : ""}`}
@@ -642,7 +1015,6 @@ const EditProperty: React.FC = () => {
               </div>
             )}
 
-            {/* New previews */}
             {newImagePreviews.length > 0 && (
               <div className={styles.imagePreviewGrid} style={{ marginTop: "12px" }}>
                 {newImagePreviews.map((src, i) => (
@@ -700,8 +1072,10 @@ const EditProperty: React.FC = () => {
                         </div>
                       </div>
                       <div className={styles.requestRight}>
-                        <span className={styles.requestStatus}
-                          style={{ color: statusColor(req.status), borderColor: statusColor(req.status) }}>
+                        <span
+                          className={styles.requestStatus}
+                          style={{ color: statusColor(req.status), borderColor: statusColor(req.status) }}
+                        >
                           {req.status}
                         </span>
                         {isPending && (
