@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar/Navbar";
 import styles from "./Profile.module.css";
+import OwnerNavbar from "../../components/OwnerNavbar/OwnerNavbar";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
@@ -188,7 +189,11 @@ const Profile: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      <Navbar user={user} />
+      
+      {user.role?.toUpperCase() === "OWNER"
+        ? <OwnerNavbar user={user} />
+        : <Navbar user={user} />
+      }
 
       {showLogoutModal && (
         <div className={styles.modalOverlay} onClick={() => setShowLogoutModal(false)}>
