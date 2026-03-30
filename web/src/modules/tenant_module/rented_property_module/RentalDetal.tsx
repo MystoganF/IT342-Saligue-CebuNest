@@ -59,6 +59,15 @@ interface RentalRequest {
   createdAt: string;
 }
 
+interface Review {
+  id: number;
+  tenantId: number;
+  tenantName: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+}
+
 function formatPrice(n: number) {
   return new Intl.NumberFormat("en-PH", {
     style: "currency", currency: "PHP",
@@ -75,51 +84,90 @@ function formatDate(d: string) {
 
 function paymentColors(status: string) {
   switch (status) {
-    case "PAID":    return { color: "#1a7a4a", bg: "rgba(26,122,74,0.08)",   border: "rgba(26,122,74,0.2)" };
-    case "OVERDUE": return { color: "#c0392b", bg: "rgba(192,57,43,0.08)",   border: "rgba(192,57,43,0.2)" };
-    case "PENDING": return { color: "#b78e42", bg: "rgba(183,142,66,0.08)",  border: "rgba(183,142,66,0.2)" };
-    default:        return { color: "#6e7071", bg: "#f0f4f5",                border: "#e5eced" };
+    case "PAID":    return { color: "#1a7a4a", bg: "rgba(26,122,74,0.08)",  border: "rgba(26,122,74,0.2)" };
+    case "OVERDUE": return { color: "#c0392b", bg: "rgba(192,57,43,0.08)", border: "rgba(192,57,43,0.2)" };
+    case "PENDING": return { color: "#b78e42", bg: "rgba(183,142,66,0.08)",border: "rgba(183,142,66,0.2)" };
+    default:        return { color: "#6e7071", bg: "#f0f4f5",               border: "#e5eced" };
   }
 }
 
 function geocodeUrl(location: string) {
-  const q = encodeURIComponent(location);
-  return `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`;
+  return `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`;
 }
 
 function mapSrc(lat: number, lon: number) {
   return (
     `https://www.openstreetmap.org/export/embed.html` +
-    `?bbox=${lon - 0.01},${lat - 0.01},${lon + 0.01},${lat + 0.01}` +
+    `?bbox=${lon-0.01},${lat-0.01},${lon+0.01},${lat+0.01}` +
     `&layer=mapnik&marker=${lat},${lon}`
   );
 }
+
+// ── Star picker ───────────────────────────────────────────────────────────────
+const StarPicker: React.FC<{ value: number; onChange: (v: number) => void }> = ({ value, onChange }) => {
+  const [hovered, setHovered] = useState(0);
+  return (
+    <div className={styles.starPicker}>
+      {[1, 2, 3, 4, 5].map((s) => (
+        <button
+          key={s}
+          type="button"
+          className={`${styles.starBtn} ${s <= (hovered || value) ? styles.starBtnFilled : ""}`}
+          onMouseEnter={() => setHovered(s)}
+          onMouseLeave={() => setHovered(0)}
+          onClick={() => onChange(s)}
+          aria-label={`Rate ${s} star${s > 1 ? "s" : ""}`}
+        >
+          ★
+        </button>
+      ))}
+      {value > 0 && (
+        <span className={styles.starLabel}>
+          {["", "Poor", "Fair", "Good", "Very Good", "Excellent"][value]}
+        </span>
+      )}
+    </div>
+  );
+};
+
+// ── Star display ──────────────────────────────────────────────────────────────
+const StarDisplay: React.FC<{ rating: number }> = ({ rating }) => (
+  <span className={styles.starDisplay}>
+    {[1,2,3,4,5].map(s => (
+      <span key={s} className={s <= rating ? styles.starFilled : styles.starEmpty}>★</span>
+    ))}
+  </span>
+);
 
 const RentalDetail: React.FC = () => {
   const navigate       = useNavigate();
   const { requestId }  = useParams<{ requestId: string }>();
   const [searchParams] = useSearchParams();
 
-  const [user, setUser]           = useState<User | null>(null);
-  const [request, setRequest]     = useState<RentalRequest | null>(null);
-  const [property, setProperty]   = useState<Property | null>(null);
-  const [payments, setPayments]   = useState<Payment[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [error, setError]         = useState<string | null>(null);
+  const [user, setUser]         = useState<User | null>(null);
+  const [request, setRequest]   = useState<RentalRequest | null>(null);
+  const [property, setProperty] = useState<Property | null>(null);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState<string | null>(null);
 
-  // Gallery
   const [activeImg, setActiveImg] = useState(0);
 
-  // Map
   const [mapCoords, setMapCoords]   = useState<{ lat: number; lon: number } | null>(null);
   const [mapLoading, setMapLoading] = useState(false);
 
-  // Payment actions
   const [initiating, setInitiating] = useState<number | null>(null);
   const [verifying, setVerifying]   = useState<number | null>(null);
   const [payMsg, setPayMsg]         = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // ── Auth ───────────────────────────────────────────────────────────────
+  // ── Review state ────────────────────────────────────────────────────────────
+  const [existingReview, setExistingReview] = useState<Review | null>(null);
+  const [reviewRating, setReviewRating]     = useState(0);
+  const [reviewComment, setReviewComment]   = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewMsg, setReviewMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // ── Auth ─────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const stored = localStorage.getItem("user");
     const token  = localStorage.getItem("accessToken");
@@ -131,21 +179,21 @@ const RentalDetail: React.FC = () => {
     } catch { navigate("/"); }
   }, [navigate]);
 
-  // ── PayMongo redirect ──────────────────────────────────────────────────
+  // ── PayMongo redirect banner ─────────────────────────────────────────────────
   useEffect(() => {
     const ps = searchParams.get("payment");
     if (ps === "success")   setPayMsg({ type: "success", text: "Payment received! Click Verify below to confirm." });
     if (ps === "cancelled") setPayMsg({ type: "error",   text: "Payment cancelled. You can try again below." });
   }, [searchParams]);
 
-  // ── Fetch rental request ───────────────────────────────────────────────
+  // ── Fetch all data ───────────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
     if (!requestId) return;
     setLoading(true); setError(null);
     const token = localStorage.getItem("accessToken");
 
     try {
-      // 1. Get rental request from /my
+      // 1. Rental request
       const reqRes  = await fetch(`${API_BASE}/api/rental-requests/my`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -154,24 +202,46 @@ const RentalDetail: React.FC = () => {
 
       const found: RentalRequest = (reqData.data.requests ?? [])
         .find((r: RentalRequest) => r.id === parseInt(requestId));
-
       if (!found) { setError("Rental request not found."); return; }
       setRequest(found);
 
-      // 2. Get full property info
+      // 2. Property
       const propRes  = await fetch(`${API_BASE}/api/properties/${found.propertyId}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const propData = await propRes.json();
       if (propData.success) setProperty(propData.data.property);
 
-      // 3. Get payments if CONFIRMED or COMPLETED
+      // 3. Payments
       if (found.status === "CONFIRMED" || found.status === "COMPLETED") {
         const payRes  = await fetch(`${API_BASE}/api/payments/request/${found.id}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         const payData = await payRes.json();
         if (payData.success) setPayments(payData.data.payments ?? []);
+      }
+
+      // 4. Existing review for this rental
+      if (found.status === "CONFIRMED" || found.status === "COMPLETED") {
+        const revRes  = await fetch(`${API_BASE}/api/property-reviews/property/${found.propertyId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        const revData = await revRes.json();
+        if (revData.success) {
+          const storedUser: User = JSON.parse(localStorage.getItem("user") || "{}");
+          // Find a review that belongs to this tenant AND this rental request
+          // The backend returns reviews for the property; we match by tenantId
+          // Since one review per rental, we look for this tenant's review
+          const mine = (revData.data.reviews ?? []).find(
+            (r: Review & { rentalRequestId: number }) =>
+              r.tenantId === storedUser.id && r.rentalRequestId === found.id
+          );
+          if (mine) {
+            setExistingReview(mine);
+            setReviewRating(mine.rating);
+            setReviewComment(mine.comment ?? "");
+          }
+        }
       }
     } catch {
       setError("Unable to load rental details.");
@@ -182,22 +252,18 @@ const RentalDetail: React.FC = () => {
 
   useEffect(() => { if (user) fetchAll(); }, [user, fetchAll]);
 
-  // ── Geocode for map ────────────────────────────────────────────────────
+  // ── Geocode ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!property?.location) return;
     setMapLoading(true);
     fetch(geocodeUrl(property.location), { headers: { "Accept-Language": "en" } })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.length > 0) {
-          setMapCoords({ lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) });
-        }
-      })
+      .then(r => r.json())
+      .then(data => { if (data.length > 0) setMapCoords({ lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) }); })
       .catch(() => {})
       .finally(() => setMapLoading(false));
   }, [property?.location]);
 
-  // ── Pay ────────────────────────────────────────────────────────────────
+  // ── Pay ──────────────────────────────────────────────────────────────────────
   const handlePay = async (paymentId: number) => {
     setInitiating(paymentId); setPayMsg(null);
     try {
@@ -207,19 +273,13 @@ const RentalDetail: React.FC = () => {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      if (!res.ok || !data.success) {
-        setPayMsg({ type: "error", text: data?.error?.message ?? "Failed to create payment link." });
-        return;
-      }
+      if (!res.ok || !data.success) { setPayMsg({ type: "error", text: data?.error?.message ?? "Failed to create payment link." }); return; }
       if (data.data.payment.checkoutUrl) window.location.href = data.data.payment.checkoutUrl;
-    } catch {
-      setPayMsg({ type: "error", text: "Network error. Please try again." });
-    } finally {
-      setInitiating(null);
-    }
+    } catch { setPayMsg({ type: "error", text: "Network error. Please try again." }); }
+    finally { setInitiating(null); }
   };
 
-  // ── Verify ─────────────────────────────────────────────────────────────
+  // ── Verify ───────────────────────────────────────────────────────────────────
   const handleVerify = async (paymentId: number) => {
     setVerifying(paymentId); setPayMsg(null);
     try {
@@ -231,21 +291,49 @@ const RentalDetail: React.FC = () => {
       const data = await res.json();
       if (data.success) {
         const updated: Payment = data.data.payment;
-        setPayments((prev) => prev.map((p) => p.id === paymentId ? updated : p));
+        setPayments(prev => prev.map(p => p.id === paymentId ? updated : p));
         setPayMsg(updated.status === "PAID"
           ? { type: "success", text: "Payment confirmed! ✓" }
           : { type: "error",   text: "Not yet confirmed by PayMongo. Wait a moment and try again." });
       }
+    } catch { setPayMsg({ type: "error", text: "Verification failed. Please try again." }); }
+    finally { setVerifying(null); }
+  };
+
+  // ── Submit review ─────────────────────────────────────────────────────────────
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!request) return;
+    if (reviewRating === 0) { setReviewMsg({ type: "error", text: "Please select a star rating." }); return; }
+
+    setReviewSubmitting(true); setReviewMsg(null);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res   = await fetch(`${API_BASE}/api/property-reviews`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          rentalRequestId: request.id,
+          rating: reviewRating,
+          comment: reviewComment.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setReviewMsg({ type: "error", text: data?.error?.message ?? "Failed to submit review." });
+        return;
+      }
+      setExistingReview(data.data.review);
+      setReviewMsg({ type: "success", text: "Review submitted! Thank you for your feedback." });
     } catch {
-      setPayMsg({ type: "error", text: "Verification failed. Please try again." });
+      setReviewMsg({ type: "error", text: "Network error. Please try again." });
     } finally {
-      setVerifying(null);
+      setReviewSubmitting(false);
     }
   };
 
   if (!user) return null;
 
-  // ── Loading ────────────────────────────────────────────────────────────
   if (loading) return (
     <div className={styles.page}>
       <Navbar user={user} />
@@ -268,24 +356,24 @@ const RentalDetail: React.FC = () => {
     </div>
   );
 
-  const images       = property?.images ?? [];
-  const paidCount    = payments.filter((p) => p.status === "PAID").length;
-  const totalAmount  = payments.reduce((s, p) => s + p.amount, 0);
-  const paidAmount   = payments.filter((p) => p.status === "PAID").reduce((s, p) => s + p.amount, 0);
-  const nextDue      = payments.find((p) => p.status === "PENDING" || p.status === "OVERDUE");
+  const images      = property?.images ?? [];
+  const paidCount   = payments.filter(p => p.status === "PAID").length;
+  const totalAmount = payments.reduce((s, p) => s + p.amount, 0);
+  const paidAmount  = payments.filter(p => p.status === "PAID").reduce((s, p) => s + p.amount, 0);
+  const nextDue     = payments.find(p => p.status === "PENDING" || p.status === "OVERDUE");
+
+  const canReview = request.status === "CONFIRMED" || request.status === "COMPLETED";
 
   return (
     <div className={styles.page}>
       <Navbar user={user} />
 
-      {/* ── Back bar ── */}
       <div className={styles.backBar}>
         <button className={styles.backBtn} onClick={() => navigate("/my-rentals")} type="button">
           ← Back to My Rentals
         </button>
       </div>
 
-      {/* ── Payment banner ── */}
       {payMsg && (
         <div className={styles.bannerWrap}>
           <div className={`${styles.banner} ${payMsg.type === "success" ? styles.bannerSuccess : styles.bannerError}`}>
@@ -297,15 +385,14 @@ const RentalDetail: React.FC = () => {
 
       <div className={styles.main}>
 
-        {/* ══ LEFT COL ══════════════════════════════════════════════════ */}
+        {/* ══ LEFT ══ */}
         <div className={styles.leftCol}>
 
-          {/* ── Gallery ── */}
+          {/* Gallery */}
           <div className={styles.gallery}>
             <div className={styles.galleryMain}>
               {images.length > 0 ? (
-                <img src={images[activeImg].imageUrl} alt={property?.title}
-                  className={styles.galleryImg} />
+                <img src={images[activeImg].imageUrl} alt={property?.title} className={styles.galleryImg} />
               ) : (
                 <div className={styles.galleryPlaceholder}>
                   <span>🏠</span><span>No photos available</span>
@@ -313,12 +400,8 @@ const RentalDetail: React.FC = () => {
               )}
               {images.length > 1 && (
                 <>
-                  <button className={`${styles.galleryNav} ${styles.galleryNavPrev}`}
-                    onClick={() => setActiveImg((i) => (i === 0 ? images.length - 1 : i - 1))}
-                    type="button">‹</button>
-                  <button className={`${styles.galleryNav} ${styles.galleryNavNext}`}
-                    onClick={() => setActiveImg((i) => (i === images.length - 1 ? 0 : i + 1))}
-                    type="button">›</button>
+                  <button className={`${styles.galleryNav} ${styles.galleryNavPrev}`} onClick={() => setActiveImg(i => (i === 0 ? images.length - 1 : i - 1))} type="button">‹</button>
+                  <button className={`${styles.galleryNav} ${styles.galleryNavNext}`} onClick={() => setActiveImg(i => (i === images.length - 1 ? 0 : i + 1))} type="button">›</button>
                   <span className={styles.galleryCounter}>{activeImg + 1} / {images.length}</span>
                 </>
               )}
@@ -326,9 +409,7 @@ const RentalDetail: React.FC = () => {
             {images.length > 1 && (
               <div className={styles.galleryThumbs}>
                 {images.map((img, i) => (
-                  <div key={i}
-                    className={`${styles.galleryThumb} ${i === activeImg ? styles.galleryThumbActive : ""}`}
-                    onClick={() => setActiveImg(i)}>
+                  <div key={i} className={`${styles.galleryThumb} ${i === activeImg ? styles.galleryThumbActive : ""}`} onClick={() => setActiveImg(i)}>
                     <img src={img.imageUrl} alt={`Thumb ${i + 1}`} />
                   </div>
                 ))}
@@ -336,7 +417,7 @@ const RentalDetail: React.FC = () => {
             )}
           </div>
 
-          {/* ── Property Info ── */}
+          {/* Property Info */}
           <div className={styles.infoCard}>
             <div className={styles.infoHeader}>
               <div>
@@ -366,20 +447,71 @@ const RentalDetail: React.FC = () => {
 
             <div className={styles.divider} />
             <div className={styles.ownerRow}>
-              <div className={styles.ownerAvatar}>
-                {request.ownerName?.charAt(0).toUpperCase()}
-              </div>
+              <div className={styles.ownerAvatar}>{request.ownerName?.charAt(0).toUpperCase()}</div>
               <div>
                 <div className={styles.ownerLabel}>Listed by</div>
                 <div className={styles.ownerName}>{request.ownerName}</div>
               </div>
-              <a href={`mailto:${request.ownerEmail}`} className={styles.contactBtn}>
-                ✉️ Contact Owner
-              </a>
+              <a href={`mailto:${request.ownerEmail}`} className={styles.contactBtn}>✉️ Contact Owner</a>
             </div>
           </div>
 
-          {/* ── Map ── */}
+          {/* ── Review Card ── */}
+          {canReview && (
+            <div className={styles.reviewCard}>
+              <div className={styles.reviewCardTitle}>
+                <span>⭐</span> Rate This Property
+              </div>
+
+              {existingReview ? (
+                /* Already reviewed — show it read-only */
+                <div className={styles.reviewSubmitted}>
+                  <div className={styles.reviewSubmittedBadge}>✓ Review Submitted</div>
+                  <StarDisplay rating={existingReview.rating} />
+                  {existingReview.comment && (
+                    <p className={styles.reviewSubmittedComment}>"{existingReview.comment}"</p>
+                  )}
+                  <span className={styles.reviewSubmittedDate}>
+                    Submitted on {formatDate(existingReview.createdAt)}
+                  </span>
+                </div>
+              ) : (
+                <form onSubmit={handleReviewSubmit} className={styles.reviewForm}>
+                  <div className={styles.reviewFormField}>
+                    <label className={styles.reviewFormLabel}>Your Rating</label>
+                    <StarPicker value={reviewRating} onChange={setReviewRating} />
+                  </div>
+
+                  <div className={styles.reviewFormField}>
+                    <label className={styles.reviewFormLabel}>Comment <span className={styles.reviewOptional}>(optional)</span></label>
+                    <textarea
+                      className={styles.reviewTextarea}
+                      value={reviewComment}
+                      onChange={e => setReviewComment(e.target.value)}
+                      placeholder="Share your experience with this property…"
+                      rows={4}
+                      maxLength={500}
+                    />
+                    <span className={styles.reviewCharCount}>{reviewComment.length}/500</span>
+                  </div>
+
+                  {reviewMsg && (
+                    <div className={`${styles.reviewMsg} ${reviewMsg.type === "success" ? styles.reviewMsgSuccess : styles.reviewMsgError}`}>
+                      {reviewMsg.type === "success" ? "✓" : "⚠"} {reviewMsg.text}
+                    </div>
+                  )}
+
+                  <button type="submit" className={styles.reviewSubmitBtn} disabled={reviewSubmitting}>
+                    {reviewSubmitting
+                      ? <><span className={styles.reviewSpinner} /> Submitting…</>
+                      : "Submit Review"}
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* Map */}
           <div className={styles.mapCard}>
             <div className={styles.mapHeader}>
               <span>🗺️</span>
@@ -389,8 +521,7 @@ const RentalDetail: React.FC = () => {
             {mapLoading ? (
               <div className={styles.mapLoading}>📍 Finding location…</div>
             ) : mapCoords ? (
-              <iframe className={styles.mapFrame} src={mapSrc(mapCoords.lat, mapCoords.lon)}
-                title="Map" loading="lazy" referrerPolicy="no-referrer" />
+              <iframe className={styles.mapFrame} src={mapSrc(mapCoords.lat, mapCoords.lon)} title="Map" loading="lazy" referrerPolicy="no-referrer" />
             ) : (
               <div className={styles.mapLoading}>📍 Map unavailable for this location</div>
             )}
@@ -398,61 +529,33 @@ const RentalDetail: React.FC = () => {
 
         </div>
 
-        {/* ══ RIGHT COL ══════════════════════════════════════════════════ */}
+        {/* ══ RIGHT ══ */}
         <div className={styles.rightCol}>
 
-          {/* ── Rental Summary ── */}
+          {/* Rental Summary */}
           <div className={styles.summaryCard}>
             <div className={styles.summaryPrice}>
               <span className={styles.summaryPriceAmount}>{formatPrice(request.propertyPrice)}</span>
               <span className={styles.summaryPriceLabel}>/ month</span>
             </div>
-
             <div className={styles.summaryRows}>
-              <div className={styles.summaryRow}>
-                <span>Status</span>
-                <strong>{request.status.replace("_", " ")}</strong>
-              </div>
-              <div className={styles.summaryRow}>
-                <span>Move-in Date</span>
-                <strong>{formatDate(request.startDate)}</strong>
-              </div>
-              <div className={styles.summaryRow}>
-                <span>Lease Duration</span>
-                <strong>{request.leaseDurationMonths} month{request.leaseDurationMonths !== 1 ? "s" : ""}</strong>
-              </div>
-              {request.paymentPlan && (
-                <div className={styles.summaryRow}>
-                  <span>Payment Plan</span>
-                  <strong>{request.paymentPlan === "MONTHLY" ? "Monthly" : "Full Payment"}</strong>
-                </div>
-              )}
-              <div className={styles.summaryRow}>
-                <span>Total Lease Value</span>
-                <strong>{formatPrice(request.propertyPrice * request.leaseDurationMonths)}</strong>
-              </div>
-              <div className={styles.summaryRow}>
-                <span>Submitted</span>
-                <strong>{formatDate(request.createdAt)}</strong>
-              </div>
+              <div className={styles.summaryRow}><span>Status</span><strong>{request.status.replace("_", " ")}</strong></div>
+              <div className={styles.summaryRow}><span>Move-in Date</span><strong>{formatDate(request.startDate)}</strong></div>
+              <div className={styles.summaryRow}><span>Lease Duration</span><strong>{request.leaseDurationMonths} month{request.leaseDurationMonths !== 1 ? "s" : ""}</strong></div>
+              {request.paymentPlan && <div className={styles.summaryRow}><span>Payment Plan</span><strong>{request.paymentPlan === "MONTHLY" ? "Monthly" : "Full Payment"}</strong></div>}
+              <div className={styles.summaryRow}><span>Total Lease Value</span><strong>{formatPrice(request.propertyPrice * request.leaseDurationMonths)}</strong></div>
+              <div className={styles.summaryRow}><span>Submitted</span><strong>{formatDate(request.createdAt)}</strong></div>
             </div>
 
-            {/* Payment progress for active rentals */}
             {payments.length > 0 && (
               <div className={styles.progressSection}>
-                <div className={styles.progressHeader}>
-                  <span>Payment Progress</span>
-                  <span>{paidCount}/{payments.length} paid</span>
-                </div>
+                <div className={styles.progressHeader}><span>Payment Progress</span><span>{paidCount}/{payments.length} paid</span></div>
                 <div className={styles.progressBar}>
-                  <div className={styles.progressFill}
-                    style={{ width: `${payments.length > 0 ? (paidCount / payments.length) * 100 : 0}%` }} />
+                  <div className={styles.progressFill} style={{ width: `${(paidCount / payments.length) * 100}%` }} />
                 </div>
                 <div className={styles.progressAmounts}>
                   <span className={styles.progressPaid}>{formatPrice(paidAmount)} paid</span>
-                  <span className={styles.progressRemaining}>
-                    {formatPrice(totalAmount - paidAmount)} remaining
-                  </span>
+                  <span className={styles.progressRemaining}>{formatPrice(totalAmount - paidAmount)} remaining</span>
                 </div>
                 {nextDue && (
                   <div className={`${styles.nextDue} ${nextDue.status === "OVERDUE" ? styles.nextDueOverdue : ""}`}>
@@ -464,19 +567,15 @@ const RentalDetail: React.FC = () => {
             )}
           </div>
 
-          {/* ── Payment Schedule ── */}
+          {/* Payment Schedule */}
           {payments.length > 0 && (
             <div className={styles.paymentsCard}>
               <div className={styles.paymentsTitle}>Payment Schedule</div>
-
               <div className={styles.paymentsList}>
-                {payments.map((p) => {
+                {payments.map(p => {
                   const colors = paymentColors(p.status);
-                  const label  = p.installmentNumber === 0
-                    ? "Full Lease Payment"
-                    : `Month ${p.installmentNumber}`;
+                  const label  = p.installmentNumber === 0 ? "Full Lease Payment" : `Month ${p.installmentNumber}`;
                   const isPaid = p.status === "PAID";
-
                   return (
                     <div key={p.id} className={`${styles.paymentRow} ${p.status === "OVERDUE" ? styles.paymentRowOverdue : ""}`}>
                       <div className={styles.paymentInfo}>
@@ -486,27 +585,18 @@ const RentalDetail: React.FC = () => {
                           {p.paidAt && <span className={styles.paymentPaidDate}> · Paid: {formatDate(p.paidAt)}</span>}
                         </div>
                       </div>
-
                       <div className={styles.paymentAmount}>{formatPrice(p.amount)}</div>
-
                       <div className={styles.paymentActions}>
-                        <span className={styles.paymentStatus}
-                          style={{ color: colors.color, background: colors.bg, borderColor: colors.border }}>
+                        <span className={styles.paymentStatus} style={{ color: colors.color, background: colors.bg, borderColor: colors.border }}>
                           {isPaid ? "✓ Paid" : p.status}
                         </span>
-
                         {!isPaid && (
-                          <button className={styles.payBtn} type="button"
-                            onClick={() => handlePay(p.id)} disabled={initiating === p.id}>
-                            {initiating === p.id
-                              ? <><span className={styles.btnSpinner} /> Opening…</>
-                              : "Pay Now"}
+                          <button className={styles.payBtn} type="button" onClick={() => handlePay(p.id)} disabled={initiating === p.id}>
+                            {initiating === p.id ? <><span className={styles.btnSpinner} /> Opening…</> : "Pay Now"}
                           </button>
                         )}
-
                         {!isPaid && p.paymongoPaymentId && (
-                          <button className={styles.verifyBtn} type="button"
-                            onClick={() => handleVerify(p.id)} disabled={verifying === p.id}>
+                          <button className={styles.verifyBtn} type="button" onClick={() => handleVerify(p.id)} disabled={verifying === p.id}>
                             {verifying === p.id ? "Checking…" : "Verify"}
                           </button>
                         )}
@@ -518,18 +608,16 @@ const RentalDetail: React.FC = () => {
             </div>
           )}
 
-          {/* ── Payment History ── */}
-          {payments.filter((p) => p.status === "PAID").length > 0 && (
+          {/* Payment History */}
+          {payments.filter(p => p.status === "PAID").length > 0 && (
             <div className={styles.historyCard}>
               <div className={styles.historyTitle}>Payment History</div>
               <div className={styles.historyList}>
-                {payments.filter((p) => p.status === "PAID").map((p) => (
+                {payments.filter(p => p.status === "PAID").map(p => (
                   <div key={p.id} className={styles.historyRow}>
                     <div className={styles.historyIcon}>✓</div>
                     <div className={styles.historyInfo}>
-                      <div className={styles.historyLabel}>
-                        {p.installmentNumber === 0 ? "Full Lease Payment" : `Month ${p.installmentNumber}`}
-                      </div>
+                      <div className={styles.historyLabel}>{p.installmentNumber === 0 ? "Full Lease Payment" : `Month ${p.installmentNumber}`}</div>
                       <div className={styles.historyDate}>Paid on {formatDate(p.paidAt!)}</div>
                     </div>
                     <div className={styles.historyAmount}>{formatPrice(p.amount)}</div>

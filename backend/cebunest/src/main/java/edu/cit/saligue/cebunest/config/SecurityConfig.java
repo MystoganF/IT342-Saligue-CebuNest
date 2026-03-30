@@ -55,6 +55,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/properties/types").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/properties").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/properties/{id}").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/property-reviews/property/**").permitAll()
 
                         // ── Admin endpoints ────────────────────────────────
                         .requestMatchers("/api/admin/**").authenticated()
@@ -110,6 +111,7 @@ public class SecurityConfig {
                 if (path.equals("/api/properties"))          return true;
                 if (path.equals("/api/properties/types"))    return true;
                 if (path.matches("/api/properties/\\d+"))    return true;
+                if (path.matches("/api/property-reviews/property/\\d+")) return true;
             }
 
             return false;

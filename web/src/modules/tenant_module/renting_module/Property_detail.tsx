@@ -38,6 +38,16 @@ interface Property {
   images: PropertyImage[];
 }
 
+interface Review {
+  id: number;
+  tenantId: number;
+  tenantName: string;
+  tenantAvatarUrl?: string | null;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+}
+
 // ─── helpers ───────────────────────────────────────────────────────────────
 
 function formatPrice(price: number): string {
@@ -66,7 +76,6 @@ function getStatusBadgeClass(status: string, s: typeof styles): string {
   }
 }
 
-/** Calculate move-out date given a start date string and duration in months */
 function calcMoveOut(startDate: string, months: number): string {
   if (!startDate) return "";
   const d = new Date(startDate);
@@ -74,7 +83,6 @@ function calcMoveOut(startDate: string, months: number): string {
   return d.toISOString().split("T")[0];
 }
 
-/** Format a date string as a human-readable label */
 function formatDate(dateStr: string): string {
   if (!dateStr) return "";
   return new Date(dateStr + "T00:00:00").toLocaleDateString("en-PH", {
@@ -84,14 +92,26 @@ function formatDate(dateStr: string): string {
   });
 }
 
+function formatReviewDate(isoStr: string): string {
+  if (!isoStr) return "";
+  return new Date(isoStr).toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function avgRating(reviews: Review[]): number {
+  if (!reviews.length) return 0;
+  return reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
+}
+
 async function geocodeLocation(
   location: string
 ): Promise<{ lat: number; lon: number } | null> {
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-        location
-      )}&format=json&limit=1`,
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`,
       { headers: { "Accept-Language": "en" } }
     );
     const data = await res.json();
@@ -101,6 +121,16 @@ async function geocodeLocation(
     return null;
   }
 }
+
+// ─── Star display ───────────────────────────────────────────────────────────
+
+const StarDisplay: React.FC<{ rating: number; size?: number }> = ({ rating, size = 16 }) => (
+  <span className={styles.starDisplay} style={{ fontSize: size }}>
+    {[1, 2, 3, 4, 5].map((s) => (
+      <span key={s} className={s <= rating ? styles.starFilled : styles.starEmpty}>★</span>
+    ))}
+  </span>
+);
 
 // ─── Social icon SVGs ───────────────────────────────────────────────────────
 
@@ -124,7 +154,7 @@ const TwitterIcon = () => (
   </svg>
 );
 
-// ─── Lightbox component ─────────────────────────────────────────────────────
+// ─── Lightbox ───────────────────────────────────────────────────────────────
 
 interface LightboxProps {
   images: PropertyImage[];
@@ -134,7 +164,6 @@ interface LightboxProps {
 
 const Lightbox: React.FC<LightboxProps> = ({ images, startIndex, onClose }) => {
   const [current, setCurrent] = useState(startIndex);
-
   const prev = useCallback(() => setCurrent(i => (i === 0 ? images.length - 1 : i - 1)), [images.length]);
   const next = useCallback(() => setCurrent(i => (i === images.length - 1 ? 0 : i + 1)), [images.length]);
 
@@ -146,36 +175,22 @@ const Lightbox: React.FC<LightboxProps> = ({ images, startIndex, onClose }) => {
     };
     window.addEventListener("keydown", handler);
     document.body.style.overflow = "hidden";
-    return () => {
-      window.removeEventListener("keydown", handler);
-      document.body.style.overflow = "";
-    };
+    return () => { window.removeEventListener("keydown", handler); document.body.style.overflow = ""; };
   }, [onClose, prev, next]);
 
   return (
     <div className={styles.lightboxOverlay} onClick={onClose}>
       <button className={styles.lightboxClose} onClick={onClose} aria-label="Close">✕</button>
-
       <div className={styles.lightboxContent} onClick={e => e.stopPropagation()}>
-        <img
-          src={images[current].imageUrl}
-          alt={`Image ${current + 1}`}
-          className={styles.lightboxImg}
-        />
-
+        <img src={images[current].imageUrl} alt={`Image ${current + 1}`} className={styles.lightboxImg} />
         {images.length > 1 && (
           <>
             <button className={`${styles.lightboxNav} ${styles.lightboxNavPrev}`} onClick={prev} aria-label="Previous">‹</button>
             <button className={`${styles.lightboxNav} ${styles.lightboxNavNext}`} onClick={next} aria-label="Next">›</button>
             <div className={styles.lightboxCounter}>{current + 1} / {images.length}</div>
-
             <div className={styles.lightboxThumbs}>
               {images.map((img, i) => (
-                <div
-                  key={i}
-                  className={`${styles.lightboxThumb} ${i === current ? styles.lightboxThumbActive : ""}`}
-                  onClick={() => setCurrent(i)}
-                >
+                <div key={i} className={`${styles.lightboxThumb} ${i === current ? styles.lightboxThumbActive : ""}`} onClick={() => setCurrent(i)}>
                   <img src={img.imageUrl} alt={`Thumb ${i + 1}`} />
                 </div>
               ))}
@@ -193,7 +208,7 @@ const PropertyDetail: React.FC = () => {
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser]         = useState<User | null>(null);
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
@@ -206,13 +221,17 @@ const PropertyDetail: React.FC = () => {
   const [mapCoords, setMapCoords]   = useState<{ lat: number; lon: number } | null>(null);
   const [mapLoading, setMapLoading] = useState(true);
 
-  // Booking form
+  // Booking
   const [startDate, setStartDate]                     = useState("");
   const [leaseDurationMonths, setLeaseDurationMonths] = useState<number>(1);
   const [submitting, setSubmitting]                   = useState(false);
   const [bookingMsg, setBookingMsg]                   = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // ── Auth guard ─────────────────────────────────────────────────────────
+  // Reviews
+  const [reviews, setReviews]           = useState<Review[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+
+  // ── Auth ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const stored = localStorage.getItem("user");
     const token  = localStorage.getItem("accessToken");
@@ -236,17 +255,25 @@ const PropertyDetail: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
+  // ── Fetch reviews ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!id) return;
+    setReviewsLoading(true);
+    fetch(`${API_BASE}/api/property-reviews/property/${id}`)
+      .then(r => r.json())
+      .then(data => { if (data.success) setReviews(data.data.reviews ?? []); })
+      .catch(() => {})
+      .finally(() => setReviewsLoading(false));
+  }, [id]);
+
   // ── Geocode ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!property?.location) return;
     setMapLoading(true);
-    geocodeLocation(property.location).then(coords => {
-      setMapCoords(coords);
-      setMapLoading(false);
-    });
+    geocodeLocation(property.location).then(coords => { setMapCoords(coords); setMapLoading(false); });
   }, [property?.location]);
 
-  // ── Submit rental request ───────────────────────────────────────────────
+  // ── Booking submit ─────────────────────────────────────────────────────
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!property || !user) return;
@@ -256,10 +283,7 @@ const PropertyDetail: React.FC = () => {
       const token = localStorage.getItem("accessToken");
       const res   = await fetch(`${API_BASE}/api/rental-requests`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ propertyId: property.id, startDate, leaseDurationMonths }),
       });
       const data = await res.json();
@@ -276,20 +300,16 @@ const PropertyDetail: React.FC = () => {
   };
 
   // ── Derived ────────────────────────────────────────────────────────────
-  const isAvailable   = property?.status?.toUpperCase() === "AVAILABLE";
-  const totalCost     = property ? property.price * leaseDurationMonths : 0;
-  const today         = new Date().toISOString().split("T")[0];
-  const images        = property?.images ?? [];
-  const hasImages     = images.length > 0;
-  const moveOutDate   = calcMoveOut(startDate, leaseDurationMonths);
+  const isAvailable = property?.status?.toUpperCase() === "AVAILABLE";
+  const totalCost   = property ? property.price * leaseDurationMonths : 0;
+  const today       = new Date().toISOString().split("T")[0];
+  const images      = property?.images ?? [];
+  const hasImages   = images.length > 0;
+  const moveOutDate = calcMoveOut(startDate, leaseDurationMonths);
+  const hasSocials  = property && (property.ownerFacebookUrl || property.ownerInstagramUrl || property.ownerTwitterUrl);
+  const avg         = avgRating(reviews);
 
-  const hasSocials = property && (
-    property.ownerFacebookUrl ||
-    property.ownerInstagramUrl ||
-    property.ownerTwitterUrl
-  );
-
-  // ── Loading skeleton ────────────────────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className={styles.page}>
@@ -326,13 +346,8 @@ const PropertyDetail: React.FC = () => {
     <div className={styles.page}>
       {user && <Navbar user={user} />}
 
-      {/* Lightbox */}
       {lightboxOpen && hasImages && (
-        <Lightbox
-          images={images}
-          startIndex={activeImg}
-          onClose={() => setLightboxOpen(false)}
-        />
+        <Lightbox images={images} startIndex={activeImg} onClose={() => setLightboxOpen(false)} />
       )}
 
       <div className={styles.backBar}>
@@ -356,9 +371,7 @@ const PropertyDetail: React.FC = () => {
                     onClick={() => setLightboxOpen(true)}
                     title="Click to enlarge"
                   />
-                  <div className={styles.galleryExpandHint}>
-                    <span>🔍</span> Click to enlarge
-                  </div>
+                  <div className={styles.galleryExpandHint}><span>🔍</span> Click to enlarge</div>
                 </>
               ) : (
                 <div className={styles.galleryPlaceholder}>
@@ -366,32 +379,18 @@ const PropertyDetail: React.FC = () => {
                   <span className={styles.galleryPlaceholderText}>No photos available</span>
                 </div>
               )}
-
               {images.length > 1 && (
                 <>
-                  <button
-                    className={`${styles.galleryNav} ${styles.galleryNavPrev}`}
-                    onClick={() => setActiveImg(i => (i === 0 ? images.length - 1 : i - 1))}
-                    aria-label="Previous image"
-                  >‹</button>
-                  <button
-                    className={`${styles.galleryNav} ${styles.galleryNavNext}`}
-                    onClick={() => setActiveImg(i => (i === images.length - 1 ? 0 : i + 1))}
-                    aria-label="Next image"
-                  >›</button>
+                  <button className={`${styles.galleryNav} ${styles.galleryNavPrev}`} onClick={() => setActiveImg(i => (i === 0 ? images.length - 1 : i - 1))} aria-label="Previous image">‹</button>
+                  <button className={`${styles.galleryNav} ${styles.galleryNavNext}`} onClick={() => setActiveImg(i => (i === images.length - 1 ? 0 : i + 1))} aria-label="Next image">›</button>
                   <span className={styles.galleryCounter}>{activeImg + 1} / {images.length}</span>
                 </>
               )}
             </div>
-
             {images.length > 1 && (
               <div className={styles.galleryThumbs}>
                 {images.map((img, i) => (
-                  <div
-                    key={i}
-                    className={`${styles.galleryThumb} ${i === activeImg ? styles.galleryThumbActive : ""}`}
-                    onClick={() => setActiveImg(i)}
-                  >
+                  <div key={i} className={`${styles.galleryThumb} ${i === activeImg ? styles.galleryThumbActive : ""}`} onClick={() => setActiveImg(i)}>
                     <img src={img.imageUrl} alt={`Thumbnail ${i + 1}`} />
                   </div>
                 ))}
@@ -408,49 +407,35 @@ const PropertyDetail: React.FC = () => {
                   <span className={styles.infoLocationIcon}>📍</span>
                   {property.location}
                 </div>
+                {/* Average rating pill under location */}
+                {reviews.length > 0 && (
+                  <div className={styles.infoRatingPill}>
+                    <StarDisplay rating={Math.round(avg)} size={14} />
+                    <span className={styles.infoRatingValue}>{avg.toFixed(1)}</span>
+                    <span className={styles.infoRatingCount}>({reviews.length} review{reviews.length !== 1 ? "s" : ""})</span>
+                  </div>
+                )}
               </div>
               <div className={styles.infoBadges}>
                 <span className={`${styles.badge} ${getStatusBadgeClass(property.status, styles)}`}>
                   {property.status?.charAt(0) + property.status?.slice(1).toLowerCase()}
                 </span>
-                {property.type && (
-                  <span className={`${styles.badge} ${styles.badgeType}`}>{property.type}</span>
-                )}
+                {property.type && <span className={`${styles.badge} ${styles.badgeType}`}>{property.type}</span>}
               </div>
             </div>
 
             {(property.beds || property.baths || property.sqm) && (
               <div className={styles.infoStats}>
-                {property.beds != null && (
-                  <div className={styles.infoStat}>
-                    <span className={styles.infoStatIcon}>🛏️</span>
-                    <span className={styles.infoStatValue}>{property.beds}</span>
-                    <span className={styles.infoStatLabel}>Beds</span>
-                  </div>
-                )}
-                {property.baths != null && (
-                  <div className={styles.infoStat}>
-                    <span className={styles.infoStatIcon}>🚿</span>
-                    <span className={styles.infoStatValue}>{property.baths}</span>
-                    <span className={styles.infoStatLabel}>Baths</span>
-                  </div>
-                )}
-                {property.sqm != null && (
-                  <div className={styles.infoStat}>
-                    <span className={styles.infoStatIcon}>📐</span>
-                    <span className={styles.infoStatValue}>{property.sqm}</span>
-                    <span className={styles.infoStatLabel}>sqm</span>
-                  </div>
-                )}
+                {property.beds  != null && <div className={styles.infoStat}><span className={styles.infoStatIcon}>🛏️</span><span className={styles.infoStatValue}>{property.beds}</span><span className={styles.infoStatLabel}>Beds</span></div>}
+                {property.baths != null && <div className={styles.infoStat}><span className={styles.infoStatIcon}>🚿</span><span className={styles.infoStatValue}>{property.baths}</span><span className={styles.infoStatLabel}>Baths</span></div>}
+                {property.sqm   != null && <div className={styles.infoStat}><span className={styles.infoStatIcon}>📐</span><span className={styles.infoStatValue}>{property.sqm}</span><span className={styles.infoStatLabel}>sqm</span></div>}
               </div>
             )}
 
             <div className={styles.infoDivider} />
-
             <div className={styles.infoDescLabel}>About this property</div>
             <p className={styles.infoDesc}>{property.description}</p>
 
-            {/* ── Owner row with social links ── */}
             <div className={styles.ownerRow}>
               <div className={styles.ownerAvatar}>{getInitials(property.ownerName)}</div>
               <div className={styles.ownerInfo}>
@@ -459,45 +444,63 @@ const PropertyDetail: React.FC = () => {
               </div>
               {hasSocials && (
                 <div className={styles.ownerSocials}>
-                  {property.ownerFacebookUrl && (
-                    <a
-                      href={property.ownerFacebookUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`${styles.socialLink} ${styles.socialFacebook}`}
-                      aria-label="Facebook"
-                      title="View on Facebook"
-                    >
-                      <FacebookIcon />
-                    </a>
-                  )}
-                  {property.ownerInstagramUrl && (
-                    <a
-                      href={property.ownerInstagramUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`${styles.socialLink} ${styles.socialInstagram}`}
-                      aria-label="Instagram"
-                      title="View on Instagram"
-                    >
-                      <InstagramIcon />
-                    </a>
-                  )}
-                  {property.ownerTwitterUrl && (
-                    <a
-                      href={property.ownerTwitterUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`${styles.socialLink} ${styles.socialTwitter}`}
-                      aria-label="Twitter / X"
-                      title="View on X"
-                    >
-                      <TwitterIcon />
-                    </a>
-                  )}
+                  {property.ownerFacebookUrl && <a href={property.ownerFacebookUrl} target="_blank" rel="noopener noreferrer" className={`${styles.socialLink} ${styles.socialFacebook}`} aria-label="Facebook"><FacebookIcon /></a>}
+                  {property.ownerInstagramUrl && <a href={property.ownerInstagramUrl} target="_blank" rel="noopener noreferrer" className={`${styles.socialLink} ${styles.socialInstagram}`} aria-label="Instagram"><InstagramIcon /></a>}
+                  {property.ownerTwitterUrl && <a href={property.ownerTwitterUrl} target="_blank" rel="noopener noreferrer" className={`${styles.socialLink} ${styles.socialTwitter}`} aria-label="Twitter / X"><TwitterIcon /></a>}
                 </div>
               )}
             </div>
+          </div>
+
+          {/* ── Reviews Section ── */}
+          <div className={styles.reviewsCard}>
+            <div className={styles.reviewsHeader}>
+              <div className={styles.reviewsTitle}>
+                <span>⭐</span> Tenant Reviews
+              </div>
+              {reviews.length > 0 && (
+                <div className={styles.reviewsSummary}>
+                  <span className={styles.reviewsAvgBig}>{avg.toFixed(1)}</span>
+                  <div>
+                    <StarDisplay rating={Math.round(avg)} size={18} />
+                    <div className={styles.reviewsCount}>{reviews.length} review{reviews.length !== 1 ? "s" : ""}</div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {reviewsLoading ? (
+              <div className={styles.reviewsLoading}>
+                <div className={styles.reviewsSpinner} />
+                Loading reviews…
+              </div>
+            ) : reviews.length === 0 ? (
+              <div className={styles.reviewsEmpty}>
+                <span>💬</span>
+                <p>No reviews yet. Be the first to review after your stay!</p>
+              </div>
+            ) : (
+              <div className={styles.reviewsList}>
+                {reviews.map((r) => (
+                  <div key={r.id} className={styles.reviewItem}>
+                    <div className={styles.reviewItemHeader}>
+                      <div className={styles.reviewAvatar}>
+                        {r.tenantAvatarUrl
+                          ? <img src={r.tenantAvatarUrl} alt={r.tenantName} className={styles.reviewAvatarImg} />
+                          : <span>{getInitials(r.tenantName)}</span>
+                        }
+                      </div>
+                      <div className={styles.reviewItemMeta}>
+                        <span className={styles.reviewItemName}>{r.tenantName}</span>
+                        <span className={styles.reviewItemDate}>{formatReviewDate(r.createdAt)}</span>
+                      </div>
+                      <StarDisplay rating={r.rating} size={15} />
+                    </div>
+                    {r.comment && <p className={styles.reviewItemComment}>{r.comment}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Map */}
@@ -515,8 +518,7 @@ const PropertyDetail: React.FC = () => {
                 src={
                   `https://www.openstreetmap.org/export/embed.html` +
                   `?bbox=${mapCoords.lon - 0.01},${mapCoords.lat - 0.01},${mapCoords.lon + 0.01},${mapCoords.lat + 0.01}` +
-                  `&layer=mapnik` +
-                  `&marker=${mapCoords.lat},${mapCoords.lon}`
+                  `&layer=mapnik&marker=${mapCoords.lat},${mapCoords.lon}`
                 }
                 title="Property location map"
                 loading="lazy"
@@ -529,10 +531,9 @@ const PropertyDetail: React.FC = () => {
 
         </div>
 
-        {/* ══ RIGHT COLUMN — BOOKING CARD ══ */}
+        {/* ══ RIGHT COLUMN ══ */}
         <div className={styles.rightCol}>
           <div className={styles.bookingCard}>
-
             <div className={styles.bookingPrice}>
               <span className={styles.bookingPriceAmount}>{formatPrice(property.price)}</span>
               <span className={styles.bookingPriceLabel}>/ month</span>
@@ -540,34 +541,14 @@ const PropertyDetail: React.FC = () => {
 
             {isAvailable ? (
               <form className={styles.bookingForm} onSubmit={handleBooking}>
-
                 <div className={styles.bookingField}>
                   <label className={styles.bookingLabel}>Move-in Date</label>
-                  <input
-                    type="date"
-                    className={styles.bookingInput}
-                    value={startDate}
-                    onChange={e => setStartDate(e.target.value)}
-                    min={today}
-                    required
-                  />
+                  <input type="date" className={styles.bookingInput} value={startDate} onChange={e => setStartDate(e.target.value)} min={today} required />
                 </div>
-
                 <div className={styles.bookingField}>
                   <label className={styles.bookingLabel}>Lease Duration (months)</label>
-                  <input
-                    type="number"
-                    className={styles.bookingInput}
-                    value={leaseDurationMonths}
-                    onChange={e => setLeaseDurationMonths(Math.max(1, parseInt(e.target.value) || 1))}
-                    min={1}
-                    max={24}
-                    placeholder="Months"
-                    required
-                  />
+                  <input type="number" className={styles.bookingInput} value={leaseDurationMonths} onChange={e => setLeaseDurationMonths(Math.max(1, parseInt(e.target.value) || 1))} min={1} max={24} required />
                 </div>
-
-                {/* ── Move-out date display ── */}
                 {startDate && (
                   <div className={styles.moveOutRow}>
                     <div className={styles.moveOutIcon}>🏁</div>
@@ -577,66 +558,30 @@ const PropertyDetail: React.FC = () => {
                     </div>
                   </div>
                 )}
-
-                {/* Cost summary */}
                 {startDate && (
                   <div className={styles.bookingSummary}>
-                    <div className={styles.bookingSummaryRow}>
-                      <span className={styles.bookingSummaryLabel}>Move-in</span>
-                      <span className={styles.bookingSummaryValue}>{formatDate(startDate)}</span>
-                    </div>
-                    <div className={styles.bookingSummaryRow}>
-                      <span className={styles.bookingSummaryLabel}>Move-out</span>
-                      <span className={styles.bookingSummaryValue}>{formatDate(moveOutDate)}</span>
-                    </div>
-                    <div className={styles.bookingSummaryRow}>
-                      <span className={styles.bookingSummaryLabel}>Monthly rent</span>
-                      <span className={styles.bookingSummaryValue}>{formatPrice(property.price)}</span>
-                    </div>
-                    <div className={styles.bookingSummaryRow}>
-                      <span className={styles.bookingSummaryLabel}>Duration</span>
-                      <span className={styles.bookingSummaryValue}>{leaseDurationMonths} month{leaseDurationMonths > 1 ? "s" : ""}</span>
-                    </div>
-                    <div className={`${styles.bookingSummaryRow} ${styles.bookingSummaryTotal}`}>
-                      <span className={styles.bookingSummaryTotalLabel}>Total</span>
-                      <span className={styles.bookingSummaryTotalValue}>{formatPrice(totalCost)}</span>
-                    </div>
+                    <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Move-in</span><span className={styles.bookingSummaryValue}>{formatDate(startDate)}</span></div>
+                    <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Move-out</span><span className={styles.bookingSummaryValue}>{formatDate(moveOutDate)}</span></div>
+                    <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Monthly rent</span><span className={styles.bookingSummaryValue}>{formatPrice(property.price)}</span></div>
+                    <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Duration</span><span className={styles.bookingSummaryValue}>{leaseDurationMonths} month{leaseDurationMonths > 1 ? "s" : ""}</span></div>
+                    <div className={`${styles.bookingSummaryRow} ${styles.bookingSummaryTotal}`}><span className={styles.bookingSummaryTotalLabel}>Total</span><span className={styles.bookingSummaryTotalValue}>{formatPrice(totalCost)}</span></div>
                   </div>
                 )}
-
-                <button
-                  type="submit"
-                  className={styles.bookingBtn}
-                  disabled={submitting || bookingMsg?.type === "success"}
-                >
-                  {submitting
-                    ? <span className={styles.bookingSpinner} />
-                    : bookingMsg?.type === "success"
-                    ? "✓ Request Sent"
-                    : "Request to Rent"}
+                <button type="submit" className={styles.bookingBtn} disabled={submitting || bookingMsg?.type === "success"}>
+                  {submitting ? <span className={styles.bookingSpinner} /> : bookingMsg?.type === "success" ? "✓ Request Sent" : "Request to Rent"}
                 </button>
-
                 {bookingMsg && (
-                  <div className={`${styles.bookingMessage} ${
-                    bookingMsg.type === "success" ? styles.bookingMessageSuccess : styles.bookingMessageError
-                  }`}>
+                  <div className={`${styles.bookingMessage} ${bookingMsg.type === "success" ? styles.bookingMessageSuccess : styles.bookingMessageError}`}>
                     <span>{bookingMsg.type === "success" ? "✓" : "⚠"}</span>
                     {bookingMsg.text}
                   </div>
                 )}
-
-                <p className={styles.bookingNote}>
-                  No payment yet — the owner will review your request first.
-                </p>
+                <p className={styles.bookingNote}>No payment yet — the owner will review your request first.</p>
               </form>
             ) : (
               <>
-                <button className={`${styles.bookingBtn} ${styles.bookingBtnUnavailable}`} disabled>
-                  Not Available
-                </button>
-                <p className={styles.bookingNote} style={{ marginTop: "12px" }}>
-                  This property is currently unavailable for new rental requests.
-                </p>
+                <button className={`${styles.bookingBtn} ${styles.bookingBtnUnavailable}`} disabled>Not Available</button>
+                <p className={styles.bookingNote} style={{ marginTop: "12px" }}>This property is currently unavailable for new rental requests.</p>
               </>
             )}
           </div>
