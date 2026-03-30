@@ -32,6 +32,10 @@ public class PropertyDTO {
     private List<ImageDTO> images;
     private String  createdAt;
 
+    private String ownerFacebookUrl;
+    private String ownerInstagramUrl;
+    private String ownerTwitterUrl;
+
     @Data
     @AllArgsConstructor
     public static class ImageDTO {
@@ -77,6 +81,11 @@ public class PropertyDTO {
                 .sqm(p.getSqm())
                 .ownerId(p.getOwner().getId())
                 .ownerName(p.getOwner().getName())
+
+                .ownerFacebookUrl(p.getOwner().getFacebookUrl())
+                .ownerInstagramUrl(p.getOwner().getInstagramUrl())
+                .ownerTwitterUrl(p.getOwner().getTwitterUrl())
+
                 .images(images)
                 .createdAt(p.getCreatedAt() != null
                         ? p.getCreatedAt().format(java.time.format.DateTimeFormatter.ISO_DATE_TIME)

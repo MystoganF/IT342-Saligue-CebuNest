@@ -83,8 +83,11 @@ public class UserController {
         try {
             String avatarUrl = storageService.uploadAvatar(id, file);
 
-            UserDTO updated = userService.updateProfile(id,
-                    new UpdateProfileRequest(null, null, avatarUrl));
+            UpdateProfileRequest req = UpdateProfileRequest.builder()
+                    .avatarUrl(avatarUrl)
+                    .build();
+
+            UserDTO updated = userService.updateProfile(id, req);
 
             Map<String, Object> responseData = new HashMap<>();
             responseData.put("avatarUrl", avatarUrl);

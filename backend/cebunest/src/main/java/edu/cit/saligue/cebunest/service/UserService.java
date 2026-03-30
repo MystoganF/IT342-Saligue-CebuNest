@@ -29,24 +29,31 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found."));
 
+        // Only apply if provided
         if (request.getName() != null && !request.getName().isBlank()) {
             user.setName(request.getName());
-        }
-        if (request.getPhoneNumber() != null) {
-            user.setPhoneNumber(request.getPhoneNumber());
         }
         if (request.getAvatarUrl() != null) {
             user.setAvatarUrl(request.getAvatarUrl());
         }
-        if (request.getFacebookUrl() != null) {
-            user.setFacebookUrl(request.getFacebookUrl().isBlank() ? null : request.getFacebookUrl().trim());
-        }
-        if (request.getInstagramUrl() != null) {
-            user.setInstagramUrl(request.getInstagramUrl().isBlank() ? null : request.getInstagramUrl().trim());
-        }
-        if (request.getTwitterUrl() != null) {
-            user.setTwitterUrl(request.getTwitterUrl().isBlank() ? null : request.getTwitterUrl().trim());
-        }
+
+        // Always apply — null means clear, blank string also clears
+        user.setPhoneNumber(
+                request.getPhoneNumber() == null || request.getPhoneNumber().isBlank()
+                        ? null : request.getPhoneNumber().trim()
+        );
+        user.setFacebookUrl(
+                request.getFacebookUrl() == null || request.getFacebookUrl().isBlank()
+                        ? null : request.getFacebookUrl().trim()
+        );
+        user.setInstagramUrl(
+                request.getInstagramUrl() == null || request.getInstagramUrl().isBlank()
+                        ? null : request.getInstagramUrl().trim()
+        );
+        user.setTwitterUrl(
+                request.getTwitterUrl() == null || request.getTwitterUrl().isBlank()
+                        ? null : request.getTwitterUrl().trim()
+        );
 
         userRepository.save(user);
         return toDTO(user);
