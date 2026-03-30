@@ -20,6 +20,7 @@ public class RentalPaymentService {
 
     private final RentalRequestRepository  rentalRequestRepository;
     private final RentalPaymentRepository  rentalPaymentRepository;
+    private final PropertyRepository       propertyRepository; // <-- Added to update property status
     private final PayMongoService          payMongoService;
     private final EmailService             emailService;
 
@@ -43,11 +44,17 @@ public class RentalPaymentService {
         if (rentalPaymentRepository.existsByRentalRequestId(requestId))
             throw new IllegalArgumentException("Payment schedule already generated.");
 
+        // 1. Mark the request as CONFIRMED
         request.setStatus(RentalRequest.RentalStatus.CONFIRMED);
         request.setPaymentPlan(planUpper);
         rentalRequestRepository.save(request);
 
-        // Generate payment schedule
+        // 2. Mark the property as UNAVAILABLE so it stops showing in public listings
+        Property property = request.getProperty();
+        property.setStatus(Property.PropertyStatus.UNAVAILABLE);
+        propertyRepository.save(property);
+
+        // 3. Generate payment schedule
         generatePaymentSchedule(request, planUpper);
 
         return RentalRequestDTO.from(request);

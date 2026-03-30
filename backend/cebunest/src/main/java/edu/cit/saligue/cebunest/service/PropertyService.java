@@ -22,6 +22,7 @@ public class PropertyService {
     private final PropertyTypeRepository  propertyTypeRepository;
     private final PropertyImageRepository propertyImageRepository;
     private final SupabaseStorageService  storageService;
+    private final RentalRequestRepository rentalRequestRepository; // <-- Added this
 
     // ── All available properties (tenant view) ───────────────────────────
     @Transactional(readOnly = true)
@@ -29,8 +30,15 @@ public class PropertyService {
             String search, String type, Double minPrice, Double maxPrice) {
         String cleanSearch = blank(search) ? null : search.trim();
         String cleanType   = blank(type) || type.equalsIgnoreCase("All") ? null : type.trim();
+
         return propertyRepository.findFiltered(cleanSearch, cleanType, minPrice, maxPrice)
-                .stream().map(PropertyDTO::from).toList();
+                .stream()
+                // Filter 1: Must be explicitly AVAILABLE in the property table
+                .filter(p -> p.getStatus() == Property.PropertyStatus.AVAILABLE)
+                // Filter 2: Failsafe for out-of-sync test data - strictly hide if an active tenant exists
+                .filter(p -> rentalRequestRepository.findByPropertyIdAndStatus(
+                        p.getId(), RentalRequest.RentalStatus.CONFIRMED).isEmpty())
+                .map(PropertyDTO::from).toList();
     }
 
     // ── Owner's own properties ───────────────────────────────────────────
@@ -86,6 +94,10 @@ public class PropertyService {
         PropertyType type = propertyTypeRepository.findById(dto.getTypeId())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid property type."));
 
+        // Check if property currently has an active tenant
+        boolean hasActiveTenant = rentalRequestRepository.findByPropertyIdAndStatus(
+                propertyId, RentalRequest.RentalStatus.CONFIRMED).isPresent();
+
         // Update scalar fields
         property.setTitle(dto.getTitle().trim());
         property.setDescription(dto.getDescription() != null ? dto.getDescription().trim() : "");
@@ -96,11 +108,14 @@ public class PropertyService {
         property.setBaths(dto.getBaths());
         property.setSqm(dto.getSqm());
 
-        // Visibility toggle
-        if (dto.getStatus() != null) {
+        // Visibility logic
+        if (hasActiveTenant) {
+            // Force it to UNAVAILABLE if they have an active tenant (heals old out-of-sync test data)
+            property.setStatus(Property.PropertyStatus.UNAVAILABLE);
+        } else if (dto.getStatus() != null) {
+            // Respect frontend toggle if no active tenant
             Property.PropertyStatus current = property.getStatus();
-            if (current == Property.PropertyStatus.AVAILABLE
-                    || current == Property.PropertyStatus.UNAVAILABLE) {
+            if (current == Property.PropertyStatus.AVAILABLE || current == Property.PropertyStatus.UNAVAILABLE) {
                 if (dto.getStatus().equals("AVAILABLE"))
                     property.setStatus(Property.PropertyStatus.AVAILABLE);
                 else if (dto.getStatus().equals("UNAVAILABLE"))
@@ -119,14 +134,6 @@ public class PropertyService {
 
         propertyImageRepository.flush();
         propertyRepository.flush();
-
-        // ── Reorder images so cover is first ─────────────────────────────
-        // The frontend sends coverImageId — we reorder by updating the DB
-        // row order so PropertyDTO.from() returns images with cover first.
-        // We achieve this by deleting and re-inserting in the right order,
-        // or simply relying on the DTO sorting below since we don't have
-        // a sortOrder column. We handle it in the DTO layer instead.
-        // (See PropertyDTO.from — it now sorts by coverImageId)
 
         Property reloaded = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new IllegalArgumentException("Property not found after update."));
