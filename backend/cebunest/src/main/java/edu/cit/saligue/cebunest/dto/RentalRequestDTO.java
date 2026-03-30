@@ -3,8 +3,6 @@ package edu.cit.saligue.cebunest.dto;
 import edu.cit.saligue.cebunest.entity.RentalRequest;
 import lombok.*;
 
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -19,9 +17,16 @@ public class RentalRequestDTO {
     private String  propertyLocation;
     private Double  propertyPrice;
     private String  propertyImage;
+
     private Long    ownerId;
     private String  ownerName;
     private String  ownerEmail;
+
+    // ── ADDED: Social Media Fields ──
+    private String  ownerFacebookUrl;
+    private String  ownerInstagramUrl;
+    private String  ownerTwitterUrl;
+
     private Long    tenantId;
     private String  tenantName;
     private String  tenantEmail;
@@ -46,9 +51,16 @@ public class RentalRequestDTO {
                 .propertyLocation(r.getProperty().getLocation())
                 .propertyPrice(r.getProperty().getPrice())
                 .propertyImage(img)
+
                 .ownerId(r.getProperty().getOwner().getId())
                 .ownerName(r.getProperty().getOwner().getName())
                 .ownerEmail(r.getProperty().getOwner().getEmail())
+
+                // ── ADDED: Map the Social Media URLs from the Owner (User entity) ──
+                .ownerFacebookUrl(r.getProperty().getOwner().getFacebookUrl())
+                .ownerInstagramUrl(r.getProperty().getOwner().getInstagramUrl())
+                .ownerTwitterUrl(r.getProperty().getOwner().getTwitterUrl())
+
                 .tenantId(r.getTenant().getId())
                 .tenantName(r.getTenant().getName())
                 .tenantEmail(r.getTenant().getEmail())

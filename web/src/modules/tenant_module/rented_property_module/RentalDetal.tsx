@@ -28,6 +28,9 @@ interface Property {
   sqm: number | null;
   ownerName: string;
   ownerEmail: string;
+  ownerFacebookUrl?: string | null;
+  ownerInstagramUrl?: string | null;
+  ownerTwitterUrl?: string | null;
   images: PropertyImage[];
 }
 
@@ -52,6 +55,9 @@ interface RentalRequest {
   ownerId: number;
   ownerName: string;
   ownerEmail: string;
+  ownerFacebookUrl?: string | null;
+  ownerInstagramUrl?: string | null;
+  ownerTwitterUrl?: string | null;
   startDate: string;
   leaseDurationMonths: number;
   status: string;
@@ -102,6 +108,27 @@ function mapSrc(lat: number, lon: number) {
     `&layer=mapnik&marker=${lat},${lon}`
   );
 }
+
+// ─── Social icon SVGs ───────────────────────────────────────────────────────
+const FacebookIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+  </svg>
+);
+
+const InstagramIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+  </svg>
+);
+
+const TwitterIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+  </svg>
+);
 
 // ── Star picker ───────────────────────────────────────────────────────────────
 const StarPicker: React.FC<{ value: number; onChange: (v: number) => void }> = ({ value, onChange }) => {
@@ -229,9 +256,6 @@ const RentalDetail: React.FC = () => {
         const revData = await revRes.json();
         if (revData.success) {
           const storedUser: User = JSON.parse(localStorage.getItem("user") || "{}");
-          // Find a review that belongs to this tenant AND this rental request
-          // The backend returns reviews for the property; we match by tenantId
-          // Since one review per rental, we look for this tenant's review
           const mine = (revData.data.reviews ?? []).find(
             (r: Review & { rentalRequestId: number }) =>
               r.tenantId === storedUser.id && r.rentalRequestId === found.id
@@ -446,13 +470,38 @@ const RentalDetail: React.FC = () => {
             )}
 
             <div className={styles.divider} />
-            <div className={styles.ownerRow}>
-              <div className={styles.ownerAvatar}>{request.ownerName?.charAt(0).toUpperCase()}</div>
-              <div>
-                <div className={styles.ownerLabel}>Listed by</div>
-                <div className={styles.ownerName}>{request.ownerName}</div>
+            
+            {/* ── UPDATED OWNER ROW ── */}
+            <div className={styles.ownerRow} style={{ display: "flex", alignItems: "center" }}>
+              
+              <div style={{ display: "flex", alignItems: "center", gap: "16px", flex: 1 }}>
+                <div className={styles.ownerAvatar}>{request.ownerName?.charAt(0).toUpperCase()}</div>
+                <div>
+                  <div className={styles.ownerLabel} style={{ textTransform: "uppercase", letterSpacing: "1px", fontSize: "0.8rem", color: "#64748b", fontWeight: "600", marginBottom: "4px" }}>Listed by</div>
+                  <div className={styles.ownerName} style={{ fontWeight: "bold", fontSize: "1.1rem", color: "#0f172a" }}>{request.ownerName}</div>
+                </div>
               </div>
-              <a href={`mailto:${request.ownerEmail}`} className={styles.contactBtn}>✉️ Contact Owner</a>
+
+              {(request.ownerFacebookUrl || request.ownerInstagramUrl || request.ownerTwitterUrl) && (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  {request.ownerFacebookUrl && (
+                    <a href={request.ownerFacebookUrl} target="_blank" rel="noopener noreferrer" style={{ backgroundColor: "#e8f0fe", color: "#1877F2", width: "42px", height: "42px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }} aria-label="Facebook">
+                      <FacebookIcon />
+                    </a>
+                  )}
+                  {request.ownerInstagramUrl && (
+                    <a href={request.ownerInstagramUrl} target="_blank" rel="noopener noreferrer" style={{ backgroundColor: "#fceef3", color: "#E4405F", width: "42px", height: "42px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }} aria-label="Instagram">
+                      <InstagramIcon />
+                    </a>
+                  )}
+                  {request.ownerTwitterUrl && (
+                    <a href={request.ownerTwitterUrl} target="_blank" rel="noopener noreferrer" style={{ backgroundColor: "#eef1f4", color: "#0f1419", width: "42px", height: "42px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", border: "1px solid #d5d9dc" }} aria-label="X (Twitter)">
+                      <TwitterIcon />
+                    </a>
+                  )}
+                </div>
+              )}
+
             </div>
           </div>
 
