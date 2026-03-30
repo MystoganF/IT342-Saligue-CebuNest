@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
+import { useNavigate } from "react-router-dom"; // <-- Added import
 import styles from "./Register.module.css";
 import logo from "../../../assets/images/cebunest-logo.png";
 
@@ -25,7 +26,7 @@ function storeTokensAndRedirect(data: AuthResponse) {
 
   const role = data.data.user?.role?.toUpperCase();
   let destination = "/home";
-  if (role === "ADMIN") destination = "/admin/dashboard";
+  if (role === "ADMIN") destination = "/admin/rental-requests";
   if (role === "OWNER") destination = "/owner/dashboard";
 
   setTimeout(() => { window.location.href = destination; }, 1200);
@@ -53,12 +54,32 @@ const ROLES: { value: Role; label: string }[] = [
 ];
 
 const SOCIAL_FIELDS = [
-  { id: "cn-reg-fb",  label: "Facebook",    icon: "f",  placeholder: "https://facebook.com/yourprofile",  key: "facebookUrl"  },
-  { id: "cn-reg-ig",  label: "Instagram",   icon: "in", placeholder: "https://instagram.com/yourhandle", key: "instagramUrl" },
+  { id: "cn-reg-fb",  label: "Facebook",   icon: "f",  placeholder: "https://facebook.com/yourprofile",  key: "facebookUrl"  },
+  { id: "cn-reg-ig",  label: "Instagram",  icon: "in", placeholder: "https://instagram.com/yourhandle", key: "instagramUrl" },
   { id: "cn-reg-tw",  label: "X / Twitter", icon: "𝕏",  placeholder: "https://x.com/yourhandle",         key: "twitterUrl"   },
 ] as const;
 
 const Register: React.FC = () => {
+  const navigate = useNavigate(); // <-- Added hook
+
+  // ── Auto-Redirect if already logged in ──────────────────────────────────
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    const userStr = localStorage.getItem("user");
+
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        const role = user?.role?.toUpperCase();
+        if (role === "ADMIN") navigate("/admin/rental-requests", { replace: true });
+        else if (role === "OWNER") navigate("/owner/dashboard", { replace: true });
+        else navigate("/home", { replace: true });
+      } catch (e) {
+        // If JSON fails, ignore and let them register
+      }
+    }
+  }, [navigate]);
+
   const [name, setName]                       = useState("");
   const [phoneNumber, setPhoneNumber]         = useState("");
   const [email, setEmail]                     = useState("");
@@ -276,8 +297,8 @@ const Register: React.FC = () => {
           <form className={styles.formFields} onSubmit={handleRegister}>
 
             {[
-              { id: "cn-reg-name",    label: "Name",             icon: "👤", type: "text",     placeholder: "Juan dela Cruz",        value: name,            onChange: setName            },
-              { id: "cn-reg-phone",   label: "Phone Number",     icon: "📞", type: "tel",      placeholder: "+63 912 345 6789",      value: phoneNumber,     onChange: setPhoneNumber     },
+              { id: "cn-reg-name",    label: "Name",             icon: "👤", type: "text",     placeholder: "Juan dela Cruz",       value: name,            onChange: setName            },
+              { id: "cn-reg-phone",   label: "Phone Number",     icon: "📞", type: "tel",      placeholder: "+63 912 345 6789",     value: phoneNumber,     onChange: setPhoneNumber     },
               { id: "cn-reg-email",   label: "Email Address",    icon: "✉",  type: "email",    placeholder: "you@example.com",       value: email,           onChange: setEmail           },
               { id: "cn-reg-pass",    label: "Password",         icon: "🔒", type: "password", placeholder: "Min. 8 characters",     value: password,        onChange: setPassword        },
               { id: "cn-reg-confirm", label: "Confirm Password", icon: "🔒", type: "password", placeholder: "Re-enter your password", value: confirmPassword, onChange: setConfirmPassword },

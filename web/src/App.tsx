@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import ProtectedRoute from "./components/ProtectedRoute/ProtectedRoute"; // <-- Adjust import path
 
 import Login    from "./modules/authentication_module/login_module/Login";
 import Register from "./modules/authentication_module/register_module/Register";
@@ -12,29 +13,73 @@ import AdminRentalRequests from "./modules/admin_module/admin_rental_request/adm
 import EditProperty      from "./modules/owner_module/owner_property_management_module/owner_edit_property";
 import MyRentals from "./modules/tenant_module/rented_property_module/my_rentals";
 import RentalDetail from "./modules/tenant_module/rented_property_module/RentalDetal";
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-         {/* Auth */}
-        <Route path="/"               element={<Login />}           />
-        <Route path="/register"       element={<Register />}        />
+        {/* Auth (Public Routes) */}
+        <Route path="/"           element={<Login />}           />
+        <Route path="/register"   element={<Register />}        />
  
-        {/* Tenant */}
-        <Route path="/home"           element={<Home />}            />
-        <Route path="/properties/:id" element={<PropertyDetail />}  />
-        <Route path="/profile"        element={<Profile />}         />
-        <Route path="/my-rentals" element={<MyRentals />} />
-        <Route path="/my-rentals/:requestId" element={<RentalDetail />} />
+        {/* Tenant Routes */}
+        <Route path="/home" element={
+          <ProtectedRoute allowedRoles={["TENANT"]}>
+            <Home />
+          </ProtectedRoute>
+        } />
+        <Route path="/properties/:id" element={
+          <ProtectedRoute allowedRoles={["TENANT"]}>
+            <PropertyDetail />
+          </ProtectedRoute>
+        } />
+        <Route path="/my-rentals" element={
+          <ProtectedRoute allowedRoles={["TENANT"]}>
+            <MyRentals />
+          </ProtectedRoute>
+        } />
+        <Route path="/my-rentals/:requestId" element={
+          <ProtectedRoute allowedRoles={["TENANT"]}>
+            <RentalDetail />
+          </ProtectedRoute>
+        } />
  
-        {/* Owner */}
-        <Route path="/owner/dashboard"   element={<OwnerDashboard />}  />
-        <Route path="/owner/properties"  element={<OwnerProperties />} />
-        <Route path="/owner/properties/new"   element={<AddProperty />}     />
-        <Route path="/owner/properties/:id/edit"    element={<EditProperty />}    />
+        {/* Owner Routes */}
+        <Route path="/owner/dashboard" element={
+          <ProtectedRoute allowedRoles={["OWNER"]}>
+            <OwnerDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/owner/properties" element={
+          <ProtectedRoute allowedRoles={["OWNER"]}>
+            <OwnerProperties />
+          </ProtectedRoute>
+        } />
+        <Route path="/owner/properties/new" element={
+          <ProtectedRoute allowedRoles={["OWNER"]}>
+            <AddProperty />
+          </ProtectedRoute>
+        } />
+        <Route path="/owner/properties/:id/edit" element={
+          <ProtectedRoute allowedRoles={["OWNER"]}>
+            <EditProperty />
+          </ProtectedRoute>
+        } />
 
-        {/* Edit */}
-        <Route path="/admin/rental-requests" element={<AdminRentalRequests />} />
+        {/* Admin Routes */}
+        <Route path="/admin/rental-requests" element={
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
+            <AdminRentalRequests />
+          </ProtectedRoute>
+        } />
+
+        {/* Shared Routes (Accessible by multiple roles) */}
+        <Route path="/profile" element={
+          // Assuming Owners and Admins might also need to edit their profiles
+          <ProtectedRoute allowedRoles={["TENANT", "OWNER", "ADMIN"]}>
+            <Profile />
+          </ProtectedRoute>
+        } />
         
       </Routes>
     </BrowserRouter>

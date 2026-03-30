@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../../../components/Navbar/Navbar";
 import styles from "./Property_detail.module.css";
@@ -51,6 +51,16 @@ interface Review {
 interface ExistingRequest {
   id: number;
   status: string; // PENDING | APPROVED | CONFIRMED | REJECTED | TERMINATED | COMPLETED
+}
+
+interface RentalPayment {
+  id: number;
+  installmentNumber: number;
+  amount: number;
+  dueDate: string;
+  status: "PENDING" | "PAID" | "OVERDUE" | "CANCELLED";
+  checkoutUrl?: string;
+  paymongoPaymentId?: string;
 }
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -263,6 +273,12 @@ const PropertyDetail: React.FC = () => {
   const [reviews, setReviews]               = useState<Review[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
 
+  // Payments State
+  const [payments, setPayments]                   = useState<RentalPayment[]>([]);
+  const [paymentsLoading, setPaymentsLoading]     = useState(false);
+  const [expandedYears, setExpandedYears]         = useState<Record<string, boolean>>({});
+  const [paymentActionLoading, setPaymentActionLoading] = useState<number | null>(null);
+
   // ── Auth ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -325,6 +341,25 @@ const PropertyDetail: React.FC = () => {
       .finally(() => setRequestCheckLoading(false));
   }, [id, user]);
 
+  // ── Fetch payments if CONFIRMED ────────────────────────────────────────
+  useEffect(() => {
+    if (existingRequest?.status === "CONFIRMED" && existingRequest.id) {
+      setPaymentsLoading(true);
+      const token = localStorage.getItem("accessToken");
+      fetch(`${API_BASE}/api/payments/request/${existingRequest.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            setPayments(data.data.payments || []);
+          }
+        })
+        .catch(console.error)
+        .finally(() => setPaymentsLoading(false));
+    }
+  }, [existingRequest?.status, existingRequest?.id]);
+
   // ── Geocode ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!property?.location) return;
@@ -358,6 +393,68 @@ const PropertyDetail: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // ── Initiate Payment Handler ───────────────────────────────────────────
+  const handlePayClick = async (paymentId: number) => {
+    setPaymentActionLoading(paymentId);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res = await fetch(`${API_BASE}/api/payments/${paymentId}/initiate`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (data.success && data.data.payment.checkoutUrl) {
+        // Redirect the user to the PayMongo checkout page
+        window.location.href = data.data.payment.checkoutUrl;
+      } else {
+        alert("Failed to initiate payment: " + (data?.error?.message ?? "Unknown error"));
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Network error while trying to initiate payment.");
+    } finally {
+      setPaymentActionLoading(null);
+    }
+  };
+
+  // ── Payment Grouping and Locking Logic ───────────────────────────────
+  const { paymentsByYear, nextPayablePaymentId } = useMemo(() => {
+    if (!payments || payments.length === 0) {
+      return { paymentsByYear: {}, nextPayablePaymentId: null };
+    }
+
+    // 1. Group the payments by year for the UI
+    const grouped = payments.reduce((acc, payment) => {
+      const year = new Date(payment.dueDate).getFullYear().toString();
+      if (!acc[year]) acc[year] = [];
+      acc[year].push(payment);
+      return acc;
+    }, {} as Record<string, RentalPayment[]>);
+
+    // 2. Find ALL unpaid payments and sort them strictly by Due Date (or installment number)
+    const unpaidPayments = payments
+      .filter((p) => p.status === "PENDING" || p.status === "OVERDUE")
+      .sort((a, b) => {
+        // Fallback to sorting by installmentNumber if date parsing fails
+        const numA = a.installmentNumber ?? Number.MAX_SAFE_INTEGER;
+        const numB = b.installmentNumber ?? Number.MAX_SAFE_INTEGER;
+        return numA - numB;
+      });
+
+    // 3. The absolute first one in that sorted list is the ONLY one allowed to be paid.
+    // We use the unique payment ID to prevent any overlap issues.
+    const nextPayablePaymentId = unpaidPayments.length > 0 ? unpaidPayments[0].id : null;
+
+    return { paymentsByYear: grouped, nextPayablePaymentId };
+  }, [payments]);
+
+  const toggleYear = (year: string) => {
+    setExpandedYears((prev) => ({
+      ...prev,
+      [year]: prev[year] === undefined ? false : !prev[year], // Toggle logic
+    }));
   };
 
   // ── Derived ────────────────────────────────────────────────────────────
@@ -596,103 +693,202 @@ const PropertyDetail: React.FC = () => {
         {/* ══ RIGHT COLUMN ══ */}
         <div className={styles.rightCol}>
           <div className={styles.bookingCard}>
-            <div className={styles.bookingPrice}>
-              <span className={styles.bookingPriceAmount}>{formatPrice(property.price)}</span>
-              <span className={styles.bookingPriceLabel}>/ month</span>
-            </div>
+            
+            {/* If Tenant is already confirmed, show the new Payment Schedule logic */}
+            {existingRequest?.status === "CONFIRMED" ? (
+              <div className={styles.paymentScheduleSection}>
+                <div className={`${styles.bookingMessage} ${styles.bookingMessageSuccess}`}>
+                  <span>🏠</span> You are currently an active tenant.
+                </div>
+                
+                <h3 style={{ marginTop: "24px", marginBottom: "16px", fontSize: "1.2rem", fontWeight: "600" }}>
+                  Your Payment Schedule
+                </h3>
 
-            {isAvailable ? (
-              <form className={styles.bookingForm} onSubmit={handleBooking}>
+                {paymentsLoading ? (
+                  <div style={{ textAlign: "center", padding: "20px", color: "#666" }}>Loading payments...</div>
+                ) : payments.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "20px", color: "#666" }}>No payment schedule found.</div>
+                ) : (
+                  <div>
+                    {Object.keys(paymentsByYear).sort().map((year) => {
+                      const isExpanded = expandedYears[year] !== false; // Default to true if undefined
+                      const yearPayments = paymentsByYear[year];
 
-                {/* ── Existing request status banners ── */}
-                {existingRequest?.status === "PENDING" && (
-                  <div className={`${styles.bookingMessage} ${styles.bookingMessagePending}`}>
-                    <span>⏳</span>
-                    Your rental request is awaiting owner review. You cannot submit another until it is decided.
-                  </div>
-                )}
-                {existingRequest?.status === "APPROVED" && (
-                  <div className={`${styles.bookingMessage} ${styles.bookingMessagePending}`}>
-                    <span>✅</span>
-                    Your request has been approved! Please confirm your rental to proceed.
-                  </div>
-                )}
-                {existingRequest?.status === "CONFIRMED" && (
-                  <div className={`${styles.bookingMessage} ${styles.bookingMessageSuccess}`}>
-                    <span>🏠</span>
-                    You are currently an active tenant of this property.
-                  </div>
-                )}
+                      return (
+                        <div key={year} style={{ marginBottom: "1rem", border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
+                          <button
+                            type="button"
+                            onClick={() => toggleYear(year)}
+                            style={{
+                              width: "100%", padding: "14px 16px", display: "flex", justifyContent: "space-between",
+                              backgroundColor: "#f8fafc", border: "none", cursor: "pointer", fontWeight: "600",
+                              fontSize: "1rem", color: "#334155"
+                            }}
+                          >
+                            <span>Year {year}</span>
+                            <span>{isExpanded ? "▲" : "▼"}</span>
+                          </button>
 
-                {/* Only show the form fields when not blocked */}
-                {!isBookingBlocked && (
-                  <>
-                    <div className={styles.bookingField}>
-                      <label className={styles.bookingLabel}>Move-in Date</label>
-                      <input type="date" className={styles.bookingInput} value={startDate} onChange={e => setStartDate(e.target.value)} min={today} required />
-                    </div>
-                    <div className={styles.bookingField}>
-                      <label className={styles.bookingLabel}>Lease Duration (months)</label>
-                      <input type="number" className={styles.bookingInput} value={leaseDurationMonths} onChange={e => setLeaseDurationMonths(Math.max(1, parseInt(e.target.value) || 1))} min={1} max={24} required />
-                    </div>
-                    {startDate && (
-                      <div className={styles.moveOutRow}>
-                        <div className={styles.moveOutIcon}>🏁</div>
-                        <div className={styles.moveOutInfo}>
-                          <span className={styles.moveOutLabel}>Move-out Date</span>
-                          <span className={styles.moveOutDate}>{formatDate(moveOutDate)}</span>
+                          {isExpanded && (
+                            <div style={{ padding: "0 16px", backgroundColor: "#fff" }}>
+                              {yearPayments.map((payment) => {
+                                const isPaid = payment.status === "PAID";
+                                
+                                // THE LOCK LOGIC: It is strictly only payable if this payment's ID matches the very next required unpaid payment ID.
+                                const isPayable = !isPaid && payment.id === nextPayablePaymentId;
+                                
+                                const isActionLoading = paymentActionLoading === payment.id;
+
+                                return (
+                                  <div 
+                                    key={payment.id} 
+                                    style={{ 
+                                      display: "flex", justifyContent: "space-between", alignItems: "center", 
+                                      padding: "16px 0", borderBottom: "1px solid #f1f5f9" 
+                                    }}
+                                  >
+                                    <div>
+                                      <strong style={{ display: "block", color: "#1e293b", marginBottom: "4px" }}>
+                                        {payment.installmentNumber === 0 ? "Full Payment" : `Installment #${payment.installmentNumber}`}
+                                      </strong>
+                                      <div style={{ fontSize: "13px", color: "#64748b" }}>
+                                        Due: {formatDate(payment.dueDate)}
+                                      </div>
+                                    </div>
+                                    
+                                    <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                                      <span style={{ fontWeight: "600", color: "#1e293b" }}>{formatPrice(payment.amount)}</span>
+                                      
+                                      {isPaid ? (
+                                        <span style={{ color: "#10b981", fontWeight: "bold", fontSize: "14px", display: "flex", alignItems: "center", gap: "4px" }}>
+                                          ✓ Paid
+                                        </span>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          onClick={() => handlePayClick(payment.id)}
+                                          disabled={!isPayable || isActionLoading}
+                                          style={{
+                                            padding: "8px 16px",
+                                            backgroundColor: isPayable ? "#0f766e" : "#e2e8f0",
+                                            color: isPayable ? "#ffffff" : "#94a3b8",
+                                            border: "none",
+                                            borderRadius: "6px",
+                                            cursor: isPayable ? "pointer" : "not-allowed",
+                                            fontWeight: "600",
+                                            opacity: isPayable ? 1 : 0.6,
+                                            transition: "all 0.2s"
+                                          }}
+                                          title={!isPayable ? "You must pay previous months first" : "Proceed to payment"}
+                                        >
+                                          {isActionLoading ? "Loading..." : "Pay Now"}
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              // The original booking form for users who aren't confirmed tenants yet
+              <>
+                <div className={styles.bookingPrice}>
+                  <span className={styles.bookingPriceAmount}>{formatPrice(property.price)}</span>
+                  <span className={styles.bookingPriceLabel}>/ month</span>
+                </div>
+
+                {isAvailable ? (
+                  <form className={styles.bookingForm} onSubmit={handleBooking}>
+                    {existingRequest?.status === "PENDING" && (
+                      <div className={`${styles.bookingMessage} ${styles.bookingMessagePending}`}>
+                        <span>⏳</span>
+                        Your rental request is awaiting owner review. You cannot submit another until it is decided.
                       </div>
                     )}
-                    {startDate && (
-                      <div className={styles.bookingSummary}>
-                        <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Move-in</span><span className={styles.bookingSummaryValue}>{formatDate(startDate)}</span></div>
-                        <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Move-out</span><span className={styles.bookingSummaryValue}>{formatDate(moveOutDate)}</span></div>
-                        <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Monthly rent</span><span className={styles.bookingSummaryValue}>{formatPrice(property.price)}</span></div>
-                        <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Duration</span><span className={styles.bookingSummaryValue}>{leaseDurationMonths} month{leaseDurationMonths > 1 ? "s" : ""}</span></div>
-                        <div className={`${styles.bookingSummaryRow} ${styles.bookingSummaryTotal}`}><span className={styles.bookingSummaryTotalLabel}>Total</span><span className={styles.bookingSummaryTotalValue}>{formatPrice(totalCost)}</span></div>
+                    {existingRequest?.status === "APPROVED" && (
+                      <div className={`${styles.bookingMessage} ${styles.bookingMessagePending}`}>
+                        <span>✅</span>
+                        Your request has been approved! Please confirm your rental to proceed.
                       </div>
                     )}
+
+                    {!isBookingBlocked && (
+                      <>
+                        <div className={styles.bookingField}>
+                          <label className={styles.bookingLabel}>Move-in Date</label>
+                          <input type="date" className={styles.bookingInput} value={startDate} onChange={e => setStartDate(e.target.value)} min={today} required />
+                        </div>
+                        <div className={styles.bookingField}>
+                          <label className={styles.bookingLabel}>Lease Duration (months)</label>
+                          <input type="number" className={styles.bookingInput} value={leaseDurationMonths} onChange={e => setLeaseDurationMonths(Math.max(1, parseInt(e.target.value) || 1))} min={1} max={24} required />
+                        </div>
+                        {startDate && (
+                          <div className={styles.moveOutRow}>
+                            <div className={styles.moveOutIcon}>🏁</div>
+                            <div className={styles.moveOutInfo}>
+                              <span className={styles.moveOutLabel}>Move-out Date</span>
+                              <span className={styles.moveOutDate}>{formatDate(moveOutDate)}</span>
+                            </div>
+                          </div>
+                        )}
+                        {startDate && (
+                          <div className={styles.bookingSummary}>
+                            <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Move-in</span><span className={styles.bookingSummaryValue}>{formatDate(startDate)}</span></div>
+                            <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Move-out</span><span className={styles.bookingSummaryValue}>{formatDate(moveOutDate)}</span></div>
+                            <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Monthly rent</span><span className={styles.bookingSummaryValue}>{formatPrice(property.price)}</span></div>
+                            <div className={styles.bookingSummaryRow}><span className={styles.bookingSummaryLabel}>Duration</span><span className={styles.bookingSummaryValue}>{leaseDurationMonths} month{leaseDurationMonths > 1 ? "s" : ""}</span></div>
+                            <div className={`${styles.bookingSummaryRow} ${styles.bookingSummaryTotal}`}><span className={styles.bookingSummaryTotalLabel}>Total</span><span className={styles.bookingSummaryTotalValue}>{formatPrice(totalCost)}</span></div>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    <button
+                      type="submit"
+                      className={styles.bookingBtn}
+                      disabled={
+                        submitting ||
+                        bookingMsg?.type === "success" ||
+                        requestCheckLoading ||
+                        isBookingBlocked
+                      }
+                    >
+                      {submitting
+                        ? <span className={styles.bookingSpinner} />
+                        : getBookingBtnLabel(existingRequest, bookingMsg?.type === "success")}
+                    </button>
+
+                    {bookingMsg && (
+                      <div className={`${styles.bookingMessage} ${bookingMsg.type === "success" ? styles.bookingMessageSuccess : styles.bookingMessageError}`}>
+                        <span>{bookingMsg.type === "success" ? "✓" : "⚠"}</span>
+                        {bookingMsg.text}
+                      </div>
+                    )}
+
+                    {!isBookingBlocked && (
+                      <p className={styles.bookingNote}>No payment yet — the owner will review your request first.</p>
+                    )}
+
+                    {(existingRequest?.status === "REJECTED" || existingRequest?.status === "TERMINATED") && (
+                      <p className={styles.bookingNote}>
+                        Your previous request was {existingRequest.status.toLowerCase()}. You may submit a new request.
+                      </p>
+                    )}
+                  </form>
+                ) : (
+                  <>
+                    <button className={`${styles.bookingBtn} ${styles.bookingBtnUnavailable}`} disabled>Not Available</button>
+                    <p className={styles.bookingNote} style={{ marginTop: "12px" }}>This property is currently unavailable for new rental requests.</p>
                   </>
                 )}
-
-                <button
-                  type="submit"
-                  className={styles.bookingBtn}
-                  disabled={
-                    submitting ||
-                    bookingMsg?.type === "success" ||
-                    requestCheckLoading ||
-                    isBookingBlocked
-                  }
-                >
-                  {submitting
-                    ? <span className={styles.bookingSpinner} />
-                    : getBookingBtnLabel(existingRequest, bookingMsg?.type === "success")}
-                </button>
-
-                {bookingMsg && (
-                  <div className={`${styles.bookingMessage} ${bookingMsg.type === "success" ? styles.bookingMessageSuccess : styles.bookingMessageError}`}>
-                    <span>{bookingMsg.type === "success" ? "✓" : "⚠"}</span>
-                    {bookingMsg.text}
-                  </div>
-                )}
-
-                {!isBookingBlocked && (
-                  <p className={styles.bookingNote}>No payment yet — the owner will review your request first.</p>
-                )}
-
-                {/* Allow re-request if previous was REJECTED or TERMINATED */}
-                {(existingRequest?.status === "REJECTED" || existingRequest?.status === "TERMINATED") && (
-                  <p className={styles.bookingNote}>
-                    Your previous request was {existingRequest.status.toLowerCase()}. You may submit a new request.
-                  </p>
-                )}
-              </form>
-            ) : (
-              <>
-                <button className={`${styles.bookingBtn} ${styles.bookingBtnUnavailable}`} disabled>Not Available</button>
-                <p className={styles.bookingNote} style={{ marginTop: "12px" }}>This property is currently unavailable for new rental requests.</p>
               </>
             )}
           </div>
@@ -703,4 +899,4 @@ const PropertyDetail: React.FC = () => {
   );
 };
 
-export default PropertyDetail;
+export default PropertyDetail; 

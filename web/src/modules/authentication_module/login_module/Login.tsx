@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
+import { useNavigate } from "react-router-dom"; // <-- Added import
 import styles from "./Login.module.css";
 import logo from "../../../assets/images/cebunest-logo.png";
 
@@ -51,6 +52,26 @@ async function postJSON(url: string, body: object): Promise<{ res: Response; dat
 // ─── component ─────────────────────────────────────────────────────────────
 
 const Login: React.FC = () => {
+  const navigate = useNavigate(); // <-- Added hook
+
+  // ── Auto-Redirect if already logged in ──────────────────────────────────
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    const userStr = localStorage.getItem("user");
+
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        const role = user?.role?.toUpperCase();
+        if (role === "ADMIN") navigate("/admin/rental-requests", { replace: true });
+        else if (role === "OWNER") navigate("/owner/dashboard", { replace: true });
+        else navigate("/home", { replace: true });
+      } catch (e) {
+        // If JSON fails, ignore and let them login
+      }
+    }
+  }, [navigate]);
+
   // Form state
   const [email, setEmail]             = useState("");
   const [password, setPassword]       = useState("");
