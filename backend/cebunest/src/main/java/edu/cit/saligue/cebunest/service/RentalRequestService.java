@@ -168,55 +168,40 @@ public class RentalRequestService {
         request.setLeaseDurationMonths(newDuration);
         rentalRequestRepository.save(request);
 
-        // ── Sync payment schedule ─────────────────────────────────────────
-        String plan = request.getPaymentPlan(); // may be null if tenant hasn't confirmed yet
+        // ── Sync payment schedule (always MONTHLY) ───────────────────────────
+        List<RentalPayment> allPayments = rentalPaymentRepository
+                .findByRentalRequestIdOrderByInstallmentNumberAsc(requestId);
 
-        if ("MONTHLY".equals(plan)) {
-            List<RentalPayment> allPayments = rentalPaymentRepository
-                    .findByRentalRequestIdOrderByInstallmentNumberAsc(requestId);
+        if (allPayments.isEmpty()) {
+            // Tenant hasn't confirmed yet — nothing to sync
 
-            if (adjustMonths < 0) {
-                // Reducing: delete PENDING/OVERDUE rows beyond newDuration
-                allPayments.stream()
-                        .filter(p -> p.getInstallmentNumber() > newDuration
-                                && p.getStatus() != RentalPayment.PaymentStatus.PAID)
-                        .forEach(rentalPaymentRepository::delete);
+        } else if (adjustMonths < 0) {
+            // Reducing: delete PENDING/OVERDUE rows beyond newDuration
+            allPayments.stream()
+                    .filter(p -> p.getInstallmentNumber() > newDuration
+                            && p.getStatus() != RentalPayment.PaymentStatus.PAID)
+                    .forEach(rentalPaymentRepository::delete);
 
-            } else {
-                // Extending: add new PENDING rows for the added months
-                double monthlyAmount = request.getProperty().getPrice();
-                LocalDate startDate  = request.getStartDate();
+        } else {
+            // Extending: add new PENDING rows for the added months
+            double monthlyAmount = request.getProperty().getPrice();
+            LocalDate startDate  = request.getStartDate();
 
-                // Find the highest installment number already present
-                int lastInstallment = allPayments.stream()
-                        .mapToInt(RentalPayment::getInstallmentNumber)
-                        .max().orElse(0);
+            int lastInstallment = allPayments.stream()
+                    .mapToInt(RentalPayment::getInstallmentNumber)
+                    .max().orElse(0);
 
-                for (int i = lastInstallment + 1; i <= newDuration; i++) {
-                    RentalPayment p = RentalPayment.builder()
-                            .rentalRequest(request)
-                            .installmentNumber(i)
-                            .amount(monthlyAmount)
-                            .dueDate(startDate.plusMonths(i - 1))
-                            .status(RentalPayment.PaymentStatus.PENDING)
-                            .build();
-                    rentalPaymentRepository.save(p);
-                }
+            for (int i = lastInstallment + 1; i <= newDuration; i++) {
+                RentalPayment p = RentalPayment.builder()
+                        .rentalRequest(request)
+                        .installmentNumber(i)
+                        .amount(monthlyAmount)
+                        .dueDate(startDate.plusMonths(i - 1))
+                        .status(RentalPayment.PaymentStatus.PENDING)
+                        .build();
+                rentalPaymentRepository.save(p);
             }
-
-        } else if ("FULL".equals(plan)) {
-            // Single payment — update amount if still PENDING or OVERDUE
-            rentalPaymentRepository
-                    .findByRentalRequestIdOrderByInstallmentNumberAsc(requestId)
-                    .stream()
-                    .filter(p -> p.getStatus() != RentalPayment.PaymentStatus.PAID)
-                    .findFirst()
-                    .ifPresent(p -> {
-                        p.setAmount(request.getProperty().getPrice() * newDuration);
-                        rentalPaymentRepository.save(p);
-                    });
         }
-        // If plan is null (tenant hasn't confirmed yet), nothing to sync — payments don't exist yet
 
         String action = adjustMonths > 0
                 ? "extended by " + adjustMonths

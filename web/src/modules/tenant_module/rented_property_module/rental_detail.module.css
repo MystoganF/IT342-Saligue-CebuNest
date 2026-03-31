@@ -350,3 +350,298 @@
   .rightCol { position: static; }
   .reviewCard { padding: 20px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RENTAL DETAIL — PAYMENT SCHEDULE ADDITIONS
+   Append these rules to rental_detail.module.css
+════════════════════════════════════════════════════════════════════════ */
+
+/* ── Auto-verify banner ──────────────────────────────────────────────── */
+.verifyBanner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  animation: slideDown 0.3s ease;
+  position: relative;
+}
+
+.verifyBanner_verifying {
+  background: rgba(83, 164, 163, 0.10);
+  border: 1px solid rgba(83, 164, 163, 0.30);
+  color: #1f5d71;
+}
+
+.verifyBanner_success {
+  background: rgba(26, 122, 74, 0.08);
+  border: 1px solid rgba(26, 122, 74, 0.25);
+  color: #1a7a4a;
+}
+
+.verifyBanner_error {
+  background: rgba(192, 57, 43, 0.07);
+  border: 1px solid rgba(192, 57, 43, 0.22);
+  color: #c0392b;
+}
+
+.verifyBannerIcon {
+  font-size: 15px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.verifyBannerText {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.verifyBannerDismiss {
+  background: none;
+  border: none;
+  font-size: 13px;
+  cursor: pointer;
+  opacity: 0.5;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: inherit;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+.verifyBannerDismiss:hover { opacity: 1; }
+
+.verifySpinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(31, 93, 113, 0.2);
+  border-top-color: #53a4a3;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Year accordion ──────────────────────────────────────────────────── */
+.yearAccordionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.yearAccordion {
+  border: 1px solid rgba(31, 93, 113, 0.12);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.yearAccordionHeader {
+  width: 100%;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #f8fbfb;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.yearAccordionHeader:hover { background: #f0f8f8; }
+
+.yearAccordionLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.yearAccordionChevron {
+  font-size: 9px;
+  color: #53a4a3;
+  transition: transform 0.22s ease;
+  display: inline-block;
+}
+
+.yearAccordionLabel {
+  font-family: 'Playfair Display', serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f5d71;
+}
+
+.yearAccordionCount {
+  font-size: 11px;
+  font-weight: 600;
+  color: #6e7071;
+  background: rgba(31, 93, 113, 0.07);
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.yearMiniProgress {
+  width: 52px;
+  height: 4px;
+  background: #e5eced;
+  border-radius: 100px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.yearMiniProgressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #53a4a3, #1f5d71);
+  border-radius: 100px;
+  transition: width 0.4s ease;
+}
+
+.yearAccordionBody {
+  background: #fff;
+  animation: slideDown 0.18s ease;
+}
+
+/* ── Payment rows (replace old flat paymentRow styles) ───────────────── */
+
+/* Override the old .paymentRow to support the new design */
+.paymentRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #f0f4f5;
+  transition: background 0.15s;
+}
+.paymentRow:last-child { border-bottom: none; }
+
+/* Status variants */
+.paymentRowPaid   { background: rgba(26, 122, 74, 0.03); }
+.paymentRowNext   { background: rgba(83, 164, 163, 0.04); }
+.paymentRowLocked { opacity: 0.5; }
+.paymentRowOverdue { /* border handled by badge */ }
+
+/* Left side */
+.paymentRowLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.paymentMonthBadge {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #f0f4f5;
+  color: #6e7071;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s, color 0.2s;
+}
+
+.paymentMonthBadgePaid {
+  background: rgba(26, 122, 74, 0.12);
+  color: #1a7a4a;
+  font-size: 15px;
+}
+
+.paymentMonthBadgeNext {
+  background: rgba(83, 164, 163, 0.15);
+  color: #1f5d71;
+  box-shadow: 0 0 0 2px rgba(83, 164, 163, 0.3);
+}
+
+.paymentRowInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Right side */
+.paymentRowRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.paymentRowActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Status badges ───────────────────────────────────────────────────── */
+.payStatusBadge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.payStatusPaid     { background: rgba(26,122,74,0.10); color: #1a7a4a; }
+.payStatusOverdue  { background: rgba(192,57,43,0.09); color: #c0392b; }
+.payStatusPending  { background: rgba(183,142,66,0.10); color: #b78e42; }
+.payStatusLocked   { background: rgba(110,112,113,0.09); color: #94a3b8; }
+
+/* ── Pay Now button ──────────────────────────────────────────────────── */
+.payNowBtn {
+  padding: 6px 13px;
+  background: #1f5d71;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: background 0.15s, transform 0.12s, box-shadow 0.15s;
+}
+.payNowBtn:hover:not(:disabled) {
+  background: #174d5e;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px rgba(31,93,113,0.22);
+}
+.payNowBtn:disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.payNowBtnOverdue { background: #c0392b; }
+.payNowBtnOverdue:hover:not(:disabled) {
+  background: #a93226;
+  box-shadow: 0 3px 10px rgba(192,57,43,0.22);
+}
+
+.payBtnSpinner {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Animations ──────────────────────────────────────────────────────── */
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

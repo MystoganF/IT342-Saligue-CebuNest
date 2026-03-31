@@ -25,32 +25,7 @@ public class RentalPaymentController {
 
     private final RentalPaymentService rentalPaymentService;
 
-    // ── POST /api/payments/confirm — tenant confirms approval + picks plan
-    @PostMapping("/confirm")
-    public ResponseEntity<?> confirmAndChoosePlan(
-            @RequestBody ConfirmDTO body,
-            @AuthenticationPrincipal User currentUser
-    ) {
-        if (currentUser == null)
-            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
-        if (body.getRequestId() == null)
-            return buildError("VALID-001", "requestId is required.", HttpStatus.BAD_REQUEST);
-        if (body.getPlan() == null || body.getPlan().isBlank())
-            return buildError("VALID-001", "plan is required (MONTHLY or FULL).", HttpStatus.BAD_REQUEST);
-
-        try {
-            RentalRequestDTO updated = rentalPaymentService.confirmAndChoosePlan(
-                    body.getRequestId(), body.getPlan(), currentUser);
-            return buildSuccess(Map.of("request", updated));
-        } catch (IllegalArgumentException e) {
-            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
-
-    // ── GET /api/payments/request/{requestId} — get payment schedule
+    // ── GET /api/payments/request/{requestId} — get payment schedule ─────
     @GetMapping("/request/{requestId}")
     public ResponseEntity<?> getPayments(
             @PathVariable Long requestId,
@@ -69,7 +44,7 @@ public class RentalPaymentController {
         }
     }
 
-    // ── POST /api/payments/{id}/initiate — create PayMongo link
+    // ── POST /api/payments/{id}/initiate — create PayMongo link ──────────
     @PostMapping("/{id}/initiate")
     public ResponseEntity<?> initiatePayment(
             @PathVariable Long id,
@@ -88,12 +63,28 @@ public class RentalPaymentController {
         }
     }
 
-    // ── POST /api/payments/{id}/verify — poll PayMongo for confirmation
+    // ── POST /api/payments/{id}/verify — manual / fallback verify ────────
     @PostMapping("/{id}/verify")
-    public ResponseEntity<?> verifyPayment(
+    public ResponseEntity<?> verifyPaymentPost(
             @PathVariable Long id,
             @AuthenticationPrincipal User currentUser
     ) {
+        return doVerify(id, currentUser);
+    }
+
+    // ── GET /api/payments/{id}/verify — auto-verify on PayMongo redirect ─
+    // Called by PropertyDetail on mount when ?payment_id=X&payment=success
+    // is present in the URL. Using GET so the frontend can call it without
+    // a body and without triggering CORS preflight issues on page load.
+    @GetMapping("/{id}/verify")
+    public ResponseEntity<?> verifyPaymentGet(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        return doVerify(id, currentUser);
+    }
+
+    private ResponseEntity<?> doVerify(Long id, User currentUser) {
         if (currentUser == null)
             return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
         try {
@@ -107,11 +98,27 @@ public class RentalPaymentController {
         }
     }
 
-    // ── Inner DTOs ────────────────────────────────────────────────────────
-    @Data
-    public static class ConfirmDTO {
-        private Long   requestId;
-        private String plan; // "MONTHLY" or "FULL"
+    // ── POST /api/payments/confirm — tenant confirms approval ─────────────
+    @PostMapping("/confirm")
+    public ResponseEntity<?> confirmAndChoosePlan(
+            @RequestBody ConfirmDTO body,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+        if (body.getRequestId() == null)
+            return buildError("VALID-001", "requestId is required.", HttpStatus.BAD_REQUEST);
+
+        try {
+            RentalRequestDTO updated = rentalPaymentService.confirmAndChoosePlan(
+                    body.getRequestId(), "MONTHLY", currentUser);
+            return buildSuccess(Map.of("request", updated));
+        } catch (IllegalArgumentException e) {
+            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
@@ -135,5 +142,11 @@ public class RentalPaymentController {
         body.put("error",     error);
         body.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
         return ResponseEntity.status(status).body(body);
+    }
+
+    // ── Inner DTO ─────────────────────────────────────────────────────────
+    @Data
+    public static class ConfirmDTO {
+        private Long requestId;
     }
 }

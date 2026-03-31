@@ -26,7 +26,6 @@ interface RentalRequest {
   startDate: string;
   leaseDurationMonths: number;
   status: string;
-  paymentPlan: string | null;
   createdAt: string;
 }
 
@@ -79,10 +78,8 @@ const MyRentals: React.FC = () => {
   const [error, setError]       = useState<string | null>(null);
   const [tab, setTab]           = useState<Tab>("active");
 
-  const [confirmTarget, setConfirmTarget] = useState<RentalRequest | null>(null);
-  const [selectedPlan, setSelectedPlan]   = useState<"MONTHLY" | "FULL">("MONTHLY");
-  const [confirming, setConfirming]       = useState(false);
-  const [confirmError, setConfirmError]   = useState<string | null>(null);
+  const [confirming, setConfirming]     = useState<number | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const [banner, setBanner] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -125,10 +122,9 @@ const MyRentals: React.FC = () => {
 
   useEffect(() => { if (user) fetchRequests(); }, [user, fetchRequests]);
 
-  // ── Confirm plan (APPROVED → CONFIRMED) ───────────────────────────────
-  const handleConfirm = async () => {
-    if (!confirmTarget) return;
-    setConfirming(true); setConfirmError(null);
+  // ── Confirm rental (always MONTHLY) ───────────────────────────────────
+  const handleConfirm = async (requestId: number) => {
+    setConfirming(requestId); setConfirmError(null);
     try {
       const token = localStorage.getItem("accessToken");
       const res   = await fetch(`${API_BASE}/api/payments/confirm`, {
@@ -137,19 +133,18 @@ const MyRentals: React.FC = () => {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ requestId: confirmTarget.id, plan: selectedPlan }),
+        body: JSON.stringify({ requestId }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
         setConfirmError(data?.error?.message ?? "Failed to confirm."); return;
       }
-      setConfirmTarget(null);
       await fetchRequests();
       setTab("active");
     } catch {
       setConfirmError("Network error. Please try again.");
     } finally {
-      setConfirming(false);
+      setConfirming(null);
     }
   };
 
@@ -189,63 +184,6 @@ const MyRentals: React.FC = () => {
   return (
     <div className={styles.page}>
       <Navbar user={user} />
-
-      {/* ── Confirm Plan Modal ── */}
-      {confirmTarget && (
-        <div className={styles.modalOverlay} onClick={() => !confirming && setConfirmTarget(null)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}>Confirm Your Rental</h3>
-              <p className={styles.modalSub}>
-                You've been approved for <strong>{confirmTarget.propertyTitle}</strong>.
-                Choose how you'd like to pay.
-              </p>
-            </div>
-            <div className={styles.modalBody}>
-              <div className={styles.modalPropSummary}>
-                {confirmTarget.propertyImage && (
-                  <img src={confirmTarget.propertyImage} alt="" className={styles.modalPropImg} />
-                )}
-                <div>
-                  <div className={styles.modalPropTitle}>{confirmTarget.propertyTitle}</div>
-                  <div className={styles.modalPropLocation}>📍 {confirmTarget.propertyLocation}</div>
-                  <div className={styles.modalPropMeta}>
-                    {formatPrice(confirmTarget.propertyPrice)}/mo ·{" "}
-                    {confirmTarget.leaseDurationMonths} month{confirmTarget.leaseDurationMonths !== 1 ? "s" : ""} ·{" "}
-                    Move in: {formatDate(confirmTarget.startDate)}
-                  </div>
-                </div>
-              </div>
-              <div className={styles.planLabel}>Choose your payment plan:</div>
-              <div className={styles.planOptions}>
-                <button type="button"
-                  className={`${styles.planOption} ${selectedPlan === "MONTHLY" ? styles.planOptionActive : ""}`}
-                  onClick={() => setSelectedPlan("MONTHLY")}>
-                  <div className={styles.planOptionTitle}>📅 Pay Monthly</div>
-                  <div className={styles.planOptionDesc}>{formatPrice(confirmTarget.propertyPrice)} / month</div>
-                  <div className={styles.planOptionDetail}>{confirmTarget.leaseDurationMonths} separate payments</div>
-                </button>
-                <button type="button"
-                  className={`${styles.planOption} ${selectedPlan === "FULL" ? styles.planOptionActive : ""}`}
-                  onClick={() => setSelectedPlan("FULL")}>
-                  <div className={styles.planOptionTitle}>💳 Pay in Full</div>
-                  <div className={styles.planOptionDesc}>{formatPrice(confirmTarget.propertyPrice * confirmTarget.leaseDurationMonths)} total</div>
-                  <div className={styles.planOptionDetail}>One single payment</div>
-                </button>
-              </div>
-              {confirmError && <p className={styles.modalError}>⚠ {confirmError}</p>}
-            </div>
-            <div className={styles.modalFooter}>
-              <button className={styles.modalCancelBtn} onClick={() => setConfirmTarget(null)}
-                disabled={confirming} type="button">Cancel</button>
-              <button className={styles.modalConfirmBtn} onClick={handleConfirm}
-                disabled={confirming} type="button">
-                {confirming ? <><span className={styles.spinner} /> Confirming…</> : "Confirm Rental"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Header ── */}
       <div className={styles.pageHeader}>
@@ -360,9 +298,6 @@ const MyRentals: React.FC = () => {
                     <span>📅 Move in: {formatDate(req.startDate)}</span>
                     <span>🗓 {req.leaseDurationMonths} month{req.leaseDurationMonths !== 1 ? "s" : ""}</span>
                     <span>👤 {req.ownerName}</span>
-                    {req.paymentPlan && (
-                      <span>💳 {req.paymentPlan === "MONTHLY" ? "Monthly" : "Full payment"}</span>
-                    )}
                   </div>
 
                   <div className={styles.cardFooter}>
@@ -375,14 +310,17 @@ const MyRentals: React.FC = () => {
                         className={styles.actionBtn}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setConfirmTarget(req);
-                          setSelectedPlan("MONTHLY");
-                          setConfirmError(null);
+                          handleConfirm(req.id);
                         }}
+                        disabled={confirming === req.id}
                         type="button"
                       >
-                        ✓ Confirm & Choose Plan
+                        {confirming === req.id ? "Confirming…" : "✓ Confirm Rental"}
                       </button>
+                    )}
+
+                    {confirmError && confirming === null && (
+                      <span style={{ fontSize: "0.8rem", color: "#c0392b" }}>⚠ {confirmError}</span>
                     )}
 
                     <span className={styles.viewHint}>View details →</span>

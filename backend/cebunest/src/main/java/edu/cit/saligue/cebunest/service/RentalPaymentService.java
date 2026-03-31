@@ -20,11 +20,11 @@ public class RentalPaymentService {
 
     private final RentalRequestRepository  rentalRequestRepository;
     private final RentalPaymentRepository  rentalPaymentRepository;
-    private final PropertyRepository       propertyRepository; // <-- Added to update property status
+    private final PropertyRepository       propertyRepository;
     private final PayMongoService          payMongoService;
     private final EmailService             emailService;
 
-    // ── Step 1: Tenant confirms approval + chooses payment plan ──────────
+    // ── Step 1: Tenant confirms approval (always MONTHLY) ────────────────
     @Transactional
     public RentalRequestDTO confirmAndChoosePlan(Long requestId, String plan, User tenant) {
         RentalRequest request = rentalRequestRepository.findById(requestId)
@@ -36,63 +36,42 @@ public class RentalPaymentService {
         if (request.getStatus() != RentalRequest.RentalStatus.APPROVED)
             throw new IllegalArgumentException("This request is not in APPROVED status.");
 
-        String planUpper = plan.toUpperCase();
-        if (!planUpper.equals("MONTHLY") && !planUpper.equals("FULL"))
-            throw new IllegalArgumentException("Payment plan must be MONTHLY or FULL.");
-
-        // Already confirmed
         if (rentalPaymentRepository.existsByRentalRequestId(requestId))
             throw new IllegalArgumentException("Payment schedule already generated.");
 
         // 1. Mark the request as CONFIRMED
         request.setStatus(RentalRequest.RentalStatus.CONFIRMED);
-        request.setPaymentPlan(planUpper);
+        request.setPaymentPlan("MONTHLY");
         rentalRequestRepository.save(request);
 
-        // 2. Mark the property as UNAVAILABLE so it stops showing in public listings
+        // 2. Mark the property as UNAVAILABLE
         Property property = request.getProperty();
         property.setStatus(Property.PropertyStatus.UNAVAILABLE);
         propertyRepository.save(property);
 
-        // 3. Generate payment schedule
-        generatePaymentSchedule(request, planUpper);
+        // 3. Generate monthly payment schedule
+        generatePaymentSchedule(request);
 
         return RentalRequestDTO.from(request);
     }
 
-    // ── Generate payment schedule ─────────────────────────────────────────
-    private void generatePaymentSchedule(RentalRequest request, String plan) {
-        double monthlyAmount = request.getProperty().getPrice();
-        LocalDate startDate  = request.getStartDate();
-        int months           = request.getLeaseDurationMonths();
+    // ── Generate monthly payment schedule ────────────────────────────────
+    private void generatePaymentSchedule(RentalRequest request) {
+        double    monthlyAmount = request.getProperty().getPrice();
+        LocalDate startDate     = request.getStartDate();
+        int       months        = request.getLeaseDurationMonths();
 
         List<RentalPayment> payments = new ArrayList<>();
-
-        if (plan.equals("FULL")) {
-            // One payment for the entire lease
+        for (int i = 0; i < months; i++) {
             RentalPayment payment = RentalPayment.builder()
                     .rentalRequest(request)
-                    .installmentNumber(0)
-                    .amount(monthlyAmount * months)
-                    .dueDate(startDate)
+                    .installmentNumber(i + 1)
+                    .amount(monthlyAmount)
+                    .dueDate(startDate.plusMonths(i))
                     .status(RentalPayment.PaymentStatus.PENDING)
                     .build();
             payments.add(payment);
-        } else {
-            // Monthly installments
-            for (int i = 0; i < months; i++) {
-                LocalDate dueDate = startDate.plusMonths(i);
-                RentalPayment payment = RentalPayment.builder()
-                        .rentalRequest(request)
-                        .installmentNumber(i + 1)
-                        .amount(monthlyAmount)
-                        .dueDate(dueDate)
-                        .status(RentalPayment.PaymentStatus.PENDING)
-                        .build();
-                payments.add(payment);
-            }
         }
-
         rentalPaymentRepository.saveAll(payments);
     }
 
@@ -108,15 +87,36 @@ public class RentalPaymentService {
         if (payment.getStatus() == RentalPayment.PaymentStatus.PAID)
             throw new IllegalArgumentException("This payment is already paid.");
 
-        String propertyTitle = payment.getRentalRequest().getProperty().getTitle();
-        String description   = payment.getInstallmentNumber() == 0
-                ? "Full lease payment – " + propertyTitle
-                : "Monthly rent #" + payment.getInstallmentNumber() + " – " + propertyTitle;
+        // ── Guard: enforce sequential payments ────────────────────────────
+        // All installments with a lower number must be PAID before this one can be initiated.
+        Long requestId = payment.getRentalRequest().getId();
+        List<RentalPayment> allPayments =
+                rentalPaymentRepository.findByRentalRequestIdOrderByInstallmentNumberAsc(requestId);
 
+        for (RentalPayment p : allPayments) {
+            if (p.getInstallmentNumber() < payment.getInstallmentNumber()
+                    && p.getStatus() != RentalPayment.PaymentStatus.PAID) {
+                throw new IllegalArgumentException(
+                        "You must pay month " + p.getInstallmentNumber() + " before paying month "
+                                + payment.getInstallmentNumber() + ".");
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────
+
+        String propertyTitle = payment.getRentalRequest().getProperty().getTitle();
+
+        String description = "Monthly rent #" + payment.getInstallmentNumber() + " – " + propertyTitle;
         String referenceId = "payment-" + payment.getId();
 
+        // FIX: pass requestId (not propertyId) so PayMongo redirects to
+        // /my-rentals/:requestId where the frontend auto-verifies the payment.
         Map<String, String> result = payMongoService.createPaymentLink(
-                payment.getAmount(), description, referenceId);
+                payment.getAmount(),
+                description,
+                referenceId,
+                payment.getId(),
+                requestId          // ← was: payment.getRentalRequest().getProperty().getId()
+        );
 
         payment.setCheckoutUrl(result.get("checkoutUrl"));
         payment.setPaymongoPaymentId(result.get("paymentLinkId"));
@@ -137,6 +137,7 @@ public class RentalPaymentService {
         if (payment.getPaymongoPaymentId() == null)
             throw new IllegalArgumentException("No payment link found. Initiate payment first.");
 
+        // Already paid — return immediately (idempotent)
         if (payment.getStatus() == RentalPayment.PaymentStatus.PAID)
             return RentalPaymentDTO.from(payment);
 
@@ -151,9 +152,7 @@ public class RentalPaymentService {
             String tenantEmail = payment.getRentalRequest().getTenant().getEmail();
             String tenantName  = payment.getRentalRequest().getTenant().getName();
             String propTitle   = payment.getRentalRequest().getProperty().getTitle();
-            String instLabel   = payment.getInstallmentNumber() == 0
-                    ? "Full lease payment"
-                    : "Monthly payment #" + payment.getInstallmentNumber();
+            String instLabel   = "Monthly payment #" + payment.getInstallmentNumber();
 
             emailService.sendEmail(tenantEmail,
                     "CebuNest – Payment Confirmed ✓",

@@ -5,8 +5,6 @@ import styles from "./Property_detail.module.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
-// ─── types ─────────────────────────────────────────────────────────────────
-
 interface User {
   id: number;
   name: string;
@@ -50,7 +48,7 @@ interface Review {
 
 interface ExistingRequest {
   id: number;
-  status: string; // PENDING | APPROVED | CONFIRMED | REJECTED | TERMINATED | COMPLETED
+  status: string;
 }
 
 interface RentalPayment {
@@ -63,8 +61,6 @@ interface RentalPayment {
   paymongoPaymentId?: string;
 }
 
-// ─── helpers ───────────────────────────────────────────────────────────────
-
 function formatPrice(price: number): string {
   return new Intl.NumberFormat("en-PH", {
     style: "currency",
@@ -75,12 +71,7 @@ function formatPrice(price: number): string {
 }
 
 function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 }
 
 function getStatusBadgeClass(status: string, s: typeof styles): string {
@@ -101,18 +92,14 @@ function calcMoveOut(startDate: string, months: number): string {
 function formatDate(dateStr: string): string {
   if (!dateStr) return "";
   return new Date(dateStr + "T00:00:00").toLocaleDateString("en-PH", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
+    year: "numeric", month: "long", day: "numeric",
   });
 }
 
 function formatReviewDate(isoStr: string): string {
   if (!isoStr) return "";
   return new Date(isoStr).toLocaleDateString("en-PH", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
+    year: "numeric", month: "long", day: "numeric",
   });
 }
 
@@ -121,9 +108,7 @@ function avgRating(reviews: Review[]): number {
   return reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
 }
 
-async function geocodeLocation(
-  location: string
-): Promise<{ lat: number; lon: number } | null> {
+async function geocodeLocation(location: string): Promise<{ lat: number; lon: number } | null> {
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`,
@@ -137,8 +122,6 @@ async function geocodeLocation(
   }
 }
 
-// ─── Star display ───────────────────────────────────────────────────────────
-
 const StarDisplay: React.FC<{ rating: number; size?: number }> = ({ rating, size = 16 }) => (
   <span className={styles.starDisplay} style={{ fontSize: size }}>
     {[1, 2, 3, 4, 5].map((s) => (
@@ -146,8 +129,6 @@ const StarDisplay: React.FC<{ rating: number; size?: number }> = ({ rating, size
     ))}
   </span>
 );
-
-// ─── Social icon SVGs ───────────────────────────────────────────────────────
 
 const FacebookIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
@@ -168,8 +149,6 @@ const TwitterIcon = () => (
     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
   </svg>
 );
-
-// ─── Lightbox ───────────────────────────────────────────────────────────────
 
 interface LightboxProps {
   images: PropertyImage[];
@@ -217,8 +196,6 @@ const Lightbox: React.FC<LightboxProps> = ({ images, startIndex, onClose }) => {
   );
 };
 
-// ─── Booking status helpers ─────────────────────────────────────────────────
-
 function getBookingBlockReason(req: ExistingRequest | null): string | null {
   if (!req) return null;
   switch (req.status) {
@@ -240,8 +217,6 @@ function getBookingBtnLabel(req: ExistingRequest | null, submitted: boolean): st
   }
 }
 
-// ─── component ─────────────────────────────────────────────────────────────
-
 const PropertyDetail: React.FC = () => {
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -251,35 +226,32 @@ const PropertyDetail: React.FC = () => {
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
 
-  // Gallery
   const [activeImg, setActiveImg]       = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
-  // Map
   const [mapCoords, setMapCoords]   = useState<{ lat: number; lon: number } | null>(null);
   const [mapLoading, setMapLoading] = useState(true);
 
-  // Booking
   const [startDate, setStartDate]                     = useState("");
   const [leaseDurationMonths, setLeaseDurationMonths] = useState<number>(1);
   const [submitting, setSubmitting]                   = useState(false);
   const [bookingMsg, setBookingMsg]                   = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Existing request check
   const [existingRequest, setExistingRequest]         = useState<ExistingRequest | null>(null);
   const [requestCheckLoading, setRequestCheckLoading] = useState(false);
 
-  // Reviews
   const [reviews, setReviews]               = useState<Review[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
 
-  // Payments State
-  const [payments, setPayments]                   = useState<RentalPayment[]>([]);
-  const [paymentsLoading, setPaymentsLoading]     = useState(false);
-  const [expandedYears, setExpandedYears]         = useState<Record<string, boolean>>({});
+  const [payments, setPayments]                         = useState<RentalPayment[]>([]);
+  const [paymentsLoading, setPaymentsLoading]           = useState(false);
+  const [expandedYears, setExpandedYears]               = useState<Record<string, boolean>>({});
   const [paymentActionLoading, setPaymentActionLoading] = useState<number | null>(null);
 
-  // ── Auth ───────────────────────────────────────────────────────────────
+  // ── Confirm state ──────────────────────────────────────────────────────
+  const [confirming, setConfirming]   = useState(false);
+  const [confirmMsg, setConfirmMsg]   = useState<{ type: "success" | "error"; text: string } | null>(null);
+
   useEffect(() => {
     const stored = localStorage.getItem("user");
     const token  = localStorage.getItem("accessToken");
@@ -287,7 +259,6 @@ const PropertyDetail: React.FC = () => {
     try { setUser(JSON.parse(stored)); } catch { navigate("/"); }
   }, [navigate]);
 
-  // ── Fetch property ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!id) return;
     const token = localStorage.getItem("accessToken");
@@ -303,7 +274,6 @@ const PropertyDetail: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
-  // ── Fetch reviews ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!id) return;
     setReviewsLoading(true);
@@ -314,7 +284,6 @@ const PropertyDetail: React.FC = () => {
       .finally(() => setReviewsLoading(false));
   }, [id]);
 
-  // ── Check tenant's existing request for this property ─────────────────
   useEffect(() => {
     if (!id || !user) return;
     const token = localStorage.getItem("accessToken");
@@ -324,15 +293,8 @@ const PropertyDetail: React.FC = () => {
     })
       .then(r => r.json())
       .then(data => {
-        if (
-          data.success &&
-          data.data.request &&
-          data.data.request.status
-        ) {
-          setExistingRequest({
-            id:     data.data.request.id,
-            status: data.data.request.status,
-          });
+        if (data.success && data.data.request && data.data.request.status) {
+          setExistingRequest({ id: data.data.request.id, status: data.data.request.status });
         } else {
           setExistingRequest(null);
         }
@@ -341,7 +303,6 @@ const PropertyDetail: React.FC = () => {
       .finally(() => setRequestCheckLoading(false));
   }, [id, user]);
 
-  // ── Fetch payments if CONFIRMED ────────────────────────────────────────
   useEffect(() => {
     if (existingRequest?.status === "CONFIRMED" && existingRequest.id) {
       setPaymentsLoading(true);
@@ -350,24 +311,18 @@ const PropertyDetail: React.FC = () => {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
         .then(r => r.json())
-        .then(data => {
-          if (data.success) {
-            setPayments(data.data.payments || []);
-          }
-        })
+        .then(data => { if (data.success) setPayments(data.data.payments || []); })
         .catch(console.error)
         .finally(() => setPaymentsLoading(false));
     }
   }, [existingRequest?.status, existingRequest?.id]);
 
-  // ── Geocode ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!property?.location) return;
     setMapLoading(true);
     geocodeLocation(property.location).then(coords => { setMapCoords(coords); setMapLoading(false); });
   }, [property?.location]);
 
-  // ── Booking submit ─────────────────────────────────────────────────────
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!property || !user) return;
@@ -386,7 +341,6 @@ const PropertyDetail: React.FC = () => {
         return;
       }
       setBookingMsg({ type: "success", text: "Rental request submitted! The owner will review it shortly." });
-      // Update local existing request state so the button changes immediately
       setExistingRequest({ id: data.data.request.id, status: "PENDING" });
     } catch {
       setBookingMsg({ type: "error", text: "Network error. Please try again." });
@@ -395,7 +349,32 @@ const PropertyDetail: React.FC = () => {
     }
   };
 
-  // ── Initiate Payment Handler ───────────────────────────────────────────
+  // ── Confirm rental (always MONTHLY) ───────────────────────────────────
+  const handleConfirm = async () => {
+    if (!existingRequest) return;
+    setConfirming(true);
+    setConfirmMsg(null);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const res   = await fetch(`${API_BASE}/api/payments/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ requestId: existingRequest.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setConfirmMsg({ type: "error", text: data?.error?.message ?? "Failed to confirm rental." });
+        return;
+      }
+      setConfirmMsg({ type: "success", text: "Rental confirmed! Your monthly payment schedule is ready." });
+      setExistingRequest(prev => prev ? { ...prev, status: "CONFIRMED" } : prev);
+    } catch {
+      setConfirmMsg({ type: "error", text: "Network error. Please try again." });
+    } finally {
+      setConfirming(false);
+    }
+  };
+
   const handlePayClick = async (paymentId: number) => {
     setPaymentActionLoading(paymentId);
     try {
@@ -406,7 +385,6 @@ const PropertyDetail: React.FC = () => {
       });
       const data = await res.json();
       if (data.success && data.data.payment.checkoutUrl) {
-        // Redirect the user to the PayMongo checkout page
         window.location.href = data.data.payment.checkoutUrl;
       } else {
         alert("Failed to initiate payment: " + (data?.error?.message ?? "Unknown error"));
@@ -419,13 +397,10 @@ const PropertyDetail: React.FC = () => {
     }
   };
 
-  // ── Payment Grouping and Locking Logic ───────────────────────────────
   const { paymentsByYear, nextPayablePaymentId } = useMemo(() => {
     if (!payments || payments.length === 0) {
       return { paymentsByYear: {}, nextPayablePaymentId: null };
     }
-
-    // 1. Group the payments by year for the UI
     const grouped = payments.reduce((acc, payment) => {
       const year = new Date(payment.dueDate).getFullYear().toString();
       if (!acc[year]) acc[year] = [];
@@ -433,43 +408,32 @@ const PropertyDetail: React.FC = () => {
       return acc;
     }, {} as Record<string, RentalPayment[]>);
 
-    // 2. Find ALL unpaid payments and sort them strictly by Due Date (or installment number)
     const unpaidPayments = payments
       .filter((p) => p.status === "PENDING" || p.status === "OVERDUE")
-      .sort((a, b) => {
-        // Fallback to sorting by installmentNumber if date parsing fails
-        const numA = a.installmentNumber ?? Number.MAX_SAFE_INTEGER;
-        const numB = b.installmentNumber ?? Number.MAX_SAFE_INTEGER;
-        return numA - numB;
-      });
+      .sort((a, b) => (a.installmentNumber ?? Number.MAX_SAFE_INTEGER) - (b.installmentNumber ?? Number.MAX_SAFE_INTEGER));
 
-    // 3. The absolute first one in that sorted list is the ONLY one allowed to be paid.
-    // We use the unique payment ID to prevent any overlap issues.
     const nextPayablePaymentId = unpaidPayments.length > 0 ? unpaidPayments[0].id : null;
-
     return { paymentsByYear: grouped, nextPayablePaymentId };
   }, [payments]);
 
   const toggleYear = (year: string) => {
     setExpandedYears((prev) => ({
       ...prev,
-      [year]: prev[year] === undefined ? false : !prev[year], // Toggle logic
+      [year]: prev[year] === undefined ? false : !prev[year],
     }));
   };
 
-  // ── Derived ────────────────────────────────────────────────────────────
-  const isAvailable    = property?.status?.toUpperCase() === "AVAILABLE";
-  const totalCost      = property ? property.price * leaseDurationMonths : 0;
-  const today          = new Date().toISOString().split("T")[0];
-  const images         = property?.images ?? [];
-  const hasImages      = images.length > 0;
-  const moveOutDate    = calcMoveOut(startDate, leaseDurationMonths);
-  const hasSocials     = property && (property.ownerFacebookUrl || property.ownerInstagramUrl || property.ownerTwitterUrl);
-  const avg            = avgRating(reviews);
-  const blockReason    = getBookingBlockReason(existingRequest);
+  const isAvailable      = property?.status?.toUpperCase() === "AVAILABLE";
+  const totalCost        = property ? property.price * leaseDurationMonths : 0;
+  const today            = new Date().toISOString().split("T")[0];
+  const images           = property?.images ?? [];
+  const hasImages        = images.length > 0;
+  const moveOutDate      = calcMoveOut(startDate, leaseDurationMonths);
+  const hasSocials       = property && (property.ownerFacebookUrl || property.ownerInstagramUrl || property.ownerTwitterUrl);
+  const avg              = avgRating(reviews);
+  const blockReason      = getBookingBlockReason(existingRequest);
   const isBookingBlocked = blockReason !== null;
 
-  // ── Loading ────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className={styles.page}>
@@ -611,7 +575,7 @@ const PropertyDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* ── Reviews Section ── */}
+          {/* Reviews Section */}
           <div className={styles.reviewsCard}>
             <div className={styles.reviewsHeader}>
               <div className={styles.reviewsTitle}>
@@ -627,7 +591,6 @@ const PropertyDetail: React.FC = () => {
                 </div>
               )}
             </div>
-
             {reviewsLoading ? (
               <div className={styles.reviewsLoading}>
                 <div className={styles.reviewsSpinner} />
@@ -693,14 +656,13 @@ const PropertyDetail: React.FC = () => {
         {/* ══ RIGHT COLUMN ══ */}
         <div className={styles.rightCol}>
           <div className={styles.bookingCard}>
-            
-            {/* If Tenant is already confirmed, show the new Payment Schedule logic */}
+
             {existingRequest?.status === "CONFIRMED" ? (
               <div className={styles.paymentScheduleSection}>
                 <div className={`${styles.bookingMessage} ${styles.bookingMessageSuccess}`}>
                   <span>🏠</span> You are currently an active tenant.
                 </div>
-                
+
                 <h3 style={{ marginTop: "24px", marginBottom: "16px", fontSize: "1.2rem", fontWeight: "600" }}>
                   Your Payment Schedule
                 </h3>
@@ -712,9 +674,8 @@ const PropertyDetail: React.FC = () => {
                 ) : (
                   <div>
                     {Object.keys(paymentsByYear).sort().map((year) => {
-                      const isExpanded = expandedYears[year] !== false; // Default to true if undefined
+                      const isExpanded  = expandedYears[year] !== false;
                       const yearPayments = paymentsByYear[year];
-
                       return (
                         <div key={year} style={{ marginBottom: "1rem", border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}>
                           <button
@@ -723,43 +684,30 @@ const PropertyDetail: React.FC = () => {
                             style={{
                               width: "100%", padding: "14px 16px", display: "flex", justifyContent: "space-between",
                               backgroundColor: "#f8fafc", border: "none", cursor: "pointer", fontWeight: "600",
-                              fontSize: "1rem", color: "#334155"
+                              fontSize: "1rem", color: "#334155",
                             }}
                           >
                             <span>Year {year}</span>
                             <span>{isExpanded ? "▲" : "▼"}</span>
                           </button>
-
                           {isExpanded && (
                             <div style={{ padding: "0 16px", backgroundColor: "#fff" }}>
                               {yearPayments.map((payment) => {
-                                const isPaid = payment.status === "PAID";
-                                
-                                // THE LOCK LOGIC: It is strictly only payable if this payment's ID matches the very next required unpaid payment ID.
-                                const isPayable = !isPaid && payment.id === nextPayablePaymentId;
-                                
+                                const isPaid          = payment.status === "PAID";
+                                const isPayable       = !isPaid && payment.id === nextPayablePaymentId;
                                 const isActionLoading = paymentActionLoading === payment.id;
-
                                 return (
-                                  <div 
-                                    key={payment.id} 
-                                    style={{ 
-                                      display: "flex", justifyContent: "space-between", alignItems: "center", 
-                                      padding: "16px 0", borderBottom: "1px solid #f1f5f9" 
-                                    }}
-                                  >
+                                  <div key={payment.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 0", borderBottom: "1px solid #f1f5f9" }}>
                                     <div>
                                       <strong style={{ display: "block", color: "#1e293b", marginBottom: "4px" }}>
-                                        {payment.installmentNumber === 0 ? "Full Payment" : `Installment #${payment.installmentNumber}`}
+                                        {`Month ${payment.installmentNumber}`}
                                       </strong>
                                       <div style={{ fontSize: "13px", color: "#64748b" }}>
                                         Due: {formatDate(payment.dueDate)}
                                       </div>
                                     </div>
-                                    
                                     <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                                       <span style={{ fontWeight: "600", color: "#1e293b" }}>{formatPrice(payment.amount)}</span>
-                                      
                                       {isPaid ? (
                                         <span style={{ color: "#10b981", fontWeight: "bold", fontSize: "14px", display: "flex", alignItems: "center", gap: "4px" }}>
                                           ✓ Paid
@@ -773,12 +721,11 @@ const PropertyDetail: React.FC = () => {
                                             padding: "8px 16px",
                                             backgroundColor: isPayable ? "#0f766e" : "#e2e8f0",
                                             color: isPayable ? "#ffffff" : "#94a3b8",
-                                            border: "none",
-                                            borderRadius: "6px",
+                                            border: "none", borderRadius: "6px",
                                             cursor: isPayable ? "pointer" : "not-allowed",
                                             fontWeight: "600",
                                             opacity: isPayable ? 1 : 0.6,
-                                            transition: "all 0.2s"
+                                            transition: "all 0.2s",
                                           }}
                                           title={!isPayable ? "You must pay previous months first" : "Proceed to payment"}
                                         >
@@ -798,7 +745,6 @@ const PropertyDetail: React.FC = () => {
                 )}
               </div>
             ) : (
-              // The original booking form for users who aren't confirmed tenants yet
               <>
                 <div className={styles.bookingPrice}>
                   <span className={styles.bookingPriceAmount}>{formatPrice(property.price)}</span>
@@ -813,10 +759,29 @@ const PropertyDetail: React.FC = () => {
                         Your rental request is awaiting owner review. You cannot submit another until it is decided.
                       </div>
                     )}
+
                     {existingRequest?.status === "APPROVED" && (
                       <div className={`${styles.bookingMessage} ${styles.bookingMessagePending}`}>
                         <span>✅</span>
-                        Your request has been approved! Please confirm your rental to proceed.
+                        Your request has been approved! Confirm your rental to start your monthly payment schedule.
+                        <button
+                          type="button"
+                          onClick={handleConfirm}
+                          disabled={confirming}
+                          style={{
+                            marginTop: "12px", width: "100%", padding: "10px",
+                            backgroundColor: "#0f766e", color: "#fff", border: "none",
+                            borderRadius: "8px", fontWeight: "600", cursor: "pointer",
+                            fontSize: "0.95rem",
+                          }}
+                        >
+                          {confirming ? "Confirming…" : "Confirm Rental"}
+                        </button>
+                        {confirmMsg && (
+                          <div style={{ marginTop: "8px", fontSize: "0.9rem", color: confirmMsg.type === "success" ? "#1a7a4a" : "#c0392b" }}>
+                            {confirmMsg.type === "success" ? "✓" : "⚠"} {confirmMsg.text}
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -851,20 +816,15 @@ const PropertyDetail: React.FC = () => {
                       </>
                     )}
 
-                    <button
-                      type="submit"
-                      className={styles.bookingBtn}
-                      disabled={
-                        submitting ||
-                        bookingMsg?.type === "success" ||
-                        requestCheckLoading ||
-                        isBookingBlocked
-                      }
-                    >
-                      {submitting
-                        ? <span className={styles.bookingSpinner} />
-                        : getBookingBtnLabel(existingRequest, bookingMsg?.type === "success")}
-                    </button>
+                    {!isBookingBlocked && (
+                      <button
+                        type="submit"
+                        className={styles.bookingBtn}
+                        disabled={submitting || bookingMsg?.type === "success" || requestCheckLoading}
+                      >
+                        {submitting ? <span className={styles.bookingSpinner} /> : getBookingBtnLabel(existingRequest, bookingMsg?.type === "success")}
+                      </button>
+                    )}
 
                     {bookingMsg && (
                       <div className={`${styles.bookingMessage} ${bookingMsg.type === "success" ? styles.bookingMessageSuccess : styles.bookingMessageError}`}>
@@ -899,4 +859,4 @@ const PropertyDetail: React.FC = () => {
   );
 };
 
-export default PropertyDetail; 
+export default PropertyDetail;
