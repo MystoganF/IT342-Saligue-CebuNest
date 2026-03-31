@@ -24,14 +24,25 @@ public class RentalPaymentService {
     private final PayMongoService          payMongoService;
     private final EmailService             emailService;
 
+    // ── Helper: Authorize Tenant OR Owner ────────────────────────────────────
+    private void authorizeTenantOrOwner(RentalRequest request, User currentUser) {
+        boolean isTenant = request.getTenant().getId().equals(currentUser.getId());
+        boolean isOwner = request.getProperty().getOwner().getId().equals(currentUser.getId());
+
+        if (!isTenant && !isOwner) {
+            throw new IllegalArgumentException("Not authorized. You must be the tenant or the property owner.");
+        }
+    }
+
     // ── Step 1: Tenant confirms approval (always MONTHLY) ────────────────
     @Transactional
     public RentalRequestDTO confirmAndChoosePlan(Long requestId, String plan, User tenant) {
         RentalRequest request = rentalRequestRepository.findById(requestId)
                 .orElseThrow(() -> new IllegalArgumentException("Rental request not found."));
 
+        // Keep this strict: Only the tenant can confirm their own lease
         if (!request.getTenant().getId().equals(tenant.getId()))
-            throw new IllegalArgumentException("This is not your rental request.");
+            throw new IllegalArgumentException("This is not your rental request. Only the tenant can confirm.");
 
         if (request.getStatus() != RentalRequest.RentalStatus.APPROVED)
             throw new IllegalArgumentException("This request is not in APPROVED status.");
@@ -77,12 +88,11 @@ public class RentalPaymentService {
 
     // ── Step 2: Initiate a payment (creates PayMongo link) ────────────────
     @Transactional
-    public RentalPaymentDTO initiatePayment(Long paymentId, User tenant) {
+    public RentalPaymentDTO initiatePayment(Long paymentId, User currentUser) {
         RentalPayment payment = rentalPaymentRepository.findById(paymentId)
                 .orElseThrow(() -> new IllegalArgumentException("Payment not found."));
 
-        if (!payment.getRentalRequest().getTenant().getId().equals(tenant.getId()))
-            throw new IllegalArgumentException("This is not your payment.");
+        authorizeTenantOrOwner(payment.getRentalRequest(), currentUser);
 
         if (payment.getStatus() == RentalPayment.PaymentStatus.PAID)
             throw new IllegalArgumentException("This payment is already paid.");
@@ -102,9 +112,6 @@ public class RentalPaymentService {
         }
 
         // ── Stale session check ────────────────────────────────────────────
-        // If a previous checkout session exists, verify it with PayMongo.
-        // "paid"    → mark PAID here (edge case: paid outside our flow) and return.
-        // anything else → clear it so we create a fresh session below.
         if (payment.getPaymongoPaymentId() != null) {
             String existingStatus = payMongoService.getPaymentLinkStatus(payment.getPaymongoPaymentId());
             if ("paid".equals(existingStatus)) {
@@ -113,7 +120,6 @@ public class RentalPaymentService {
                 rentalPaymentRepository.save(payment);
                 return RentalPaymentDTO.from(payment);
             }
-            // unpaid / expired / cancelled — discard the stale session
             payment.setPaymongoPaymentId(null);
             payment.setCheckoutUrl(null);
         }
@@ -121,7 +127,6 @@ public class RentalPaymentService {
         // ── Create fresh PayMongo checkout session ─────────────────────────
         String propertyTitle = payment.getRentalRequest().getProperty().getTitle();
         String description   = "Monthly rent #" + payment.getInstallmentNumber() + " – " + propertyTitle;
-        // Append timestamp so the reference is unique on every retry
         String referenceId   = "payment-" + payment.getId() + "-" + System.currentTimeMillis();
 
         Map<String, String> result = payMongoService.createPaymentLink(
@@ -141,12 +146,11 @@ public class RentalPaymentService {
 
     // ── Step 3: Verify payment status (poll after redirect) ───────────────
     @Transactional
-    public RentalPaymentDTO verifyPayment(Long paymentId, User tenant) {
+    public RentalPaymentDTO verifyPayment(Long paymentId, User currentUser) {
         RentalPayment payment = rentalPaymentRepository.findById(paymentId)
                 .orElseThrow(() -> new IllegalArgumentException("Payment not found."));
 
-        if (!payment.getRentalRequest().getTenant().getId().equals(tenant.getId()))
-            throw new IllegalArgumentException("This is not your payment.");
+        authorizeTenantOrOwner(payment.getRentalRequest(), currentUser);
 
         if (payment.getPaymongoPaymentId() == null)
             throw new IllegalArgumentException("No payment link found. Initiate payment first.");
@@ -182,14 +186,13 @@ public class RentalPaymentService {
         return RentalPaymentDTO.from(payment);
     }
 
-    // ── Get payments for a rental request ────────────────────────────────
+    // ── Get payments for a rental request (FIXED for Owner access) ────────
     @Transactional(readOnly = true)
-    public List<RentalPaymentDTO> getPaymentsForRequest(Long requestId, User tenant) {
+    public List<RentalPaymentDTO> getPaymentsForRequest(Long requestId, User currentUser) {
         RentalRequest request = rentalRequestRepository.findById(requestId)
                 .orElseThrow(() -> new IllegalArgumentException("Rental request not found."));
 
-        if (!request.getTenant().getId().equals(tenant.getId()))
-            throw new IllegalArgumentException("This is not your rental request.");
+        authorizeTenantOrOwner(request, currentUser);
 
         return rentalPaymentRepository
                 .findByRentalRequestIdOrderByInstallmentNumberAsc(requestId)
@@ -209,21 +212,19 @@ public class RentalPaymentService {
         rentalPaymentRepository.saveAll(pending);
     }
 
-
+    // ── Cancel Payment ────────────────────────────────────────────────────
     @Transactional
-    public RentalPaymentDTO cancelPayment(Long paymentId, User tenant) {
+    public RentalPaymentDTO cancelPayment(Long paymentId, User currentUser) {
         RentalPayment payment = rentalPaymentRepository.findById(paymentId)
                 .orElseThrow(() -> new IllegalArgumentException("Payment not found."));
 
-        if (!payment.getRentalRequest().getTenant().getId().equals(tenant.getId()))
-            throw new IllegalArgumentException("This is not your payment.");
+        authorizeTenantOrOwner(payment.getRentalRequest(), currentUser);
 
         if (payment.getStatus() == RentalPayment.PaymentStatus.PAID)
             return RentalPaymentDTO.from(payment); // already paid — no-op
 
         payment.setPaymongoPaymentId(null);
         payment.setCheckoutUrl(null);
-        // Status stays PENDING or OVERDUE — tenant can retry
         rentalPaymentRepository.save(payment);
 
         return RentalPaymentDTO.from(payment);

@@ -28,7 +28,7 @@ public class RentalPaymentController {
     // ── GET /api/payments/request/{requestId} — get payment schedule ─────
     @GetMapping("/request/{requestId}")
     public ResponseEntity<?> getPayments(
-            @PathVariable Long requestId,
+            @PathVariable("requestId") Long requestId,
             @AuthenticationPrincipal User currentUser
     ) {
         if (currentUser == null)
@@ -47,7 +47,7 @@ public class RentalPaymentController {
     // ── POST /api/payments/{id}/initiate — create PayMongo link ──────────
     @PostMapping("/{id}/initiate")
     public ResponseEntity<?> initiatePayment(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @AuthenticationPrincipal User currentUser
     ) {
         if (currentUser == null)
@@ -66,28 +66,25 @@ public class RentalPaymentController {
     // ── POST /api/payments/{id}/verify — manual / fallback verify ────────
     @PostMapping("/{id}/verify")
     public ResponseEntity<?> verifyPaymentPost(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @AuthenticationPrincipal User currentUser
     ) {
         return doVerify(id, currentUser);
     }
 
     // ── GET /api/payments/{id}/verify — auto-verify on PayMongo redirect ─
-    // Called by PropertyDetail on mount when ?payment_id=X&payment=success
-    // is present in the URL. Using GET so the frontend can call it without
-    // a body and without triggering CORS preflight issues on page load.
     @GetMapping("/{id}/verify")
     public ResponseEntity<?> verifyPaymentGet(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @AuthenticationPrincipal User currentUser
     ) {
         return doVerify(id, currentUser);
     }
 
-
+    // ── GET /api/payments/{id}/cancel — cancel a payment ───────────────
     @GetMapping("/{id}/cancel")
     public ResponseEntity<?> cancelPayment(
-            @PathVariable Long id,
+            @PathVariable("id") Long id,
             @AuthenticationPrincipal User currentUser
     ) {
         if (currentUser == null)

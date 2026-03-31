@@ -51,6 +51,19 @@ interface ActiveTenant {
   status: string;
 }
 
+interface RentalPayment {
+  id: number;
+  rentalRequestId: number;
+  installmentNumber: number;
+  amount: number;
+  dueDate: string;
+  paidAt: string | null;
+  status: string;
+  checkoutUrl: string | null;
+  paymongoPaymentId: string | null;
+  createdAt: string;
+}
+
 // ─── helpers ───────────────────────────────────────────────────────────────
 
 async function geocode(query: string): Promise<MapCoords | null> {
@@ -95,10 +108,42 @@ function statusColor(status: string): string {
   }
 }
 
+function paymentStatusColor(status: string): { color: string; bg: string; border: string } {
+  switch (status) {
+    case "PAID":    return { color: "#1a7a4a", bg: "#e8f7ef", border: "rgba(26,122,74,0.2)" };
+    case "OVERDUE": return { color: "#c0392b", bg: "#fdf0ee", border: "rgba(192,57,43,0.2)" };
+    case "PENDING": return { color: "#b78e42", bg: "#fffbea", border: "rgba(183,142,66,0.2)" };
+    default:        return { color: "#6e7071", bg: "#f0f4f5", border: "#e5eced" };
+  }
+}
+
+function paymentStatusIcon(status: string): string {
+  switch (status) {
+    case "PAID":    return "✓";
+    case "OVERDUE": return "⚠";
+    case "PENDING": return "○";
+    default:        return "–";
+  }
+}
+
 function calcMoveOut(startDate: string, months: number): string {
   const d = new Date(startDate + "T00:00:00");
   d.setMonth(d.getMonth() + months);
   return d.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+}
+
+function groupBy<T>(arr: T[], keyFn: (item: T) => string): Record<string, T[]> {
+  return arr.reduce<Record<string, T[]>>((acc, item) => {
+    const key = keyFn(item);
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {});
+}
+
+function getYear(dateStr: string): string {
+  if (!dateStr) return "Unknown";
+  return new Date(dateStr).getFullYear().toString();
 }
 
 // ─── component ─────────────────────────────────────────────────────────────
@@ -133,11 +178,11 @@ const EditProperty: React.FC = () => {
   const [mapError, setMapError]         = useState<string | null>(null);
 
   // ── Images ─────────────────────────────────────────────────────────────
-  const [existingImages, setExistingImages]   = useState<ExistingImage[]>([]);
-  const [removedImageIds, setRemovedImageIds] = useState<number[]>([]);
-  const [newImageFiles, setNewImageFiles]     = useState<File[]>([]);
+  const [existingImages, setExistingImages]     = useState<ExistingImage[]>([]);
+  const [removedImageIds, setRemovedImageIds]   = useState<number[]>([]);
+  const [newImageFiles, setNewImageFiles]       = useState<File[]>([]);
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
-  const [dragOver, setDragOver]               = useState(false);
+  const [dragOver, setDragOver]                 = useState(false);
 
   // ── Lightbox ───────────────────────────────────────────────────────────
   const [lightboxSrc, setLightboxSrc]     = useState<string | null>(null);
@@ -153,9 +198,18 @@ const EditProperty: React.FC = () => {
   const [actionSubmitting, setActionSubmitting] = useState(false);
   const [actionError, setActionError]           = useState<string | null>(null);
 
+  // ── Rental requests year accordion ────────────────────────────────────
+  const [openRequestYears, setOpenRequestYears] = useState<Set<string>>(new Set());
+
   // ── Active tenant ──────────────────────────────────────────────────────
   const [activeTenant, setActiveTenant]               = useState<ActiveTenant | null>(null);
   const [activeTenantLoading, setActiveTenantLoading] = useState(false);
+
+  // ── Payment history ────────────────────────────────────────────────────
+  const [payments, setPayments]                 = useState<RentalPayment[]>([]);
+  const [paymentsLoading, setPaymentsLoading]   = useState(false);
+  const [paymentsError, setPaymentsError]       = useState<string | null>(null);
+  const [openPaymentYears, setOpenPaymentYears] = useState<Set<string>>(new Set());
 
   // ── Lease management modal ─────────────────────────────────────────────
   const [leaseModal, setLeaseModal]           = useState<"extend" | "reduce" | "terminate" | null>(null);
@@ -235,8 +289,17 @@ const EditProperty: React.FC = () => {
     })
       .then((r) => r.json())
       .then((data) => {
-        if (data.success) setRequests(data.data.requests ?? []);
-        else setRequestsError("Failed to load requests.");
+        if (data.success) {
+          const reqs: RentalRequest[] = data.data.requests ?? [];
+          setRequests(reqs);
+          // Auto-open the most recent year
+          if (reqs.length > 0) {
+            const latestYear = getYear(reqs[0].createdAt);
+            setOpenRequestYears(new Set([latestYear]));
+          }
+        } else {
+          setRequestsError("Failed to load requests.");
+        }
       })
       .catch(() => setRequestsError("Unable to load rental requests."))
       .finally(() => setRequestsLoading(false));
@@ -274,6 +337,38 @@ const EditProperty: React.FC = () => {
       .catch(() => {})
       .finally(() => setActiveTenantLoading(false));
   }, [user, id]);
+
+  // ── Load payment history when active tenant is known ──────────────────
+  useEffect(() => {
+    if (!activeTenant) { setPayments([]); return; }
+    const token = localStorage.getItem("accessToken");
+    setPaymentsLoading(true);
+    setPaymentsError(null);
+    fetch(`${API_BASE}/api/payments/request/${activeTenant.id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) {
+          const pmts: RentalPayment[] = data.data.payments ?? [];
+          setPayments(pmts);
+          // Auto-open the year with the first unpaid/overdue payment, or most recent year
+          const firstUnpaid = pmts.find(
+            (p) => p.status === "PENDING" || p.status === "OVERDUE"
+          );
+          const autoYear = firstUnpaid
+            ? getYear(firstUnpaid.dueDate)
+            : pmts.length > 0
+            ? getYear(pmts[pmts.length - 1].dueDate)
+            : null;
+          if (autoYear) setOpenPaymentYears(new Set([autoYear]));
+        } else {
+          setPaymentsError("Failed to load payment history.");
+        }
+      })
+      .catch(() => setPaymentsError("Unable to load payment history."))
+      .finally(() => setPaymentsLoading(false));
+  }, [activeTenant]);
 
   // ── Keyboard lightbox nav ──────────────────────────────────────────────
   useEffect(() => {
@@ -366,25 +461,34 @@ const EditProperty: React.FC = () => {
     }
   };
 
+  // ── Year accordion toggles ─────────────────────────────────────────────
+  const toggleRequestYear = (year: string) => {
+    setOpenRequestYears((prev) => {
+      const next = new Set(prev);
+      if (next.has(year)) next.delete(year); else next.add(year);
+      return next;
+    });
+  };
+
+  const togglePaymentYear = (year: string) => {
+    setOpenPaymentYears((prev) => {
+      const next = new Set(prev);
+      if (next.has(year)) next.delete(year); else next.add(year);
+      return next;
+    });
+  };
+
   // ── Lease management ───────────────────────────────────────────────────
   const openLeaseModal = (type: "extend" | "reduce" | "terminate") => {
-    setLeaseModal(type);
-    setLeaseMonths(1);
-    setLeaseError(null);
-    setLeaseSuccess(null);
+    setLeaseModal(type); setLeaseMonths(1); setLeaseError(null); setLeaseSuccess(null);
   };
-
   const closeLeaseModal = () => {
     if (leaseSubmitting) return;
-    setLeaseModal(null);
-    setLeaseError(null);
-    setLeaseSuccess(null);
+    setLeaseModal(null); setLeaseError(null); setLeaseSuccess(null);
   };
-
   const handleLeaseAction = async () => {
     if (!activeTenant) return;
-    setLeaseSubmitting(true);
-    setLeaseError(null);
+    setLeaseSubmitting(true); setLeaseError(null);
     const token = localStorage.getItem("accessToken");
     try {
       if (leaseModal === "terminate") {
@@ -393,11 +497,9 @@ const EditProperty: React.FC = () => {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         const data = await res.json();
-        if (!res.ok || !data.success) {
-          setLeaseError(data?.error?.message ?? "Failed to terminate lease.");
-          return;
-        }
+        if (!res.ok || !data.success) { setLeaseError(data?.error?.message ?? "Failed to terminate lease."); return; }
         setActiveTenant(null);
+        setPayments([]);
         setStatus("AVAILABLE");
         setCurrentStatus("AVAILABLE");
         setLeaseSuccess("Lease terminated. Property is now available.");
@@ -413,14 +515,9 @@ const EditProperty: React.FC = () => {
           body: JSON.stringify({ adjustMonths: adjust }),
         });
         const data = await res.json();
-        if (!res.ok || !data.success) {
-          setLeaseError(data?.error?.message ?? "Failed to update lease.");
-          return;
-        }
+        if (!res.ok || !data.success) { setLeaseError(data?.error?.message ?? "Failed to update lease."); return; }
         setActiveTenant((prev) =>
-          prev
-            ? { ...prev, leaseDurationMonths: data.data.request.leaseDurationMonths }
-            : prev
+          prev ? { ...prev, leaseDurationMonths: data.data.request.leaseDurationMonths } : prev
         );
         setLeaseSuccess(
           leaseModal === "extend"
@@ -504,6 +601,21 @@ const EditProperty: React.FC = () => {
   const totalPhotos     = visibleExisting.length + newImageFiles.length;
   const existingSrcs    = visibleExisting.map((img) => img.imageUrl);
   const pendingCount    = requests.filter((r) => r.status === "PENDING").length;
+
+  // Group rental requests by year (most recent first)
+  const requestsByYear = groupBy(requests, (r) => getYear(r.createdAt));
+  const requestYears   = Object.keys(requestsByYear).sort((a, b) => Number(b) - Number(a));
+
+  // Group payments by year of dueDate (most recent first)
+  const paymentsByYear = groupBy(payments, (p) => getYear(p.dueDate));
+  const paymentYears   = Object.keys(paymentsByYear).sort((a, b) => Number(b) - Number(a));
+
+  // Payment summary stats
+  const paidCount    = payments.filter((p) => p.status === "PAID").length;
+  const overdueCount = payments.filter((p) => p.status === "OVERDUE").length;
+  const totalPaid    = payments
+    .filter((p) => p.status === "PAID")
+    .reduce((s, p) => s + p.amount, 0);
 
   // ── Loading / error states ─────────────────────────────────────────────
   if (pageLoading) return (
@@ -602,75 +714,47 @@ const EditProperty: React.FC = () => {
             <div className={`${styles.reqModalHeader} ${
               leaseModal === "terminate" ? styles.reqModalHeaderReject : styles.reqModalHeaderApprove
             }`}>
-              <span>
-                {leaseModal === "extend" ? "➕" : leaseModal === "reduce" ? "➖" : "🚫"}
-              </span>
+              <span>{leaseModal === "extend" ? "➕" : leaseModal === "reduce" ? "➖" : "🚫"}</span>
               <h3 className={styles.reqModalTitle}>
-                {leaseModal === "extend"
-                  ? "Extend Lease"
-                  : leaseModal === "reduce"
-                  ? "Reduce Lease"
-                  : "End Lease"}
+                {leaseModal === "extend" ? "Extend Lease" : leaseModal === "reduce" ? "Reduce Lease" : "End Lease"}
               </h3>
             </div>
-
             <div className={styles.reqModalBody}>
               {leaseModal !== "terminate" ? (
                 <>
                   <p className={styles.reqModalDesc}>
                     Current lease: <strong>{activeTenant.leaseDurationMonths} month(s)</strong> for{" "}
                     <strong>{activeTenant.tenantName}</strong>.{" "}
-                    {leaseModal === "extend"
-                      ? "How many months would you like to add?"
-                      : "How many months would you like to remove?"}
+                    {leaseModal === "extend" ? "How many months would you like to add?" : "How many months would you like to remove?"}
                   </p>
-
-                  {/* Month picker */}
                   <div style={{
                     display: "flex", alignItems: "center", gap: "14px",
                     margin: "16px 0", padding: "14px 16px",
-                    background: "#f8fbfb", borderRadius: "12px",
-                    border: "1px solid #e5eced",
+                    background: "#f8fbfb", borderRadius: "12px", border: "1px solid #e5eced",
                   }}>
-                    <button
-                      type="button"
-                      style={{
-                        width: 34, height: 34, borderRadius: "50%",
-                        border: "1.5px solid #e5eced", background: "#fff",
-                        fontSize: 20, cursor: "pointer", display: "flex",
-                        alignItems: "center", justifyContent: "center",
-                        color: "#1f5d71", fontWeight: 700,
-                      }}
-                      onClick={() => setLeaseMonths((m) => Math.max(1, m - 1))}
-                    >−</button>
-                    <span style={{
-                      fontSize: 24, fontWeight: 800, color: "#1f5d71",
-                      minWidth: 40, textAlign: "center",
-                    }}>
+                    <button type="button" style={{
+                      width: 34, height: 34, borderRadius: "50%",
+                      border: "1.5px solid #e5eced", background: "#fff",
+                      fontSize: 20, cursor: "pointer", display: "flex",
+                      alignItems: "center", justifyContent: "center", color: "#1f5d71", fontWeight: 700,
+                    }} onClick={() => setLeaseMonths((m) => Math.max(1, m - 1))}>−</button>
+                    <span style={{ fontSize: 24, fontWeight: 800, color: "#1f5d71", minWidth: 40, textAlign: "center" }}>
                       {leaseMonths}
                     </span>
-                    <button
-                      type="button"
-                      style={{
-                        width: 34, height: 34, borderRadius: "50%",
-                        border: "1.5px solid #e5eced", background: "#fff",
-                        fontSize: 20, cursor: "pointer", display: "flex",
-                        alignItems: "center", justifyContent: "center",
-                        color: "#1f5d71", fontWeight: 700,
-                      }}
-                      onClick={() => setLeaseMonths((m) => m + 1)}
-                    >+</button>
+                    <button type="button" style={{
+                      width: 34, height: 34, borderRadius: "50%",
+                      border: "1.5px solid #e5eced", background: "#fff",
+                      fontSize: 20, cursor: "pointer", display: "flex",
+                      alignItems: "center", justifyContent: "center", color: "#1f5d71", fontWeight: 700,
+                    }} onClick={() => setLeaseMonths((m) => m + 1)}>+</button>
                     <span style={{ fontSize: 13, color: "#6e7071" }}>month(s)</span>
                   </div>
-
                   <div className={styles.reqModalMeta}>
                     <span>
-                      New total:{" "}
-                      <strong>
+                      New total: <strong>
                         {leaseModal === "extend"
                           ? activeTenant.leaseDurationMonths + leaseMonths
-                          : Math.max(1, activeTenant.leaseDurationMonths - leaseMonths)}{" "}
-                        month(s)
+                          : Math.max(1, activeTenant.leaseDurationMonths - leaseMonths)} month(s)
                       </strong>
                     </span>
                     <span>👤 {activeTenant.tenantName}</span>
@@ -680,8 +764,8 @@ const EditProperty: React.FC = () => {
                 <>
                   <p className={styles.reqModalDesc}>
                     This will <strong>immediately terminate</strong> the lease for{" "}
-                    <strong>{activeTenant.tenantName}</strong> and mark this property
-                    as <strong>Available</strong>. The tenant will be notified by email.
+                    <strong>{activeTenant.tenantName}</strong> and mark this property as{" "}
+                    <strong>Available</strong>. The tenant will be notified by email.
                     This action <strong>cannot be undone</strong>.
                   </p>
                   <div className={styles.reqModalMeta}>
@@ -692,26 +776,16 @@ const EditProperty: React.FC = () => {
                   </div>
                 </>
               )}
-
               {leaseSuccess && (
                 <p style={{ fontSize: 13, fontWeight: 600, color: "#2d8c6a", marginTop: 12 }}>
                   ✓ {leaseSuccess}
                 </p>
               )}
-              {leaseError && (
-                <p className={styles.reqModalError}>⚠ {leaseError}</p>
-              )}
+              {leaseError && <p className={styles.reqModalError}>⚠ {leaseError}</p>}
             </div>
-
             <div className={styles.reqModalFooter}>
-              <button
-                className={styles.modalCancelBtn}
-                onClick={closeLeaseModal}
-                disabled={leaseSubmitting}
-                type="button"
-              >
-                Cancel
-              </button>
+              <button className={styles.modalCancelBtn} onClick={closeLeaseModal}
+                disabled={leaseSubmitting} type="button">Cancel</button>
               <button
                 className={leaseModal === "terminate" ? styles.modalRejectBtn : styles.modalApproveBtn}
                 onClick={handleLeaseAction}
@@ -753,8 +827,7 @@ const EditProperty: React.FC = () => {
             <div className={styles.fieldsGrid}>
               <div className={`${styles.field} ${styles.fieldFull}`}>
                 <label className={styles.fieldLabel}>Title <span className={styles.fieldRequired}>*</span></label>
-                <input type="text" className={styles.fieldInput}
-                  placeholder="e.g. Cozy Studio near IT Park"
+                <input type="text" className={styles.fieldInput} placeholder="e.g. Cozy Studio near IT Park"
                   value={title} onChange={(e) => setTitle(e.target.value)} required />
               </div>
               <div className={`${styles.field} ${styles.fieldFull}`}>
@@ -795,20 +868,14 @@ const EditProperty: React.FC = () => {
           {/* ── Listing Visibility ── */}
           <div className={styles.card}>
             <div className={styles.cardTitle}>Listing Visibility</div>
-
             {activeTenant ? (
-              /* Occupied — block toggle */
               <div className={styles.visibilityLocked}>
                 <span className={styles.visibilityLockedIcon}>🔒</span>
                 <div>
-                  <div className={styles.visibilityLockedLabel}>
-                    Property is <strong>Occupied</strong>
-                  </div>
+                  <div className={styles.visibilityLockedLabel}>Property is <strong>Occupied</strong></div>
                   <div className={styles.visibilityLockedSub}>
-                    This property has an active tenant (
-                    <strong>{activeTenant.tenantName}</strong>). It cannot be listed
-                    as Available until the lease ends or is terminated. Manage the
-                    tenant in the <em>Active Tenant</em> section below.
+                    This property has an active tenant (<strong>{activeTenant.tenantName}</strong>). It cannot be listed
+                    as Available until the lease ends or is terminated. Manage the tenant in the <em>Active Tenant</em> section below.
                   </div>
                 </div>
               </div>
@@ -840,8 +907,7 @@ const EditProperty: React.FC = () => {
                     Status: <strong>{currentStatus?.replace("_", " ")}</strong>
                   </div>
                   <div className={styles.visibilityLockedSub}>
-                    Visibility can only be toggled on approved properties. This
-                    property is currently under review or rejected.
+                    Visibility can only be toggled on approved properties. This property is currently under review or rejected.
                   </div>
                 </div>
               </div>
@@ -851,7 +917,6 @@ const EditProperty: React.FC = () => {
           {/* ── Active Tenant ── */}
           <div className={styles.card}>
             <div className={styles.cardTitle}>Active Tenant</div>
-
             {activeTenantLoading ? (
               <div className={styles.requestsLoading}>Loading tenant info…</div>
             ) : !activeTenant ? (
@@ -861,7 +926,6 @@ const EditProperty: React.FC = () => {
               </div>
             ) : (
               <div className={styles.activeTenantWrap}>
-                {/* Identity row */}
                 <div className={styles.activeTenantRow}>
                   <div className={styles.activeTenantAvatar}>
                     {activeTenant.tenantName.charAt(0).toUpperCase()}
@@ -872,8 +936,6 @@ const EditProperty: React.FC = () => {
                   </div>
                   <span className={styles.activeTenantBadge}>ACTIVE</span>
                 </div>
-
-                {/* Lease stats */}
                 <div className={styles.activeTenantStats}>
                   <div className={styles.activeTenantStat}>
                     <span className={styles.activeTenantStatIcon}>📅</span>
@@ -895,25 +957,146 @@ const EditProperty: React.FC = () => {
                     </span>
                   </div>
                 </div>
-
-                {/* Management actions */}
                 <div className={styles.activeTenantActions}>
-                  <button type="button" className={styles.leaseExtendBtn}
-                    onClick={() => openLeaseModal("extend")}>
-                    ➕ Extend Lease
-                  </button>
-                  <button type="button" className={styles.leaseReduceBtn}
-                    onClick={() => openLeaseModal("reduce")}>
-                    ➖ Reduce Lease
-                  </button>
-                  <button type="button" className={styles.leaseTerminateBtn}
-                    onClick={() => openLeaseModal("terminate")}>
-                    🚫 End Lease
-                  </button>
+                  <button type="button" className={styles.leaseExtendBtn} onClick={() => openLeaseModal("extend")}>➕ Extend Lease</button>
+                  <button type="button" className={styles.leaseReduceBtn} onClick={() => openLeaseModal("reduce")}>➖ Reduce Lease</button>
+                  <button type="button" className={styles.leaseTerminateBtn} onClick={() => openLeaseModal("terminate")}>🚫 End Lease</button>
                 </div>
               </div>
             )}
           </div>
+
+          {/* ── Payment History (only shown when there's an active tenant) ── */}
+          {activeTenant && (
+            <div className={styles.card}>
+              <div className={styles.cardTitle}>
+                Payment History
+                {overdueCount > 0 && (
+                  <span className={styles.overduesBadge}>{overdueCount} overdue</span>
+                )}
+              </div>
+
+              {paymentsLoading && (
+                <div className={styles.requestsLoading}>Loading payment history…</div>
+              )}
+              {!paymentsLoading && paymentsError && (
+                <div className={styles.requestsError}>⚠ {paymentsError}</div>
+              )}
+              {!paymentsLoading && !paymentsError && payments.length === 0 && (
+                <div className={styles.requestsEmpty}>
+                  <span className={styles.requestsEmptyIcon}>💳</span>
+                  <p>No payments recorded yet for this tenant.</p>
+                </div>
+              )}
+
+              {!paymentsLoading && !paymentsError && payments.length > 0 && (
+                <>
+                  {/* ── Summary strip ── */}
+                  <div className={styles.paymentSummaryStrip}>
+                    <div className={styles.paymentSummaryItem}>
+                      <span className={styles.paymentSummaryValue}>{payments.length}</span>
+                      <span className={styles.paymentSummaryLabel}>Total</span>
+                    </div>
+                    <div className={styles.paymentSummarySep} />
+                    <div className={styles.paymentSummaryItem}>
+                      <span className={styles.paymentSummaryValue} style={{ color: "#1a7a4a" }}>{paidCount}</span>
+                      <span className={styles.paymentSummaryLabel}>Paid</span>
+                    </div>
+                    <div className={styles.paymentSummarySep} />
+                    <div className={styles.paymentSummaryItem}>
+                      <span className={styles.paymentSummaryValue} style={{ color: "#c0392b" }}>{overdueCount}</span>
+                      <span className={styles.paymentSummaryLabel}>Overdue</span>
+                    </div>
+                    <div className={styles.paymentSummarySep} />
+                    <div className={styles.paymentSummaryItem}>
+                      <span className={styles.paymentSummaryValue} style={{ color: "#1f5d71" }}>
+                        ₱{totalPaid.toLocaleString("en-PH", { minimumFractionDigits: 0 })}
+                      </span>
+                      <span className={styles.paymentSummaryLabel}>Collected</span>
+                    </div>
+                  </div>
+
+                  {/* ── Year accordions ── */}
+                  <div className={styles.yearAccordionList}>
+                    {paymentYears.map((year) => {
+                      const yearPayments = paymentsByYear[year];
+                      const isOpen       = openPaymentYears.has(year);
+                      const yearPaid     = yearPayments.filter((p) => p.status === "PAID").length;
+                      const yearOverdue  = yearPayments.filter((p) => p.status === "OVERDUE").length;
+                      const yearTotal    = yearPayments.reduce((s, p) => s + p.amount, 0);
+
+                      return (
+                        <div key={year} className={styles.yearAccordion}>
+                          <button
+                            type="button"
+                            className={styles.yearAccordionHeader}
+                            onClick={() => togglePaymentYear(year)}
+                          >
+                            <span className={styles.yearAccordionChevron}>{isOpen ? "▾" : "▸"}</span>
+                            <span className={styles.yearAccordionLabel}>{year}</span>
+                            <span className={styles.yearAccordionMeta}>
+                              {yearPayments.length} payment{yearPayments.length !== 1 ? "s" : ""}
+                              {" · "}
+                              <span style={{ color: "#1a7a4a" }}>{yearPaid} paid</span>
+                              {yearOverdue > 0 && (
+                                <span style={{ color: "#c0392b" }}> · {yearOverdue} overdue</span>
+                              )}
+                              {" · ₱"}{yearTotal.toLocaleString("en-PH", { minimumFractionDigits: 0 })}
+                            </span>
+                          </button>
+
+                          {isOpen && (
+                            <div className={styles.yearAccordionBody}>
+                              {yearPayments.map((pmt) => {
+                                const sc = paymentStatusColor(pmt.status);
+                                return (
+                                  <div
+                                    key={pmt.id}
+                                    className={styles.paymentRow}
+                                    style={{ borderColor: sc.border }}
+                                  >
+                                    <div
+                                      className={styles.paymentStatusBubble}
+                                      style={{ background: sc.bg, color: sc.color, borderColor: sc.border }}
+                                    >
+                                      {paymentStatusIcon(pmt.status)}
+                                    </div>
+                                    <div className={styles.paymentInfo}>
+                                      <div className={styles.paymentTitle}>
+                                        Month {pmt.installmentNumber}
+                                        <span
+                                          className={styles.paymentStatusChip}
+                                          style={{ color: sc.color, background: sc.bg, borderColor: sc.border }}
+                                        >
+                                          {pmt.status}
+                                        </span>
+                                      </div>
+                                      <div className={styles.paymentMeta}>
+                                        <span>📅 Due: {pmt.dueDate}</span>
+                                        {pmt.paidAt && (
+                                          <span style={{ color: "#1a7a4a" }}>✓ Paid: {pmt.paidAt}</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className={styles.paymentAmount}>
+                                      ₱{pmt.amount.toLocaleString("en-PH", {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
 
           {/* ── Location ── */}
           <div className={styles.card}>
@@ -953,36 +1136,29 @@ const EditProperty: React.FC = () => {
           {/* ── Photos ── */}
           <div className={styles.card}>
             <div className={styles.cardTitle}>Photos ({totalPhotos}/10)</div>
-
             <div className={styles.photoTip}>
               <span className={styles.photoTipIcon}>💡</span>
               <div>
                 <div className={styles.photoTipTitle}>Improve your chances of approval</div>
                 <div className={styles.photoTipBody}>
-                  Include clear photos of the actual property and supporting documents
-                  such as your <strong>business permit</strong> or{" "}
-                  <strong>barangay certificate</strong>. Listings with complete photos
-                  are reviewed faster and attract more inquiries.
+                  Include clear photos of the actual property and supporting documents such as your{" "}
+                  <strong>business permit</strong> or <strong>barangay certificate</strong>.
+                  Listings with complete photos are reviewed faster and attract more inquiries.
                 </div>
               </div>
             </div>
-
             <div className={styles.thumbnailNote}>
               🖼 The <strong>last photo uploaded</strong> will be used as the listing thumbnail.
             </div>
-
             {visibleExisting.length > 0 && (
               <div className={styles.existingImagesWrap}>
                 <p className={styles.existingImagesLabel}>Current photos — click to preview</p>
                 <div className={styles.imagePreviewGrid}>
                   {visibleExisting.map((img, idx) => (
                     <div key={img.id} className={styles.imagePreviewWrap}>
-                      <img
-                        src={img.imageUrl}
-                        alt="Existing"
+                      <img src={img.imageUrl} alt="Existing"
                         className={`${styles.imagePreview} ${styles.imagePreviewClickable}`}
-                        onClick={() => openLightbox(existingSrcs, idx)}
-                      />
+                        onClick={() => openLightbox(existingSrcs, idx)} />
                       <button type="button" className={styles.imagePreviewRemove}
                         onClick={(e) => { e.stopPropagation(); removeExistingImage(img.id); }}
                         aria-label="Remove image">✕</button>
@@ -991,7 +1167,6 @@ const EditProperty: React.FC = () => {
                 </div>
               </div>
             )}
-
             {totalPhotos < 10 && (
               <div
                 className={`${styles.imageUploadArea} ${dragOver ? styles.imageUploadAreaActive : ""}`}
@@ -1014,7 +1189,6 @@ const EditProperty: React.FC = () => {
                 </div>
               </div>
             )}
-
             {newImagePreviews.length > 0 && (
               <div className={styles.imagePreviewGrid} style={{ marginTop: "12px" }}>
                 {newImagePreviews.map((src, i) => (
@@ -1041,9 +1215,7 @@ const EditProperty: React.FC = () => {
               )}
             </div>
 
-            {requestsLoading && (
-              <div className={styles.requestsLoading}>Loading requests…</div>
-            )}
+            {requestsLoading && <div className={styles.requestsLoading}>Loading requests…</div>}
             {!requestsLoading && requestsError && (
               <div className={styles.requestsError}>⚠ {requestsError}</div>
             )}
@@ -1053,40 +1225,72 @@ const EditProperty: React.FC = () => {
                 <p>No rental requests yet for this property.</p>
               </div>
             )}
+
             {!requestsLoading && !requestsError && requests.length > 0 && (
-              <div className={styles.requestsList}>
-                {requests.map((req) => {
-                  const isPending = req.status === "PENDING";
+              <div className={styles.yearAccordionList}>
+                {requestYears.map((year) => {
+                  const yearReqs    = requestsByYear[year];
+                  const isOpen      = openRequestYears.has(year);
+                  const yearPending = yearReqs.filter((r) => r.status === "PENDING").length;
+
                   return (
-                    <div key={req.id} className={styles.requestRow}>
-                      <div className={styles.requestAvatar}>
-                        {req.tenantName?.charAt(0).toUpperCase()}
-                      </div>
-                      <div className={styles.requestInfo}>
-                        <div className={styles.requestName}>{req.tenantName}</div>
-                        <div className={styles.requestMeta}>
-                          <span>✉️ {req.tenantEmail}</span>
-                          <span>📅 Move in: {req.startDate}</span>
-                          <span>🗓 {req.leaseDurationMonths} month{req.leaseDurationMonths !== 1 ? "s" : ""}</span>
-                          <span>🕐 {timeAgo(req.createdAt)}</span>
-                        </div>
-                      </div>
-                      <div className={styles.requestRight}>
-                        <span
-                          className={styles.requestStatus}
-                          style={{ color: statusColor(req.status), borderColor: statusColor(req.status) }}
-                        >
-                          {req.status}
+                    <div key={year} className={styles.yearAccordion}>
+                      <button
+                        type="button"
+                        className={styles.yearAccordionHeader}
+                        onClick={() => toggleRequestYear(year)}
+                      >
+                        <span className={styles.yearAccordionChevron}>{isOpen ? "▾" : "▸"}</span>
+                        <span className={styles.yearAccordionLabel}>{year}</span>
+                        <span className={styles.yearAccordionMeta}>
+                          {yearReqs.length} request{yearReqs.length !== 1 ? "s" : ""}
+                          {yearPending > 0 && (
+                            <span style={{ color: "#b78e42" }}> · {yearPending} pending</span>
+                          )}
                         </span>
-                        {isPending && (
-                          <div className={styles.requestActions}>
-                            <button type="button" className={styles.requestRejectBtn}
-                              onClick={() => openAction(req, "REJECTED")}>✕ Reject</button>
-                            <button type="button" className={styles.requestApproveBtn}
-                              onClick={() => openAction(req, "APPROVED")}>✓ Approve</button>
+                      </button>
+
+                      {isOpen && (
+                        <div className={styles.yearAccordionBody}>
+                          <div className={styles.requestsList}>
+                            {yearReqs.map((req) => {
+                              const isPending = req.status === "PENDING";
+                              return (
+                                <div key={req.id} className={styles.requestRow}>
+                                  <div className={styles.requestAvatar}>
+                                    {req.tenantName?.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div className={styles.requestInfo}>
+                                    <div className={styles.requestName}>{req.tenantName}</div>
+                                    <div className={styles.requestMeta}>
+                                      <span>✉️ {req.tenantEmail}</span>
+                                      <span>📅 Move in: {req.startDate}</span>
+                                      <span>🗓 {req.leaseDurationMonths} month{req.leaseDurationMonths !== 1 ? "s" : ""}</span>
+                                      <span>🕐 {timeAgo(req.createdAt)}</span>
+                                    </div>
+                                  </div>
+                                  <div className={styles.requestRight}>
+                                    <span
+                                      className={styles.requestStatus}
+                                      style={{ color: statusColor(req.status), borderColor: statusColor(req.status) }}
+                                    >
+                                      {req.status}
+                                    </span>
+                                    {isPending && (
+                                      <div className={styles.requestActions}>
+                                        <button type="button" className={styles.requestRejectBtn}
+                                          onClick={() => openAction(req, "REJECTED")}>✕ Reject</button>
+                                        <button type="button" className={styles.requestApproveBtn}
+                                          onClick={() => openAction(req, "APPROVED")}>✓ Approve</button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

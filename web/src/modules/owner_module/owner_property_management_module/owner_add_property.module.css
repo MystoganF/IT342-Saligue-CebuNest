@@ -1518,3 +1518,219 @@
   .activeTenantActions { flex-direction: column; }
   .leaseTerminateBtn   { margin-left: 0; }
 }
+
+/* ─────────────────────────────────────
+   YEAR ACCORDION (Rental Requests & Payment History)
+   Append these to owner_add_property.module.css
+───────────────────────────────────── */
+
+.yearAccordionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.yearAccordion {
+  border: 1.5px solid #e5eced;
+  border-radius: 14px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.yearAccordion:has(.yearAccordionHeader:hover) {
+  border-color: rgba(83, 164, 163, 0.4);
+}
+
+.yearAccordionHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  background: #f8fafb;
+  border: none;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.yearAccordionHeader:hover {
+  background: #f0f6f7;
+}
+
+.yearAccordionChevron {
+  font-size: 14px;
+  color: #1f5d71;
+  width: 16px;
+  flex-shrink: 0;
+  transition: transform 0.2s;
+  line-height: 1;
+}
+
+.yearAccordionLabel {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1f5d71;
+  letter-spacing: 0.5px;
+  min-width: 42px;
+}
+
+.yearAccordionMeta {
+  font-size: 12px;
+  color: #6e7071;
+  font-weight: 500;
+  flex: 1;
+}
+
+.yearAccordionBody {
+  padding: 12px 14px;
+  border-top: 1px solid #f0f4f5;
+  background: #fff;
+  animation: accordionOpen 0.18s ease both;
+}
+
+@keyframes accordionOpen {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─────────────────────────────────────
+   PAYMENT HISTORY
+───────────────────────────────────── */
+
+/* Overdue badge in card title */
+.overduesBadge {
+  margin-left: 10px;
+  background: #c0392b;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  vertical-align: middle;
+}
+
+/* Summary strip */
+.paymentSummaryStrip {
+  display: flex;
+  align-items: center;
+  background: #f8fafb;
+  border: 1.5px solid #e5eced;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.paymentSummaryItem {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 8px;
+  gap: 3px;
+}
+
+.paymentSummaryValue {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1a2a2e;
+  line-height: 1;
+}
+
+.paymentSummaryLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: #6e7071;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.paymentSummarySep {
+  width: 1px;
+  height: 36px;
+  background: #e5eced;
+  flex-shrink: 0;
+}
+
+/* Individual payment row */
+.paymentRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border: 1.5px solid #e5eced;
+  border-radius: 11px;
+  margin-bottom: 8px;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.paymentRow:last-child {
+  margin-bottom: 0;
+}
+
+.paymentRow:hover {
+  box-shadow: 0 2px 8px rgba(31, 93, 113, 0.08);
+}
+
+.paymentStatusBubble {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.paymentInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.paymentTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a2a2e;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.paymentStatusChip {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  border: 1px solid;
+  letter-spacing: 0.4px;
+}
+
+.paymentMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+  color: #6e7071;
+}
+
+.paymentAmount {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1f5d71;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .paymentSummaryStrip { flex-wrap: wrap; }
+  .paymentSummarySep   { display: none; }
+  .paymentSummaryItem  { flex: 1 1 40%; border-bottom: 1px solid #e5eced; }
+
+  .yearAccordionMeta { display: none; }
+}
