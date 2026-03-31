@@ -25,8 +25,6 @@ public class PayMongoService {
     @Value("${paymongo.frontend-url:http://localhost:5173}")
     private String frontendUrl;
 
-    @Value("${paymongo.cancel-url:http://localhost:5173/my-rentals?payment=cancelled}")
-    private String cancelUrl;
 
     private static final String BASE_URL = "https://api.paymongo.com/v1";
     private final RestTemplate restTemplate = new RestTemplate();
@@ -63,6 +61,11 @@ public class PayMongoService {
                 + "/my-rentals/" + requestId
                 + "?payment_id=" + paymentId
                 + "&payment=success";
+
+        String cancelUrl = frontendUrl
+                + "/my-rentals/" + requestId
+                + "?payment_id=" + paymentId
+                + "&payment=cancelled";
 
         Map<String, Object> attributes = new HashMap<>();
         attributes.put("send_email_receipt", true);
@@ -128,6 +131,15 @@ public class PayMongoService {
             Map<?, ?> data       = (Map<?, ?>) response.getBody().get("data");
             Map<?, ?> attributes = (Map<?, ?>) data.get("attributes");
 
+            // ── Check session-level status first ──────────────────────────
+            // expired = source timed out (GCash/PayMaya auth abandoned)
+            // active  = still open in browser
+            String sessionStatus = (String) attributes.get("status");
+            if ("expired".equals(sessionStatus)) {
+                return "expired"; // treat same as unpaid — caller will create fresh session
+            }
+
+            // ── Check if any payment inside the session is paid ───────────
             List<Map<?, ?>> payments = (List<Map<?, ?>>) attributes.get("payments");
             if (payments != null) {
                 for (Map<?, ?> payment : payments) {

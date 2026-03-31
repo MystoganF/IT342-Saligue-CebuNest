@@ -87,8 +87,7 @@ public class RentalPaymentService {
         if (payment.getStatus() == RentalPayment.PaymentStatus.PAID)
             throw new IllegalArgumentException("This payment is already paid.");
 
-        // ── Guard: enforce sequential payments ────────────────────────────
-        // All installments with a lower number must be PAID before this one can be initiated.
+        // ── Sequential guard ───────────────────────────────────────────────
         Long requestId = payment.getRentalRequest().getId();
         List<RentalPayment> allPayments =
                 rentalPaymentRepository.findByRentalRequestIdOrderByInstallmentNumberAsc(requestId);
@@ -97,25 +96,40 @@ public class RentalPaymentService {
             if (p.getInstallmentNumber() < payment.getInstallmentNumber()
                     && p.getStatus() != RentalPayment.PaymentStatus.PAID) {
                 throw new IllegalArgumentException(
-                        "You must pay month " + p.getInstallmentNumber() + " before paying month "
-                                + payment.getInstallmentNumber() + ".");
+                        "You must pay month " + p.getInstallmentNumber()
+                                + " before paying month " + payment.getInstallmentNumber() + ".");
             }
         }
-        // ─────────────────────────────────────────────────────────────────
 
+        // ── Stale session check ────────────────────────────────────────────
+        // If a previous checkout session exists, verify it with PayMongo.
+        // "paid"    → mark PAID here (edge case: paid outside our flow) and return.
+        // anything else → clear it so we create a fresh session below.
+        if (payment.getPaymongoPaymentId() != null) {
+            String existingStatus = payMongoService.getPaymentLinkStatus(payment.getPaymongoPaymentId());
+            if ("paid".equals(existingStatus)) {
+                payment.setStatus(RentalPayment.PaymentStatus.PAID);
+                payment.setPaidAt(LocalDate.now());
+                rentalPaymentRepository.save(payment);
+                return RentalPaymentDTO.from(payment);
+            }
+            // unpaid / expired / cancelled — discard the stale session
+            payment.setPaymongoPaymentId(null);
+            payment.setCheckoutUrl(null);
+        }
+
+        // ── Create fresh PayMongo checkout session ─────────────────────────
         String propertyTitle = payment.getRentalRequest().getProperty().getTitle();
+        String description   = "Monthly rent #" + payment.getInstallmentNumber() + " – " + propertyTitle;
+        // Append timestamp so the reference is unique on every retry
+        String referenceId   = "payment-" + payment.getId() + "-" + System.currentTimeMillis();
 
-        String description = "Monthly rent #" + payment.getInstallmentNumber() + " – " + propertyTitle;
-        String referenceId = "payment-" + payment.getId();
-
-        // FIX: pass requestId (not propertyId) so PayMongo redirects to
-        // /my-rentals/:requestId where the frontend auto-verifies the payment.
         Map<String, String> result = payMongoService.createPaymentLink(
                 payment.getAmount(),
                 description,
                 referenceId,
                 payment.getId(),
-                requestId          // ← was: payment.getRentalRequest().getProperty().getId()
+                requestId
         );
 
         payment.setCheckoutUrl(result.get("checkoutUrl"));
@@ -193,5 +207,25 @@ public class RentalPaymentService {
 
         pending.forEach(p -> p.setStatus(RentalPayment.PaymentStatus.OVERDUE));
         rentalPaymentRepository.saveAll(pending);
+    }
+
+
+    @Transactional
+    public RentalPaymentDTO cancelPayment(Long paymentId, User tenant) {
+        RentalPayment payment = rentalPaymentRepository.findById(paymentId)
+                .orElseThrow(() -> new IllegalArgumentException("Payment not found."));
+
+        if (!payment.getRentalRequest().getTenant().getId().equals(tenant.getId()))
+            throw new IllegalArgumentException("This is not your payment.");
+
+        if (payment.getStatus() == RentalPayment.PaymentStatus.PAID)
+            return RentalPaymentDTO.from(payment); // already paid — no-op
+
+        payment.setPaymongoPaymentId(null);
+        payment.setCheckoutUrl(null);
+        // Status stays PENDING or OVERDUE — tenant can retry
+        rentalPaymentRepository.save(payment);
+
+        return RentalPaymentDTO.from(payment);
     }
 }

@@ -84,6 +84,25 @@ public class RentalPaymentController {
         return doVerify(id, currentUser);
     }
 
+
+    @GetMapping("/{id}/cancel")
+    public ResponseEntity<?> cancelPayment(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+        try {
+            RentalPaymentDTO payment = rentalPaymentService.cancelPayment(id, currentUser);
+            return buildSuccess(Map.of("payment", payment));
+        } catch (IllegalArgumentException e) {
+            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     private ResponseEntity<?> doVerify(Long id, User currentUser) {
         if (currentUser == null)
             return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);

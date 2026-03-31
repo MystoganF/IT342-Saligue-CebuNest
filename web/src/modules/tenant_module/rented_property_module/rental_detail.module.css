@@ -519,7 +519,7 @@
 .paymentRowPaid   { background: rgba(26, 122, 74, 0.03); }
 .paymentRowNext   { background: rgba(83, 164, 163, 0.04); }
 .paymentRowLocked { opacity: 0.5; }
-.paymentRowOverdue { /* border handled by badge */ }
+
 
 /* Left side */
 .paymentRowLeft {
