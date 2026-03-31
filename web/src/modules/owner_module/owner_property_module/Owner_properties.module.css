@@ -477,3 +477,23 @@
   .filterBar { flex-direction: column; align-items: stretch; }
   .filterPrice { width: 100%; }
 }
+
+.badgeOccupied { background: rgba(31, 93, 113, 0.88); color: #fff; }
+
+.modalTenantWarning {
+  font-size: 13px;
+  font-weight: 600;
+  color: #92600a;
+  background: #fef9ec;
+  border: 1px solid #f6d860;
+  border-radius: 8px;
+  padding: 8px 12px;
+  width: 100%;
+  text-align: left;
+}
+
+.modalDeleteError {
+  color: #c0392b;
+  font-size: 13px;
+  font-weight: 600;
+}

@@ -31,6 +31,7 @@ public class PropertyDTO {
     private String  ownerName;
     private List<ImageDTO> images;
     private String  createdAt;
+    private boolean hasActiveTenant;
 
     private String ownerFacebookUrl;
     private String ownerInstagramUrl;

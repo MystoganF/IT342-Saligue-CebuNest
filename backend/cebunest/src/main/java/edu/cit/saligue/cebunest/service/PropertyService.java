@@ -47,7 +47,14 @@ public class PropertyService {
             User owner, String search, Double minPrice, Double maxPrice) {
         String cleanSearch = blank(search) ? null : search.trim();
         return propertyRepository.findByOwnerFiltered(owner.getId(), cleanSearch, minPrice, maxPrice)
-                .stream().map(PropertyDTO::from).toList();
+                .stream().map(p -> {
+                    PropertyDTO dto = PropertyDTO.from(p);
+                    boolean hasActiveTenant = rentalRequestRepository
+                            .findByPropertyIdAndStatus(p.getId(), RentalRequest.RentalStatus.CONFIRMED)
+                            .isPresent();
+                    dto.setHasActiveTenant(hasActiveTenant);
+                    return dto;
+                }).toList();
     }
 
     // ── All property types ───────────────────────────────────────────────
@@ -171,6 +178,16 @@ public class PropertyService {
 
         if (!property.getOwner().getId().equals(owner.getId()))
             throw new IllegalArgumentException("You do not own this property.");
+
+        // NEW: block delete if there's an active tenant
+        rentalRequestRepository
+                .findByPropertyIdAndStatus(propertyId, RentalRequest.RentalStatus.CONFIRMED)
+                .ifPresent(r -> {
+                    throw new IllegalArgumentException(
+                            "Cannot delete this property while it has an active tenant. " +
+                                    "Please end the lease first before deleting."
+                    );
+                });
 
         propertyRepository.delete(property);
     }
