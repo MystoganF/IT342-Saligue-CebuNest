@@ -23,15 +23,14 @@ public class RentalPaymentService {
     private final PropertyRepository       propertyRepository;
     private final PayMongoService          payMongoService;
     private final EmailService             emailService;
+    private final NotificationService      notificationService;   // ← ADDED
 
-    // ── Helper: Authorize Tenant OR Owner ────────────────────────────────────
+    // ── Helper: Authorize Tenant OR Owner ────────────────────────────────
     private void authorizeTenantOrOwner(RentalRequest request, User currentUser) {
         boolean isTenant = request.getTenant().getId().equals(currentUser.getId());
-        boolean isOwner = request.getProperty().getOwner().getId().equals(currentUser.getId());
-
-        if (!isTenant && !isOwner) {
+        boolean isOwner  = request.getProperty().getOwner().getId().equals(currentUser.getId());
+        if (!isTenant && !isOwner)
             throw new IllegalArgumentException("Not authorized. You must be the tenant or the property owner.");
-        }
     }
 
     // ── Step 1: Tenant confirms approval (always MONTHLY) ────────────────
@@ -40,7 +39,6 @@ public class RentalPaymentService {
         RentalRequest request = rentalRequestRepository.findById(requestId)
                 .orElseThrow(() -> new IllegalArgumentException("Rental request not found."));
 
-        // Keep this strict: Only the tenant can confirm their own lease
         if (!request.getTenant().getId().equals(tenant.getId()))
             throw new IllegalArgumentException("This is not your rental request. Only the tenant can confirm.");
 
@@ -50,18 +48,23 @@ public class RentalPaymentService {
         if (rentalPaymentRepository.existsByRentalRequestId(requestId))
             throw new IllegalArgumentException("Payment schedule already generated.");
 
-        // 1. Mark the request as CONFIRMED
         request.setStatus(RentalRequest.RentalStatus.CONFIRMED);
         request.setPaymentPlan("MONTHLY");
         rentalRequestRepository.save(request);
 
-        // 2. Mark the property as UNAVAILABLE
         Property property = request.getProperty();
         property.setStatus(Property.PropertyStatus.UNAVAILABLE);
         propertyRepository.save(property);
 
-        // 3. Generate monthly payment schedule
         generatePaymentSchedule(request);
+
+        // ── Notify owner that tenant confirmed ────────────────────────────
+        notificationService.send(
+                property.getOwner(),
+                "RENTAL_CONFIRMED",
+                request.getTenant().getName() + " has confirmed their rental for \"" + property.getTitle() + "\". The lease is now active.",
+                request.getId()
+        );
 
         return RentalRequestDTO.from(request);
     }
@@ -97,8 +100,8 @@ public class RentalPaymentService {
         if (payment.getStatus() == RentalPayment.PaymentStatus.PAID)
             throw new IllegalArgumentException("This payment is already paid.");
 
-        // ── Sequential guard ───────────────────────────────────────────────
-        Long requestId = payment.getRentalRequest().getId();
+        // ── Sequential guard ──────────────────────────────────────────────
+        Long requestId   = payment.getRentalRequest().getId();
         List<RentalPayment> allPayments =
                 rentalPaymentRepository.findByRentalRequestIdOrderByInstallmentNumberAsc(requestId);
 
@@ -111,7 +114,7 @@ public class RentalPaymentService {
             }
         }
 
-        // ── Stale session check ────────────────────────────────────────────
+        // ── Stale session check ───────────────────────────────────────────
         if (payment.getPaymongoPaymentId() != null) {
             String existingStatus = payMongoService.getPaymentLinkStatus(payment.getPaymongoPaymentId());
             if ("paid".equals(existingStatus)) {
@@ -124,7 +127,7 @@ public class RentalPaymentService {
             payment.setCheckoutUrl(null);
         }
 
-        // ── Create fresh PayMongo checkout session ─────────────────────────
+        // ── Create fresh PayMongo checkout session ────────────────────────
         String propertyTitle = payment.getRentalRequest().getProperty().getTitle();
         String description   = "Monthly rent #" + payment.getInstallmentNumber() + " – " + propertyTitle;
         String referenceId   = "payment-" + payment.getId() + "-" + System.currentTimeMillis();
@@ -155,7 +158,6 @@ public class RentalPaymentService {
         if (payment.getPaymongoPaymentId() == null)
             throw new IllegalArgumentException("No payment link found. Initiate payment first.");
 
-        // Already paid — return immediately (idempotent)
         if (payment.getStatus() == RentalPayment.PaymentStatus.PAID)
             return RentalPaymentDTO.from(payment);
 
@@ -166,12 +168,13 @@ public class RentalPaymentService {
             payment.setPaidAt(LocalDate.now());
             rentalPaymentRepository.save(payment);
 
-            // Send confirmation email
-            String tenantEmail = payment.getRentalRequest().getTenant().getEmail();
-            String tenantName  = payment.getRentalRequest().getTenant().getName();
-            String propTitle   = payment.getRentalRequest().getProperty().getTitle();
-            String instLabel   = "Monthly payment #" + payment.getInstallmentNumber();
+            RentalRequest rental    = payment.getRentalRequest();
+            String tenantEmail      = rental.getTenant().getEmail();
+            String tenantName       = rental.getTenant().getName();
+            String propTitle        = rental.getProperty().getTitle();
+            String instLabel        = "Monthly payment #" + payment.getInstallmentNumber();
 
+            // ── Email tenant ──────────────────────────────────────────────
             emailService.sendEmail(tenantEmail,
                     "CebuNest – Payment Confirmed ✓",
                     "Hi " + tenantName + ",\n\n" +
@@ -181,12 +184,22 @@ public class RentalPaymentService {
                             "Amount: ₱" + String.format("%.2f", payment.getAmount()) + "\n" +
                             "Date: " + payment.getPaidAt() + "\n\n" +
                             "Thank you!\n— CebuNest Team");
+
+            // ── Notify owner that payment was received ────────────────────
+            notificationService.send(
+                    rental.getProperty().getOwner(),
+                    "PAYMENT_RECEIVED",
+                    tenantName + " paid month " + payment.getInstallmentNumber()
+                            + " (₱" + String.format("%.0f", payment.getAmount()) + ") for \""
+                            + propTitle + "\".",
+                    rental.getId()
+            );
         }
 
         return RentalPaymentDTO.from(payment);
     }
 
-    // ── Get payments for a rental request (FIXED for Owner access) ────────
+    // ── Get payments for a rental request ────────────────────────────────
     @Transactional(readOnly = true)
     public List<RentalPaymentDTO> getPaymentsForRequest(Long requestId, User currentUser) {
         RentalRequest request = rentalRequestRepository.findById(requestId)
@@ -221,7 +234,7 @@ public class RentalPaymentService {
         authorizeTenantOrOwner(payment.getRentalRequest(), currentUser);
 
         if (payment.getStatus() == RentalPayment.PaymentStatus.PAID)
-            return RentalPaymentDTO.from(payment); // already paid — no-op
+            return RentalPaymentDTO.from(payment);
 
         payment.setPaymongoPaymentId(null);
         payment.setCheckoutUrl(null);
