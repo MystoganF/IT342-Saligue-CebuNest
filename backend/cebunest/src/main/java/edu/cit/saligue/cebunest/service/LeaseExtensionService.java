@@ -21,6 +21,7 @@ public class LeaseExtensionService {
     private final NotificationService             notificationService;
     private final EmailService                    emailService;
 
+
     // ── Tenant: submit an extension request ─────────────────────────────
     @Transactional
     public LeaseExtensionRequestDTO requestExtension(Long rentalRequestId,
@@ -29,6 +30,7 @@ public class LeaseExtensionService {
                                                      User tenant) {
         RentalRequest rental = rentalRequestRepository.findById(rentalRequestId)
                 .orElseThrow(() -> new IllegalArgumentException("Rental request not found."));
+        Long propertyId = rental.getProperty().getId();   // ← add this line
 
         if (!rental.getTenant().getId().equals(tenant.getId()))
             throw new IllegalArgumentException("This is not your rental.");
@@ -62,7 +64,8 @@ public class LeaseExtensionService {
                 rental.getProperty().getOwner(),
                 "EXTENSION_REQUESTED",
                 tenantName + " has requested a " + months + "-month lease extension for \"" + propTitle + "\".",
-                rental.getId()
+                rental.getId(),
+                propertyId
         );
 
         emailService.sendEmail(
@@ -79,7 +82,8 @@ public class LeaseExtensionService {
                 tenant,
                 "EXTENSION_PENDING",
                 "Your lease extension request of " + months + " month(s) for \"" + propTitle + "\" has been sent to the owner.",
-                rental.getId()
+                rental.getId(),
+                propertyId
         );
 
         return LeaseExtensionRequestDTO.from(saved);
@@ -90,8 +94,11 @@ public class LeaseExtensionService {
     public LeaseExtensionRequestDTO respondToExtension(Long extensionId,
                                                        String decision,
                                                        User owner) {
+
+
         LeaseExtensionRequest ext = extensionRepository.findById(extensionId)
                 .orElseThrow(() -> new IllegalArgumentException("Extension request not found."));
+
 
         if (!ext.getRentalRequest().getProperty().getOwner().getId().equals(owner.getId()))
             throw new IllegalArgumentException("You do not own this property.");
@@ -111,6 +118,7 @@ public class LeaseExtensionService {
         String propTitle       = rental.getProperty().getTitle();
         String tenantName      = rental.getTenant().getName();
         int    months          = ext.getRequestedMonths();
+        Long propertyId = rental.getProperty().getId();
 
         if (newStatus == LeaseExtensionRequest.ExtensionStatus.APPROVED) {
             // Apply the extension — reuse existing lease update logic directly
@@ -122,7 +130,8 @@ public class LeaseExtensionService {
                     rental.getTenant(),
                     "EXTENSION_APPROVED",
                     "🎉 Your lease extension of " + months + " month(s) for \"" + propTitle + "\" was approved! New total: " + newDuration + " month(s).",
-                    rental.getId()
+                    rental.getId(),
+                    propertyId
             );
 
             emailService.sendEmail(
@@ -138,7 +147,8 @@ public class LeaseExtensionService {
                     rental.getTenant(),
                     "EXTENSION_REJECTED",
                     "Your lease extension request of " + months + " month(s) for \"" + propTitle + "\" was not approved.",
-                    rental.getId()
+                    rental.getId(),
+                    propertyId
             );
 
             emailService.sendEmail(

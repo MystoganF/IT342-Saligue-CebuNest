@@ -5,8 +5,6 @@ import logo from "../../assets/images/cebunest-logo.png";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
-// ─── types ─────────────────────────────────────────────────────────────────
-
 interface NavUser {
   id: number;
   name: string;
@@ -26,11 +24,10 @@ interface AppNotification {
   type: string;
   message: string;
   rentalRequestId: number | null;
+  propertyId: number | null;
   read: boolean;
   createdAt: string;
 }
-
-// ─── helpers ───────────────────────────────────────────────────────────────
 
 function timeAgo(isoStr: string): string {
   const diff  = Date.now() - new Date(isoStr).getTime();
@@ -54,8 +51,6 @@ function notifIcon(type: string): string {
   return "🔔";
 }
 
-// ─── component ─────────────────────────────────────────────────────────────
-
 const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -71,7 +66,6 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef    = useRef<HTMLDivElement>(null);
 
-  // ── Close on outside click ──────────────────────────────────────────
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node))
@@ -83,7 +77,6 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // ── Fetch notifications ─────────────────────────────────────────────
   const fetchNotifications = useCallback(async () => {
     const token = localStorage.getItem("accessToken");
     if (!token) return;
@@ -109,7 +102,6 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
     if (notifOpen) fetchNotifications();
   }, [notifOpen, fetchNotifications]);
 
-  // ── Mark one as read + navigate ─────────────────────────────────────
   const markRead = async (notif: AppNotification) => {
     if (!notif.read) {
       const token = localStorage.getItem("accessToken");
@@ -124,17 +116,13 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
       } catch { /* silent */ }
     }
     setNotifOpen(false);
-
-    // Owner notifications link to the property edit page via rentalRequestId
-    // For PROPERTY_APPROVED/REJECTED there's no rental — go to dashboard
-    if (notif.rentalRequestId) {
-      navigate(`/owner/properties`);
+    if (notif.propertyId) {
+      navigate(`/owner/properties/${notif.propertyId}/edit`);
     } else {
       navigate("/owner/dashboard");
     }
   };
 
-  // ── Mark all as read ────────────────────────────────────────────────
   const markAllRead = async () => {
     const token = localStorage.getItem("accessToken");
     setMarkingAll(true);
@@ -149,7 +137,6 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
     }
   };
 
-  // ── Logout ──────────────────────────────────────────────────────────
   const confirmLogout = () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
@@ -174,14 +161,12 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
       <nav className={styles.navbar}>
         <div className={styles.inner}>
 
-          {/* ── Brand ── */}
           <a href="/owner/dashboard" className={styles.brand}>
             <img src={logo} alt="CebuNest" className={styles.brandLogo} />
             <span className={styles.brandName}>CebuNest</span>
             <span className={styles.brandPill}>Owner</span>
           </a>
 
-          {/* ── Nav Links ── */}
           <div className={styles.navLinks}>
             <a href="/owner/dashboard" className={`${styles.navLink} ${isActive("/owner/dashboard")}`}>
               <span className={styles.navLinkIcon}>📊</span>Dashboard
@@ -191,15 +176,11 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
             </a>
           </div>
 
-          {/* ── Right Actions ── */}
           <div className={styles.actions}>
-
-            {/* Quick add */}
             <button className={styles.addBtn} onClick={onAddProperty} type="button">
               + Add Property
             </button>
 
-            {/* ── Notification Bell ── */}
             <div className={styles.notifWrap} ref={notifRef}>
               <button
                 className={`${styles.notifBtn} ${notifOpen ? styles.notifBtnActive : ""}`}
@@ -283,7 +264,6 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
               )}
             </div>
 
-            {/* ── Profile Dropdown ── */}
             <div className={styles.profileWrap} ref={dropdownRef}>
               <button
                 className={styles.profileBtn}
@@ -323,12 +303,10 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
                 </div>
               )}
             </div>
-
           </div>
         </div>
       </nav>
 
-      {/* ── Logout Modal ── */}
       {showLogoutModal && (
         <div className={styles.modalOverlay} onClick={() => setShowLogoutModal(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>

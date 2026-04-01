@@ -16,6 +16,7 @@ public class NotificationDTO {
     private String  type;
     private String  message;
     private Long    rentalRequestId;
+    private Long    propertyId;          // ← NEW
     @JsonProperty("read")
     private boolean read;
     private String  createdAt;
@@ -26,6 +27,7 @@ public class NotificationDTO {
                 .type(n.getType())
                 .message(n.getMessage())
                 .rentalRequestId(n.getRentalRequestId())
+                .propertyId(n.getPropertyId())   // ← NEW
                 .read(n.isRead())
                 .createdAt(n.getCreatedAt() != null
                         ? n.getCreatedAt().format(DateTimeFormatter.ISO_DATE_TIME)

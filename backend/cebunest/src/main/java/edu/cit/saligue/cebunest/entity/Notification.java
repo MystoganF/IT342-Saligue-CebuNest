@@ -40,4 +40,7 @@ public class Notification {
     @Builder.Default
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @Column(name = "property_id")
+    private Long propertyId;
 }

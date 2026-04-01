@@ -16,28 +16,25 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
 
-    // ── Called internally by other services ─────────────────────────────
-
-    /**
-     * Create and persist a notification for a user.
-     *
-     * @param user            recipient
-     * @param type            e.g. "REQUEST_APPROVED"
-     * @param message         human-readable message shown in the bell dropdown
-     * @param rentalRequestId the request this links to (may be null)
-     */
+    // ── Primary send — with propertyId ──────────────────────────────────
     @Transactional
-    public void send(User user, String type, String message, Long rentalRequestId) {
+    public void send(User user, String type, String message,
+                     Long rentalRequestId, Long propertyId) {
         Notification notification = Notification.builder()
                 .user(user)
                 .type(type)
                 .message(message)
                 .rentalRequestId(rentalRequestId)
+                .propertyId(propertyId)
                 .build();
         notificationRepository.save(notification);
     }
 
-    // ── Tenant: fetch their notifications ───────────────────────────────
+    // ── Legacy overload — backward compat, propertyId = null ────────────
+    @Transactional
+    public void send(User user, String type, String message, Long rentalRequestId) {
+        send(user, type, message, rentalRequestId, null);
+    }
 
     @Transactional(readOnly = true)
     public List<NotificationDTO> getForUser(User user) {
@@ -48,21 +45,15 @@ public class NotificationService {
                 .toList();
     }
 
-    // ── Tenant: mark one as read ─────────────────────────────────────────
-
     @Transactional
     public NotificationDTO markRead(Long notificationId, User user) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new IllegalArgumentException("Notification not found."));
-
         if (!notification.getUser().getId().equals(user.getId()))
             throw new IllegalArgumentException("Not your notification.");
-
         notification.setRead(true);
         return NotificationDTO.from(notificationRepository.save(notification));
     }
-
-    // ── Tenant: mark all as read ─────────────────────────────────────────
 
     @Transactional
     public void markAllRead(User user) {

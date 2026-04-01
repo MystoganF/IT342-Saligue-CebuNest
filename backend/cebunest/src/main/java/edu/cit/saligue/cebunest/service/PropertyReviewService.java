@@ -59,7 +59,8 @@ public class PropertyReviewService {
                 rental.getProperty().getOwner(),
                 "NEW_REVIEW",
                 tenantName + " left a " + dto.getRating() + "-star review " + stars + " for \"" + propTitle + "\".",
-                rental.getId()
+                rental.getId(),
+                rental.getProperty().getId()
         );
 
         return PropertyReviewDTO.from(saved);

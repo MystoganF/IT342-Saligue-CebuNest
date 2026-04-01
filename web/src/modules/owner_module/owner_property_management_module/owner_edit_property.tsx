@@ -42,7 +42,7 @@ interface RentalRequest {
 }
 
 interface ActiveTenant {
-  id: number;          // rental request id
+  id: number;
   tenantId: number;
   tenantName: string;
   tenantEmail: string;
@@ -61,6 +61,24 @@ interface RentalPayment {
   status: string;
   checkoutUrl: string | null;
   paymongoPaymentId: string | null;
+  createdAt: string;
+}
+
+interface LeaseExtension {
+  id: number;
+  requestedMonths: number;
+  reason: string | null;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  createdAt: string;
+}
+
+interface PropertyReview {
+  id: number;
+  tenantId: number;
+  tenantName: string;
+  tenantAvatarUrl: string | null;
+  rating: number;
+  comment: string | null;
   createdAt: string;
 }
 
@@ -146,6 +164,13 @@ function getYear(dateStr: string): string {
   return new Date(dateStr).getFullYear().toString();
 }
 
+function formatDate(d: string) {
+  if (!d) return "—";
+  return new Date(d).toLocaleDateString("en-PH", {
+    year: "numeric", month: "short", day: "numeric",
+  });
+}
+
 // ─── component ─────────────────────────────────────────────────────────────
 
 const EditProperty: React.FC = () => {
@@ -217,6 +242,17 @@ const EditProperty: React.FC = () => {
   const [leaseSubmitting, setLeaseSubmitting] = useState(false);
   const [leaseError, setLeaseError]           = useState<string | null>(null);
   const [leaseSuccess, setLeaseSuccess]       = useState<string | null>(null);
+
+  // ── Lease extension requests (from tenant) ─────────────────────────────
+  const [leaseExtensions, setLeaseExtensions]         = useState<LeaseExtension[]>([]);
+  const [leaseExtLoading, setLeaseExtLoading]         = useState(false);
+  const [extActionId, setExtActionId]                 = useState<number | null>(null);
+  const [extActionSubmitting, setExtActionSubmitting] = useState(false);
+  const [extActionError, setExtActionError]           = useState<string | null>(null);
+
+  // ── Property reviews ───────────────────────────────────────────────────
+  const [reviews, setReviews]           = useState<PropertyReview[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   // ── Submit ─────────────────────────────────────────────────────────────
   const [submitting, setSubmitting] = useState(false);
@@ -292,7 +328,6 @@ const EditProperty: React.FC = () => {
         if (data.success) {
           const reqs: RentalRequest[] = data.data.requests ?? [];
           setRequests(reqs);
-          // Auto-open the most recent year
           if (reqs.length > 0) {
             const latestYear = getYear(reqs[0].createdAt);
             setOpenRequestYears(new Set([latestYear]));
@@ -352,7 +387,6 @@ const EditProperty: React.FC = () => {
         if (data.success) {
           const pmts: RentalPayment[] = data.data.payments ?? [];
           setPayments(pmts);
-          // Auto-open the year with the first unpaid/overdue payment, or most recent year
           const firstUnpaid = pmts.find(
             (p) => p.status === "PENDING" || p.status === "OVERDUE"
           );
@@ -369,6 +403,38 @@ const EditProperty: React.FC = () => {
       .catch(() => setPaymentsError("Unable to load payment history."))
       .finally(() => setPaymentsLoading(false));
   }, [activeTenant]);
+
+  // ── Load lease extension requests ─────────────────────────────────────
+  useEffect(() => {
+    if (!activeTenant) { setLeaseExtensions([]); return; }
+    const token = localStorage.getItem("accessToken");
+    setLeaseExtLoading(true);
+    fetch(`${API_BASE}/api/lease-extensions/rental/${activeTenant.id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) setLeaseExtensions(data.data.extensionRequests ?? []);
+      })
+      .catch(() => {})
+      .finally(() => setLeaseExtLoading(false));
+  }, [activeTenant]);
+
+  // ── Load property reviews ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!id) return;
+    const token = localStorage.getItem("accessToken");
+    setReviewsLoading(true);
+    fetch(`${API_BASE}/api/property-reviews/property/${id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success) setReviews(data.data.reviews ?? []);
+      })
+      .catch(() => {})
+      .finally(() => setReviewsLoading(false));
+  }, [id]);
 
   // ── Keyboard lightbox nav ──────────────────────────────────────────────
   useEffect(() => {
@@ -500,6 +566,7 @@ const EditProperty: React.FC = () => {
         if (!res.ok || !data.success) { setLeaseError(data?.error?.message ?? "Failed to terminate lease."); return; }
         setActiveTenant(null);
         setPayments([]);
+        setLeaseExtensions([]);
         setStatus("AVAILABLE");
         setCurrentStatus("AVAILABLE");
         setLeaseSuccess("Lease terminated. Property is now available.");
@@ -530,6 +597,46 @@ const EditProperty: React.FC = () => {
       setLeaseError("Network error. Please try again.");
     } finally {
       setLeaseSubmitting(false);
+    }
+  };
+
+  // ── Respond to lease extension request ────────────────────────────────
+  const handleExtensionRespond = async (extensionId: number, decision: "APPROVED" | "REJECTED") => {
+    setExtActionId(extensionId);
+    setExtActionSubmitting(true);
+    setExtActionError(null);
+    const token = localStorage.getItem("accessToken");
+    try {
+      const res = await fetch(`${API_BASE}/api/lease-extensions/${extensionId}/respond`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ decision }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setExtActionError(data?.error?.message ?? "Action failed.");
+        return;
+      }
+      // Find the extension before updating state (needed for month count)
+      const approved = leaseExtensions.find((e) => e.id === extensionId);
+      // Update extension status in list
+      setLeaseExtensions((prev) =>
+        prev.map((e) => e.id === extensionId ? { ...e, status: decision } : e)
+      );
+      // If approved, update active tenant duration
+      if (decision === "APPROVED" && approved) {
+        setActiveTenant((prev) =>
+          prev ? { ...prev, leaseDurationMonths: prev.leaseDurationMonths + approved.requestedMonths } : prev
+        );
+      }
+    } catch {
+      setExtActionError("Network error. Please try again.");
+    } finally {
+      setExtActionSubmitting(false);
+      setExtActionId(null);
     }
   };
 
@@ -601,23 +708,24 @@ const EditProperty: React.FC = () => {
   const totalPhotos     = visibleExisting.length + newImageFiles.length;
   const existingSrcs    = visibleExisting.map((img) => img.imageUrl);
   const pendingCount    = requests.filter((r) => r.status === "PENDING").length;
+  const pendingExtensions = leaseExtensions.filter((e) => e.status === "PENDING");
 
-  // Group rental requests by year (most recent first)
+  const avgRating = reviews.length > 0
+    ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
+    : null;
+
   const requestsByYear = groupBy(requests, (r) => getYear(r.createdAt));
   const requestYears   = Object.keys(requestsByYear).sort((a, b) => Number(b) - Number(a));
 
-  // Group payments by year of dueDate (most recent first)
   const paymentsByYear = groupBy(payments, (p) => getYear(p.dueDate));
   const paymentYears   = Object.keys(paymentsByYear).sort((a, b) => Number(b) - Number(a));
 
-  // Payment summary stats
   const paidCount    = payments.filter((p) => p.status === "PAID").length;
   const overdueCount = payments.filter((p) => p.status === "OVERDUE").length;
   const totalPaid    = payments
     .filter((p) => p.status === "PAID")
     .reduce((s, p) => s + p.amount, 0);
 
-  // ── Loading / error states ─────────────────────────────────────────────
   if (pageLoading) return (
     <div className={styles.page}>
       <OwnerNavbar user={user} onAddProperty={() => {}} />
@@ -875,7 +983,7 @@ const EditProperty: React.FC = () => {
                   <div className={styles.visibilityLockedLabel}>Property is <strong>Occupied</strong></div>
                   <div className={styles.visibilityLockedSub}>
                     This property has an active tenant (<strong>{activeTenant.tenantName}</strong>). It cannot be listed
-                    as Available until the lease ends or is terminated. Manage the tenant in the <em>Active Tenant</em> section below.
+                    as Available until the lease ends or is terminated.
                   </div>
                 </div>
               </div>
@@ -907,7 +1015,7 @@ const EditProperty: React.FC = () => {
                     Status: <strong>{currentStatus?.replace("_", " ")}</strong>
                   </div>
                   <div className={styles.visibilityLockedSub}>
-                    Visibility can only be toggled on approved properties. This property is currently under review or rejected.
+                    Visibility can only be toggled on approved properties.
                   </div>
                 </div>
               </div>
@@ -966,7 +1074,7 @@ const EditProperty: React.FC = () => {
             )}
           </div>
 
-          {/* ── Payment History (only shown when there's an active tenant) ── */}
+          {/* ── Payment History ── */}
           {activeTenant && (
             <div className={styles.card}>
               <div className={styles.cardTitle}>
@@ -991,7 +1099,6 @@ const EditProperty: React.FC = () => {
 
               {!paymentsLoading && !paymentsError && payments.length > 0 && (
                 <>
-                  {/* ── Summary strip ── */}
                   <div className={styles.paymentSummaryStrip}>
                     <div className={styles.paymentSummaryItem}>
                       <span className={styles.paymentSummaryValue}>{payments.length}</span>
@@ -1016,7 +1123,6 @@ const EditProperty: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* ── Year accordions ── */}
                   <div className={styles.yearAccordionList}>
                     {paymentYears.map((year) => {
                       const yearPayments = paymentsByYear[year];
@@ -1098,6 +1204,210 @@ const EditProperty: React.FC = () => {
             </div>
           )}
 
+          {/* ── Lease Extension Requests ── */}
+          {activeTenant && (
+            <div className={styles.card}>
+              <div className={styles.cardTitle}>
+                Lease Extension Requests
+                {pendingExtensions.length > 0 && (
+                  <span className={styles.requestsBadge}>{pendingExtensions.length} pending</span>
+                )}
+              </div>
+
+              {leaseExtLoading && (
+                <div className={styles.requestsLoading}>Loading extension requests…</div>
+              )}
+
+              {!leaseExtLoading && leaseExtensions.length === 0 && (
+                <div className={styles.requestsEmpty}>
+                  <span className={styles.requestsEmptyIcon}>📋</span>
+                  <p>No lease extension requests from the tenant yet.</p>
+                </div>
+              )}
+
+              {extActionError && (
+                <div style={{
+                  padding: "10px 14px", marginBottom: "12px", borderRadius: "10px",
+                  background: "rgba(192,57,43,0.06)", border: "1px solid rgba(192,57,43,0.2)",
+                  color: "#c0392b", fontSize: "13px", fontWeight: 600,
+                }}>
+                  ⚠ {extActionError}
+                </div>
+              )}
+
+              {!leaseExtLoading && leaseExtensions.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                  {leaseExtensions.map((ext) => {
+                    const isPending  = ext.status === "PENDING";
+                    const isApproved = ext.status === "APPROVED";
+                    const isLoading  = extActionSubmitting && extActionId === ext.id;
+                    const color  = isApproved ? "#1a7a4a" : ext.status === "REJECTED" ? "#c0392b" : "#b78e42";
+                    const bg     = isApproved ? "rgba(26,122,74,0.06)" : ext.status === "REJECTED" ? "rgba(192,57,43,0.06)" : "rgba(183,142,66,0.06)";
+                    const border = isApproved ? "rgba(26,122,74,0.18)" : ext.status === "REJECTED" ? "rgba(192,57,43,0.18)" : "rgba(183,142,66,0.18)";
+                    return (
+                      <div key={ext.id} style={{
+                        padding: "14px 16px", borderRadius: "12px",
+                        background: bg, border: `1px solid ${border}`,
+                        transition: "box-shadow 0.15s",
+                      }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                              <span style={{ fontWeight: 700, fontSize: "15px", color: "#1e293b" }}>
+                                +{ext.requestedMonths} month{ext.requestedMonths !== 1 ? "s" : ""} requested
+                              </span>
+                              <span style={{
+                                fontSize: "11px", fontWeight: 700, padding: "2px 10px", borderRadius: "20px",
+                                color, background: bg, border: `1px solid ${border}`,
+                              }}>
+                                {isPending ? "⏳ Pending" : isApproved ? "✓ Approved" : "✕ Rejected"}
+                              </span>
+                            </div>
+                            {ext.reason && (
+                              <div style={{ marginTop: "6px", fontSize: "13px", color: "#64748b", fontStyle: "italic" }}>
+                                "{ext.reason}"
+                              </div>
+                            )}
+                            <div style={{ marginTop: "4px", fontSize: "11px", color: "#94a3b8" }}>
+                              Requested {formatDate(ext.createdAt)}
+                            </div>
+                          </div>
+                          {isPending && (
+                            <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
+                              <button
+                                type="button"
+                                disabled={isLoading}
+                                onClick={() => handleExtensionRespond(ext.id, "REJECTED")}
+                                style={{
+                                  padding: "7px 14px", borderRadius: "9px", fontWeight: 700, fontSize: "13px",
+                                  cursor: isLoading ? "not-allowed" : "pointer",
+                                  opacity: isLoading ? 0.6 : 1,
+                                  background: "rgba(192,57,43,0.07)",
+                                  border: "1.5px solid rgba(192,57,43,0.22)",
+                                  color: "#c0392b",
+                                  transition: "background 0.15s",
+                                }}
+                              >
+                                {isLoading ? "…" : "✕ Reject"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isLoading}
+                                onClick={() => handleExtensionRespond(ext.id, "APPROVED")}
+                                style={{
+                                  padding: "7px 14px", borderRadius: "9px", fontWeight: 700, fontSize: "13px",
+                                  cursor: isLoading ? "not-allowed" : "pointer",
+                                  opacity: isLoading ? 0.6 : 1,
+                                  background: "rgba(26,122,74,0.09)",
+                                  border: "1.5px solid rgba(26,122,74,0.25)",
+                                  color: "#1a7a4a",
+                                  transition: "background 0.15s",
+                                }}
+                              >
+                                {isLoading ? "…" : "✓ Approve"}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Property Reviews ── */}
+          <div className={styles.card}>
+            <div className={styles.cardTitle}>
+              Tenant Reviews
+              {avgRating && (
+                <span className={styles.reviewsAvgBadge}>
+                  ★ {avgRating} · {reviews.length} review{reviews.length !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+
+            {reviewsLoading && (
+              <div className={styles.requestsLoading}>Loading reviews…</div>
+            )}
+
+            {!reviewsLoading && reviews.length === 0 && (
+              <div className={styles.requestsEmpty}>
+                <span className={styles.requestsEmptyIcon}>⭐</span>
+                <p>No reviews yet for this property.</p>
+              </div>
+            )}
+
+            {!reviewsLoading && reviews.length > 0 && (
+              <>
+                {/* Rating breakdown */}
+                <div className={styles.reviewRatingBreakdown}>
+                  <div className={styles.reviewRatingBig}>
+                    <span className={styles.reviewRatingNumber}>{avgRating}</span>
+                    <div className={styles.reviewRatingStars}>
+                      {[1,2,3,4,5].map((s) => (
+                        <span key={s} style={{
+                          color: s <= Math.round(parseFloat(avgRating!)) ? "#f59e0b" : "#e2e8f0",
+                          fontSize: "20px",
+                        }}>★</span>
+                      ))}
+                    </div>
+                    <span className={styles.reviewRatingCount}>
+                      {reviews.length} review{reviews.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                  <div className={styles.reviewRatingBars}>
+                    {[5,4,3,2,1].map((star) => {
+                      const count = reviews.filter((r) => r.rating === star).length;
+                      const pct   = reviews.length > 0 ? Math.round((count / reviews.length) * 100) : 0;
+                      return (
+                        <div key={star} className={styles.reviewRatingBarRow}>
+                          <span className={styles.reviewRatingBarLabel}>{star}★</span>
+                          <div className={styles.reviewRatingBarTrack}>
+                            <div className={styles.reviewRatingBarFill} style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className={styles.reviewRatingBarCount}>{count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Individual reviews */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }}>
+                  {reviews.map((rev) => (
+                    <div key={rev.id} className={styles.reviewItem}>
+                      <div className={styles.reviewItemHeader}>
+                        <div className={styles.reviewItemAvatar}>
+                          {rev.tenantAvatarUrl
+                            ? <img src={rev.tenantAvatarUrl} alt={rev.tenantName} />
+                            : <span>{rev.tenantName.charAt(0).toUpperCase()}</span>
+                          }
+                        </div>
+                        <div className={styles.reviewItemMeta}>
+                          <span className={styles.reviewItemName}>{rev.tenantName}</span>
+                          <span className={styles.reviewItemDate}>{formatDate(rev.createdAt)}</span>
+                        </div>
+                        <div className={styles.reviewItemStars}>
+                          {[1,2,3,4,5].map((s) => (
+                            <span key={s} style={{
+                              color: s <= rev.rating ? "#f59e0b" : "#e2e8f0",
+                              fontSize: "15px",
+                            }}>★</span>
+                          ))}
+                        </div>
+                      </div>
+                      {rev.comment && (
+                        <p className={styles.reviewItemComment}>{rev.comment}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
           {/* ── Location ── */}
           <div className={styles.card}>
             <div className={styles.cardTitle}>Location</div>
@@ -1143,7 +1453,6 @@ const EditProperty: React.FC = () => {
                 <div className={styles.photoTipBody}>
                   Include clear photos of the actual property and supporting documents such as your{" "}
                   <strong>business permit</strong> or <strong>barangay certificate</strong>.
-                  Listings with complete photos are reviewed faster and attract more inquiries.
                 </div>
               </div>
             </div>
