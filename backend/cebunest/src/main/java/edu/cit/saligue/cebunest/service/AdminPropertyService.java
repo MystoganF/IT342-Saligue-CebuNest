@@ -14,7 +14,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminPropertyService {
 
-    private final PropertyRepository propertyRepository;
+    private final PropertyRepository  propertyRepository;
     private final NotificationService notificationService;
 
     // ── Fetch all PENDING_REVIEW properties ──────────────────────────────
@@ -43,21 +43,22 @@ public class AdminPropertyService {
         property.setStatus(newStatus);
         propertyRepository.save(property);
 
-        // Notify the owner
-        String ownerName  = property.getOwner().getName();
-        String title      = property.getTitle();
+        String ownerName = property.getOwner().getName();
+        String title     = property.getTitle();
 
         if (newStatus == Property.PropertyStatus.APPROVED) {
-            notificationService.notify(
+            notificationService.send(
                     property.getOwner(),
-                    "Property Approved",
-                    "Congratulations " + ownerName + "! Your property \"" + title + "\" has been approved and is now listed."
+                    "PROPERTY_APPROVED",
+                    "Congratulations " + ownerName + "! Your property \"" + title + "\" has been approved and is now listed.",
+                    null   // no rentalRequestId for property-level notifications
             );
         } else {
-            notificationService.notify(
+            notificationService.send(
                     property.getOwner(),
-                    "Property Rejected",
-                    "Your property \"" + title + "\" was not approved. Reason: " + reason
+                    "PROPERTY_REJECTED",
+                    "Your property \"" + title + "\" was not approved. Reason: " + reason,
+                    null
             );
         }
 

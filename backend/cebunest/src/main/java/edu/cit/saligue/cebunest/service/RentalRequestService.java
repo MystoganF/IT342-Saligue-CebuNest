@@ -25,6 +25,8 @@ public class RentalRequestService {
     private final PropertyRepository      propertyRepository;
     private final EmailService            emailService;
     private final RentalPaymentRepository rentalPaymentRepository;
+    private final NotificationService     notificationService;   // ← ADDED
+
     // ── Tenant: submit a request ─────────────────────────────────────────
     @Transactional
     public RentalRequestDTO createRequest(CreateRentalRequestDTO dto, User tenant) {
@@ -54,6 +56,7 @@ public class RentalRequestService {
 
         RentalRequest saved = rentalRequestRepository.save(request);
 
+        // ── Emails ──────────────────────────────────────────────────────
         emailService.sendEmail(tenant.getEmail(),
                 "CebuNest – Rental Request Received",
                 "Hi " + tenant.getName() + ",\n\n" +
@@ -69,6 +72,14 @@ public class RentalRequestService {
                         "Start Date: " + dto.getStartDate() + "\n" +
                         "Lease Duration: " + dto.getLeaseDurationMonths() + " month(s)\n\n" +
                         "Log in to your dashboard to approve or reject.\n\n— CebuNest Team");
+
+        // ── Notification: confirm to tenant that their request was sent ──
+        notificationService.send(
+                tenant,
+                "REQUEST_PENDING",
+                "Your rental request for \"" + property.getTitle() + "\" has been submitted. Waiting for owner review.",
+                saved.getId()
+        );
 
         return RentalRequestDTO.from(saved);
     }
@@ -94,8 +105,6 @@ public class RentalRequestService {
                 .findByPropertyIdOrderByCreatedAtDesc(propertyId)
                 .stream().map(RentalRequestDTO::from).toList();
     }
-
-
 
     // ── Owner: approve or reject a request ───────────────────────────────
     @Transactional
@@ -123,12 +132,29 @@ public class RentalRequestService {
                     "Hi " + tenantName + ",\n\n" +
                             "Great news! Your rental request for \"" + propTitle + "\" has been approved.\n" +
                             "The owner will contact you shortly to arrange next steps.\n\n— CebuNest Team");
+
+            // ── Notification to tenant ───────────────────────────────────
+            notificationService.send(
+                    request.getTenant(),
+                    "REQUEST_APPROVED",
+                    "🎉 Your request for \"" + propTitle + "\" was approved! Tap to confirm your rental.",
+                    request.getId()
+            );
+
         } else if (status == RentalRequest.RentalStatus.REJECTED) {
             emailService.sendEmail(tenantEmail,
                     "CebuNest – Rental Request Update",
                     "Hi " + tenantName + ",\n\n" +
                             "Unfortunately, your rental request for \"" + propTitle + "\" was not approved.\n" +
                             "You may browse other available properties on CebuNest.\n\n— CebuNest Team");
+
+            // ── Notification to tenant ───────────────────────────────────
+            notificationService.send(
+                    request.getTenant(),
+                    "REQUEST_REJECTED",
+                    "Your request for \"" + propTitle + "\" was not approved. Browse other listings.",
+                    request.getId()
+            );
         }
 
         return RentalRequestDTO.from(request);
@@ -146,9 +172,10 @@ public class RentalRequestService {
         return rentalRequestRepository
                 .findByPropertyIdAndStatus(propertyId, RentalRequest.RentalStatus.CONFIRMED)
                 .map(RentalRequestDTO::from)
-                .orElse(null); // null = no active tenant
+                .orElse(null);
     }
 
+    // ── Owner: extend or reduce lease ────────────────────────────────────
     @Transactional
     public RentalRequestDTO updateLease(Long requestId, int adjustMonths, User owner) {
         RentalRequest request = rentalRequestRepository.findById(requestId)
@@ -168,44 +195,39 @@ public class RentalRequestService {
         request.setLeaseDurationMonths(newDuration);
         rentalRequestRepository.save(request);
 
-        // ── Sync payment schedule (always MONTHLY) ───────────────────────────
+        // ── Sync payment schedule ─────────────────────────────────────────
         List<RentalPayment> allPayments = rentalPaymentRepository
                 .findByRentalRequestIdOrderByInstallmentNumberAsc(requestId);
 
-        if (allPayments.isEmpty()) {
-            // Tenant hasn't confirmed yet — nothing to sync
-
-        } else if (adjustMonths < 0) {
-            // Reducing: delete PENDING/OVERDUE rows beyond newDuration
-            allPayments.stream()
-                    .filter(p -> p.getInstallmentNumber() > newDuration
-                            && p.getStatus() != RentalPayment.PaymentStatus.PAID)
-                    .forEach(rentalPaymentRepository::delete);
-
-        } else {
-            // Extending: add new PENDING rows for the added months
-            double monthlyAmount = request.getProperty().getPrice();
-            LocalDate startDate  = request.getStartDate();
-
-            int lastInstallment = allPayments.stream()
-                    .mapToInt(RentalPayment::getInstallmentNumber)
-                    .max().orElse(0);
-
-            for (int i = lastInstallment + 1; i <= newDuration; i++) {
-                RentalPayment p = RentalPayment.builder()
-                        .rentalRequest(request)
-                        .installmentNumber(i)
-                        .amount(monthlyAmount)
-                        .dueDate(startDate.plusMonths(i - 1))
-                        .status(RentalPayment.PaymentStatus.PENDING)
-                        .build();
-                rentalPaymentRepository.save(p);
+        if (!allPayments.isEmpty()) {
+            if (adjustMonths < 0) {
+                allPayments.stream()
+                        .filter(p -> p.getInstallmentNumber() > newDuration
+                                && p.getStatus() != RentalPayment.PaymentStatus.PAID)
+                        .forEach(rentalPaymentRepository::delete);
+            } else {
+                double monthlyAmount = request.getProperty().getPrice();
+                LocalDate startDate  = request.getStartDate();
+                int lastInstallment  = allPayments.stream()
+                        .mapToInt(RentalPayment::getInstallmentNumber)
+                        .max().orElse(0);
+                for (int i = lastInstallment + 1; i <= newDuration; i++) {
+                    RentalPayment p = RentalPayment.builder()
+                            .rentalRequest(request)
+                            .installmentNumber(i)
+                            .amount(monthlyAmount)
+                            .dueDate(startDate.plusMonths(i - 1))
+                            .status(RentalPayment.PaymentStatus.PENDING)
+                            .build();
+                    rentalPaymentRepository.save(p);
+                }
             }
         }
 
         String action = adjustMonths > 0
                 ? "extended by " + adjustMonths
                 : "reduced by " + Math.abs(adjustMonths);
+
         emailService.sendEmail(
                 request.getTenant().getEmail(),
                 "CebuNest – Lease Duration Updated",
@@ -213,10 +235,19 @@ public class RentalRequestService {
                         "Your lease for \"" + request.getProperty().getTitle() + "\" has been " + action + " month(s).\n" +
                         "New total duration: " + newDuration + " month(s).\n\n— CebuNest Team");
 
+        // ── Notification to tenant ────────────────────────────────────────
+        String propTitle = request.getProperty().getTitle();
+        notificationService.send(
+                request.getTenant(),
+                "LEASE_EXTENDED",
+                "Your lease for \"" + propTitle + "\" has been " + action + " month(s). New total: " + newDuration + " month(s).",
+                request.getId()
+        );
+
         return RentalRequestDTO.from(request);
     }
 
-    // ── Owner: terminate lease (evict tenant) ────────────────────────────
+    // ── Owner: terminate lease ────────────────────────────────────────────
     @Transactional
     public RentalRequestDTO terminateLease(Long requestId, User owner) {
         RentalRequest request = rentalRequestRepository.findById(requestId)
@@ -231,7 +262,6 @@ public class RentalRequestService {
         request.setStatus(RentalRequest.RentalStatus.TERMINATED);
         rentalRequestRepository.save(request);
 
-        // Free the property back to AVAILABLE
         Property property = request.getProperty();
         property.setStatus(Property.PropertyStatus.AVAILABLE);
         propertyRepository.save(property);
@@ -242,6 +272,14 @@ public class RentalRequestService {
                 "Hi " + request.getTenant().getName() + ",\n\n" +
                         "Your lease for \"" + property.getTitle() + "\" has been terminated by the owner.\n" +
                         "Please make arrangements to vacate the property.\n\n— CebuNest Team");
+
+        // ── Notification to tenant ────────────────────────────────────────
+        notificationService.send(
+                request.getTenant(),
+                "LEASE_TERMINATED",
+                "Your lease for \"" + property.getTitle() + "\" has been terminated by the owner.",
+                request.getId()
+        );
 
         return RentalRequestDTO.from(request);
     }

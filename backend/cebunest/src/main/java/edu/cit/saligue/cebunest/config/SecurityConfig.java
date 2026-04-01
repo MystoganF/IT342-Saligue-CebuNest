@@ -73,7 +73,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of("http://localhost:5173"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        // ── PATCH added here ──────────────────────────────────────────────
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 
@@ -96,17 +97,14 @@ public class SecurityConfig {
             String path   = request.getServletPath();
             String method = request.getMethod();
 
-            // Always let CORS preflight through without JWT
             if ("OPTIONS".equalsIgnoreCase(method)) return true;
 
-            // Skip JWT for public auth endpoints
             if (path.equals("/api/auth/google")
                     || path.equals("/api/auth/login")
                     || path.equals("/api/auth/register")) {
                 return true;
             }
 
-            // Skip JWT for public GET property endpoints only
             if ("GET".equalsIgnoreCase(method)) {
                 if (path.equals("/api/properties"))          return true;
                 if (path.equals("/api/properties/types"))    return true;
