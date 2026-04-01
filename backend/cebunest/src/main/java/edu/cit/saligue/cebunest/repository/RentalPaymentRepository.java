@@ -13,4 +13,5 @@ public interface RentalPaymentRepository extends JpaRepository<RentalPayment, Lo
     Optional<RentalPayment> findByPaymongoPaymentId(String paymongoPaymentId);
 
     boolean existsByRentalRequestId(Long rentalRequestId);
+    List<RentalPayment> findByRentalRequestIdIn(List<Long> requestIds);
 }

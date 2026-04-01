@@ -23,4 +23,10 @@ public interface RentalRequestRepository extends JpaRepository<RentalRequest, Lo
     // NEW: find a specific tenant's latest request for a property
     Optional<RentalRequest> findFirstByTenantIdAndPropertyIdOrderByCreatedAtDesc(
             Long tenantId, Long propertyId);
+
+
+    List<RentalRequest> findByPropertyIdInOrderByCreatedAtDesc(List<Long> propertyIds);
+
+
+
 }

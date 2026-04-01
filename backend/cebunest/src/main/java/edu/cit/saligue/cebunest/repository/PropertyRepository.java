@@ -47,4 +47,6 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
             @Param("minPrice")  Double minPrice,
             @Param("maxPrice")  Double maxPrice
     );
+
+    List<Property> findByOwnerId(Long ownerId);
 }

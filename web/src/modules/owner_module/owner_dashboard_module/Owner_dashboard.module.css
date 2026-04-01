@@ -61,7 +61,7 @@
   gap: 24px;
   animation: fadeUp 0.6s ease both;
 }
-.heroText {}
+
 .heroEyebrow {
   display: flex;
   align-items: center;
@@ -165,7 +165,7 @@
 .statIconGold  { background: rgba(183, 142, 66, 0.1); }
 .statIconGreen { background: rgba(45, 140, 106, 0.1); }
 
-.statInfo {}
+
 .statValue {
   font-family: 'Playfair Display', serif;
   font-size: 28px;
@@ -315,7 +315,7 @@
   margin-bottom: 4px;
   line-height: 1.3;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+ 
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -449,4 +449,330 @@
   .main    { padding: 24px 20px 60px; }
   .statsRow { grid-template-columns: 1fr; }
   .propertyGrid { grid-template-columns: 1fr; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   ADD THESE STYLES to the bottom of your existing Owner_dashboard.module.css
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* ─────────────────────────────────────
+   STATS ROW — now 4 columns
+───────────────────────────────────── */
+.statsRow {
+  grid-template-columns: repeat(4, 1fr); /* override the existing 3-col */
+}
+
+.statIconBlue { background: rgba(53, 120, 200, 0.1); }
+
+
+/* ─────────────────────────────────────
+   ANALYTICS GRID
+───────────────────────────────────── */
+.analyticsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  animation: fadeUp 0.5s 0.15s ease both;
+}
+
+.analyticCard {
+  background: #fff;
+  border-radius: 18px;
+  padding: 24px 26px;
+  box-shadow: 0 2px 8px rgba(31, 93, 113, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.analyticCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(31, 93, 113, 0.1);
+}
+
+.analyticCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+
+/* ─────────────────────────────────────
+   REVENUE CARD
+───────────────────────────────────── */
+.revenueTotal {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+.revenueTotalLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--slate);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.revenueTotalValue {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--teal-deep);
+  line-height: 1.2;
+}
+
+/* Bar chart */
+.chartWrap {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 130px;
+  padding-top: 8px;
+}
+.chartCol {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+}
+.chartBarTrack {
+  flex: 1;
+  width: 100%;
+  background: #f0f4f5;
+  border-radius: 6px 6px 0 0;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+.chartBar {
+  width: 100%;
+  background: linear-gradient(180deg, var(--teal-aero), var(--teal-deep));
+  border-radius: 6px 6px 0 0;
+  animation: growUp 0.6s ease both;
+  transform-origin: bottom;
+}
+.chartLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--slate);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.chartValue {
+  font-size: 9px;
+  color: var(--teal-aero);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.chartSkeleton {
+  height: 130px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #e8f0f2 25%, #d4e8ea 50%, #e8f0f2 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+
+/* ─────────────────────────────────────
+   OCCUPANCY CARD
+───────────────────────────────────── */
+.occupancyBody {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.donutWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.donutCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.donutValue {
+  font-family: 'Playfair Display', serif;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--teal-deep);
+  line-height: 1;
+}
+.donutLabel {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--slate);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.donutSkeleton {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #e8f0f2 25%, #d4e8ea 50%, #e8f0f2 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+.occupancyLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.legendText {
+  font-size: 13px;
+  color: var(--slate);
+  font-weight: 500;
+}
+.legendText strong {
+  color: var(--teal-deep);
+  font-weight: 700;
+}
+
+
+/* ─────────────────────────────────────
+   REQUEST FUNNEL CARD
+───────────────────────────────────── */
+.requestTotal {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--slate);
+  background: #f0f4f5;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.funnelList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.funnelRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.funnelMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.funnelIcon { font-size: 13px; }
+.funnelLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: #3a4a4e;
+  flex: 1;
+}
+.funnelCount {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--teal-deep);
+}
+.funnelTrack {
+  width: 100%;
+  height: 5px;
+  background: #f0f4f5;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.funnelBar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  min-width: 2px;
+}
+
+
+/* ─────────────────────────────────────
+   PAYMENT BREAKDOWN CARD
+───────────────────────────────────── */
+.paymentList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.paymentRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 12px;
+  gap: 12px;
+}
+.paymentRowLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.paymentIcon {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+}
+.paymentRowLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a2a2e;
+}
+.paymentRowCount {
+  font-size: 11px;
+  font-weight: 600;
+}
+.paymentRowAmount {
+  font-family: 'Playfair Display', serif;
+  font-size: 15px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+
+/* ─────────────────────────────────────
+   KEYFRAMES (additions)
+───────────────────────────────────── */
+@keyframes growUp {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+
+
+/* ─────────────────────────────────────
+   RESPONSIVE ADDITIONS
+───────────────────────────────────── */
+@media (max-width: 1024px) {
+  .analyticsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .analyticCard[style*="span 2"] {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .statsRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .analyticsGrid {
+    grid-template-columns: 1fr;
+  }
+  .analyticCard[style*="span 2"] {
+    grid-column: span 1;
+  }
 }
