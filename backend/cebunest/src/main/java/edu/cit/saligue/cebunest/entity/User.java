@@ -41,4 +41,7 @@ public class User {
     private String facebookUrl;
     private String instagramUrl;
     private String twitterUrl;
+
+    @Builder.Default
+    private boolean active = true;
 }

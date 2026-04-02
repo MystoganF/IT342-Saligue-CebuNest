@@ -1,0 +1,165 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap');
+
+.sidebar {
+  width: 240px;
+  min-height: 100vh;
+  background: #1f5d71;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 24px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.logoIcon { font-size: 22px; }
+.logoText {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.nav {
+  flex: 1;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.65);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+  position: relative;
+  width: 100%;
+}
+.navItem:hover   { background: rgba(255,255,255,0.08); color: #fff; }
+.navItemActive   { background: rgba(255,255,255,0.14); color: #fff; }
+.navIcon         { font-size: 16px; width: 20px; text-align: center; }
+.navBadge {
+  margin-left: auto;
+  background: #b78e42;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* Footer */
+.footer {
+  padding: 12px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  position: relative;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+}
+.profile:hover   { background: rgba(255,255,255,0.08); }
+.profileActive   { background: rgba(255,255,255,0.12); }
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #53a4a3;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.profileInfo  { flex: 1; min-width: 0; }
+.profileName  {
+  font-size: 13px; font-weight: 700; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.profileRole  { font-size: 11px; color: #98c1c1; }
+
+.chevron {
+  font-size: 18px;
+  color: rgba(255,255,255,0.4);
+  transition: transform 0.2s;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.chevronOpen { transform: rotate(90deg); color: rgba(255,255,255,0.7); }
+
+/* Dropdown */
+.dropdown {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 12px;
+  right: 12px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(10,24,30,0.18);
+  overflow: hidden;
+  animation: dropUp 0.18s ease both;
+  z-index: 200;
+}
+@keyframes dropUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.dropdownInfo    { padding: 14px 16px 10px; }
+.dropdownName    { font-size: 13px; font-weight: 700; color: #1a2a2e; margin-bottom: 2px; }
+.dropdownEmail   { font-size: 11px; color: #6e7071; word-break: break-all; }
+.dropdownDivider { height: 1px; background: #f0f4f5; margin: 0 12px; }
+.dropdownLogout  {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 11px 16px;
+  background: none;
+  border: none;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #c0392b;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+}
+.dropdownLogout:hover { background: #fdf4f4; }
+
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+}

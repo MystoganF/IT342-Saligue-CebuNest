@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import AdminSidebar from "../../../components/AdminSidebar/AdminSidebar";
 import styles from "./admin_rental_request.module.css";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 // ─── types ─────────────────────────────────────────────────────────────────
 
-interface User {
+interface AdminUser {
   id: number;
   name: string;
   email: string;
@@ -55,7 +56,7 @@ function timeAgo(dateStr: string): string {
 const AdminRentalRequests: React.FC = () => {
   const navigate = useNavigate();
 
-  const [user, setUser]             = useState<User | null>(null);
+  const [user, setUser]             = useState<AdminUser | null>(null);
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
@@ -70,40 +71,17 @@ const AdminRentalRequests: React.FC = () => {
   // Detail expand
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  // Profile dropdown
-  const [profileOpen, setProfileOpen] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
-
   // ── Auth guard — admin only ────────────────────────────────────────────
   useEffect(() => {
     const stored = localStorage.getItem("user");
     const token  = localStorage.getItem("accessToken");
     if (!stored || !token) { navigate("/"); return; }
     try {
-      const parsed: User = JSON.parse(stored);
+      const parsed: AdminUser = JSON.parse(stored);
       if (parsed.role?.toUpperCase() !== "ADMIN") { navigate("/home"); return; }
       setUser(parsed);
     } catch { navigate("/"); }
   }, [navigate]);
-
-  // ── Close dropdown on outside click ───────────────────────────────────
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setProfileOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  // ── Logout ─────────────────────────────────────────────────────────────
-  const handleLogout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("user");
-    window.location.href = "/";
-  };
 
   // ── Fetch pending requests ─────────────────────────────────────────────
   const fetchPending = useCallback(async () => {
@@ -193,69 +171,15 @@ const AdminRentalRequests: React.FC = () => {
   return (
     <div className={styles.page}>
 
-      {/* ── Sidebar ── */}
-      <aside className={styles.sidebar}>
-        <div className={styles.sidebarLogo}>
-          <span className={styles.sidebarLogoIcon}>🏡</span>
-          <span className={styles.sidebarLogoText}>CebuNest</span>
-        </div>
-        <nav className={styles.sidebarNav}>
-          <button className={`${styles.navItem} ${styles.navItemActive}`} type="button">
-            <span className={styles.navIcon}>📋</span>
-            Rental Requests
-            {properties.length > 0 && (
-              <span className={styles.navBadge}>{properties.length}</span>
-            )}
-          </button>
-          <button className={styles.navItem} type="button" onClick={() => navigate("/admin/properties")}>
-            <span className={styles.navIcon}>🏘️</span>
-            All Properties
-          </button>
-          <button className={styles.navItem} type="button" onClick={() => navigate("/admin/users")}>
-            <span className={styles.navIcon}>👥</span>
-            Users
-          </button>
-        </nav>
-
-        {/* ── Profile + logout ── */}
-        <div className={styles.sidebarFooter} ref={profileRef}>
-
-          {/* Dropdown — renders above the profile row */}
-          {profileOpen && (
-            <div className={styles.profileDropdown}>
-              <div className={styles.profileDropdownInfo}>
-                <div className={styles.profileDropdownName}>{user.name}</div>
-                <div className={styles.profileDropdownEmail}>{user.email}</div>
-              </div>
-              <div className={styles.profileDropdownDivider} />
-              <button
-                className={styles.profileDropdownLogout}
-                onClick={handleLogout}
-                type="button"
-              >
-                <span>⎋</span> Logout
-              </button>
-            </div>
-          )}
-
-          <button
-            className={`${styles.sidebarUser} ${profileOpen ? styles.sidebarUserActive : ""}`}
-            onClick={() => setProfileOpen((prev) => !prev)}
-            type="button"
-          >
-            <div className={styles.sidebarAvatar}>
-              {user.name?.charAt(0).toUpperCase()}
-            </div>
-            <div className={styles.sidebarUserInfo}>
-              <div className={styles.sidebarUserName}>{user.name}</div>
-              <div className={styles.sidebarUserRole}>Administrator</div>
-            </div>
-            <span className={`${styles.profileChevron} ${profileOpen ? styles.profileChevronOpen : ""}`}>
-              ›
-            </span>
-          </button>
-        </div>
-      </aside>
+      {/* ── Reusable Sidebar ── */}
+      <AdminSidebar
+        user={user}
+        navItems={[
+          { path: "/admin/rental-requests", icon: "📋", label: "Rental Requests", badge: properties.length },
+          { path: "/admin/properties",      icon: "🏘️", label: "All Properties"  },
+          { path: "/admin/users",           icon: "👥", label: "Users"           },
+        ]}
+      />
 
       {/* ── Main ── */}
       <div className={styles.main}>

@@ -13,6 +13,7 @@ import AdminRentalRequests from "./modules/admin_module/admin_rental_request/adm
 import EditProperty      from "./modules/owner_module/owner_property_management_module/owner_edit_property";
 import MyRentals from "./modules/tenant_module/rented_property_module/my_rentals";
 import RentalDetail from "./modules/tenant_module/rented_property_module/RentalDetal";
+import AdminUsers from "./modules/admin_module/admin_user_management/AdminUsers";
 
 function App() {
   return (
@@ -70,6 +71,11 @@ function App() {
         <Route path="/admin/rental-requests" element={
           <ProtectedRoute allowedRoles={["ADMIN"]}>
             <AdminRentalRequests />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/users" element={
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
+            <AdminUsers />
           </ProtectedRoute>
         } />
 
