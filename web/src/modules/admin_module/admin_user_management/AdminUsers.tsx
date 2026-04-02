@@ -12,7 +12,7 @@ interface UserEntry {
   phoneNumber?: string | null; role: string;
   avatarUrl?: string | null; active: boolean; createdAt?: string;
 }
-type ModalMode = "detail" | "create" | "edit-role" | "deactivate" | "delete" | null;
+type ModalMode = "detail" | "create" | "edit-role" | "deactivate" | null;
 const ROLES = ["TENANT", "OWNER", "ADMIN"];
 const roleBg:    Record<string, string> = { ADMIN: "rgba(31,93,113,0.12)",  OWNER: "rgba(183,142,66,0.12)", TENANT: "rgba(45,140,106,0.12)" };
 const roleColor: Record<string, string> = { ADMIN: "#1f5d71", OWNER: "#b78e42", TENANT: "#2d8c6a" };
@@ -87,7 +87,7 @@ const AdminUsers: React.FC = () => {
   const openCreate  = () => { setForm({ name: "", email: "", password: "", role: "TENANT" }); setModalError(null); setModal("create"); };
   const openEditRole = (u: UserEntry) => { setTarget(u); setNewRole(u.role); setModalError(null); setModal("edit-role"); };
   const openToggle  = (u: UserEntry) => { setTarget(u); setModalError(null); setModal("deactivate"); };
-  const openDelete  = (u: UserEntry) => { setTarget(u); setModalError(null); setModal("delete"); };
+  
   const closeModal  = () => { if (!submitting) { setModal(null); setTarget(null); } };
 
   const tok = () => localStorage.getItem("accessToken");
@@ -142,20 +142,7 @@ const AdminUsers: React.FC = () => {
     finally { setSubmitting(false); }
   };
 
-  const handleDelete = async () => {
-    if (!target) return;
-    setSubmitting(true); setModalError(null);
-    try {
-      const res  = await fetch(`${API_BASE}/api/admin/users/${target.id}`, {
-        method: "DELETE",
-        headers: tok() ? { Authorization: `Bearer ${tok()}` } : {},
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
-      await fetchUsers(); closeModal();
-    } catch { setModalError("Network error."); }
-    finally { setSubmitting(false); }
-  };
+ 
 
   if (!admin) return null;
 
@@ -304,8 +291,7 @@ const AdminUsers: React.FC = () => {
                     onClick={() => openToggle(target)} type="button">
                     {target.active ? "⏸ Deactivate" : "▶ Activate"}
                   </button>
-                  <button className={`${styles.detailActionBtn} ${styles.detailActionBtnDanger}`}
-                    onClick={() => openDelete(target)} type="button">🗑 Delete User</button>
+                 
                 </div>
               </div>
             </>}
@@ -396,26 +382,7 @@ const AdminUsers: React.FC = () => {
               </div>
             </>}
 
-            {/* DELETE */}
-            {modal === "delete" && target && <>
-              <div className={`${styles.modalHeader} ${styles.modalHeaderDanger}`}>
-                <span className={styles.modalIcon}>🗑</span>
-                <h3 className={styles.modalTitle}>Delete User</h3>
-                <button className={styles.modalCloseBtn} onClick={closeModal} type="button">✕</button>
-              </div>
-              <div className={styles.modalBody}>
-                <p className={styles.modalDesc}>
-                  Permanently delete <strong>{target.name}</strong> ({target.email})? This cannot be undone.
-                </p>
-                {modalError && <p className={styles.modalError}>⚠ {modalError}</p>}
-                <div className={styles.modalFooter}>
-                  <button className={styles.cancelBtn} onClick={closeModal} disabled={submitting} type="button">Cancel</button>
-                  <button className={styles.dangerBtn} onClick={handleDelete} disabled={submitting} type="button">
-                    {submitting ? "Deleting…" : "Delete Permanently"}
-                  </button>
-                </div>
-              </div>
-            </>}
+          
 
           </div>
         </div>
