@@ -22,7 +22,8 @@ public class PropertyService {
     private final PropertyTypeRepository  propertyTypeRepository;
     private final PropertyImageRepository propertyImageRepository;
     private final SupabaseStorageService  storageService;
-    private final RentalRequestRepository rentalRequestRepository; // <-- Added this
+    private final RentalRequestRepository rentalRequestRepository;
+    private final AuditLogRepository      auditLogRepository; // <-- Added AuditLogRepository
 
     // ── All available properties (tenant view) ───────────────────────────
     @Transactional(readOnly = true)
@@ -60,6 +61,20 @@ public class PropertyService {
     // ── All property types ───────────────────────────────────────────────
     public List<PropertyType> getPropertyTypes() {
         return propertyTypeRepository.findAll();
+    }
+
+    // ── Get Single Property By ID (WITH REJECTION REASON) ────────────────
+    @Transactional(readOnly = true)
+    public PropertyDTO getPropertyById(Long propertyId) {
+        Property property = propertyRepository.findById(propertyId)
+                .orElseThrow(() -> new IllegalArgumentException("Property not found."));
+
+        String rejectionReason = null;
+        if (property.getStatus() == Property.PropertyStatus.REJECTED) {
+            rejectionReason = auditLogRepository.findLatestRejectionReason(propertyId).orElse(null);
+        }
+
+        return PropertyDTO.from(property, rejectionReason);
     }
 
     // ── Create property ──────────────────────────────────────────────────

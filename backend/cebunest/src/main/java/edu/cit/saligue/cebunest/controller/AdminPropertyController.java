@@ -1,7 +1,9 @@
 package edu.cit.saligue.cebunest.controller;
 
 import edu.cit.saligue.cebunest.dto.PropertyDTO;
+import edu.cit.saligue.cebunest.entity.Property;
 import edu.cit.saligue.cebunest.entity.User;
+import edu.cit.saligue.cebunest.repository.AuditLogRepository;
 import edu.cit.saligue.cebunest.repository.PropertyRepository;
 import edu.cit.saligue.cebunest.service.AdminPropertyService;
 import lombok.Data;
@@ -24,6 +26,7 @@ public class AdminPropertyController {
 
     private final AdminPropertyService adminPropertyService;
     private final PropertyRepository   propertyRepository;
+    private final AuditLogRepository   auditLogRepository;
 
     // ── GET /api/admin/rental-requests/pending ────────────────────────────
     @GetMapping("/api/admin/rental-requests/pending")
@@ -45,10 +48,15 @@ public class AdminPropertyController {
             @AuthenticationPrincipal User currentUser) {
         if (!isAdmin(currentUser)) return forbidden();
         try {
-            PropertyDTO property = propertyRepository.findById(id)
-                    .map(PropertyDTO::from)
+            Property property = propertyRepository.findById(id)
                     .orElseThrow(() -> new IllegalArgumentException("Property not found."));
-            return ok(Map.of("property", property));
+
+            String rejectionReason = null;
+            if (property.getStatus() == Property.PropertyStatus.REJECTED) {
+                rejectionReason = auditLogRepository.findLatestRejectionReason(id).orElse(null);
+            }
+
+            return ok(Map.of("property", PropertyDTO.from(property, rejectionReason)));
         } catch (IllegalArgumentException e) {
             return err("DB-001", e.getMessage(), HttpStatus.NOT_FOUND);
         } catch (Exception e) {

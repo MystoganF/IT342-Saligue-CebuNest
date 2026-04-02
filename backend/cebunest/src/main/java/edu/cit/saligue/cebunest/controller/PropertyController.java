@@ -3,10 +3,8 @@ package edu.cit.saligue.cebunest.controller;
 import edu.cit.saligue.cebunest.dto.CreatePropertyDTO;
 import edu.cit.saligue.cebunest.dto.PropertyDTO;
 import edu.cit.saligue.cebunest.dto.UpdatePropertyDTO;
-import edu.cit.saligue.cebunest.entity.Property;
 import edu.cit.saligue.cebunest.entity.PropertyType;
 import edu.cit.saligue.cebunest.entity.User;
-import edu.cit.saligue.cebunest.repository.PropertyRepository;
 import edu.cit.saligue.cebunest.service.PropertyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,8 +25,7 @@ import java.util.Map;
 @CrossOrigin(origins = "http://localhost:5173")
 public class PropertyController {
 
-    private final PropertyService    propertyService;
-    private final PropertyRepository propertyRepository;
+    private final PropertyService propertyService;
 
     // ── GET /api/properties ───────────────────────────────────────────────
     @GetMapping
@@ -85,11 +82,13 @@ public class PropertyController {
     @GetMapping("/{id}")
     public ResponseEntity<?> getPropertyById(@PathVariable Long id) {
         try {
-            Property property = propertyRepository.findById(id)
-                    .orElseThrow(() -> new IllegalArgumentException("Property not found."));
-            return buildSuccess(Map.of("property", PropertyDTO.from(property)));
+            // Uses the new service method that includes rejection reason
+            PropertyDTO propertyDTO = propertyService.getPropertyById(id);
+            return buildSuccess(Map.of("property", propertyDTO));
         } catch (IllegalArgumentException e) {
             return buildError("DB-001", e.getMessage(), HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 

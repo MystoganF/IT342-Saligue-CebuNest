@@ -27,6 +27,7 @@ interface Property {
   sqm: number | null;
   images: { imageUrl: string }[];
   hasActiveTenant: boolean;
+  rejectionReason?: string | null;
 }
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -41,10 +42,17 @@ function formatPrice(price: number): string {
 function getStatusBadge(status: string, hasActiveTenant: boolean, s: typeof styles): string {
   if (hasActiveTenant) return s.badgeOccupied;
   switch (status?.toUpperCase()) {
-    case "AVAILABLE":   return s.badgeAvailable;
-    case "UNAVAILABLE": return s.badgeUnavailable;
-    default:            return s.badgePending;
+    case "AVAILABLE":     return s.badgeAvailable;
+    case "UNAVAILABLE":   return s.badgeUnavailable;
+    case "REJECTED":      return s.badgeRejected;
+    default:              return s.badgePending;
   }
+}
+
+function getStatusLabel(status: string, hasActiveTenant: boolean): string {
+  if (hasActiveTenant) return "Occupied";
+  if (status?.toUpperCase() === "PENDING_REVIEW") return "Pending Review";
+  return status?.charAt(0) + status?.slice(1).toLowerCase();
 }
 
 // ─── component ─────────────────────────────────────────────────────────────
@@ -162,9 +170,7 @@ const OwnerProperties: React.FC = () => {
               </p>
             )}
             {deleteError && (
-              <p className={styles.modalDeleteError}>
-                ⚠ {deleteError}
-              </p>
+              <p className={styles.modalDeleteError}>⚠ {deleteError}</p>
             )}
             <div className={styles.modalActions}>
               <button
@@ -291,15 +297,13 @@ const OwnerProperties: React.FC = () => {
 
           {/* Property cards */}
           {!loading && !error && properties.map((p, i) => {
-            const img         = p.images?.[0]?.imageUrl;
-            const statusLabel = p.hasActiveTenant
-              ? "Occupied"
-              : p.status?.charAt(0) + p.status?.slice(1).toLowerCase();
+            const img        = p.images?.[0]?.imageUrl;
+            const isRejected = p.status?.toUpperCase() === "REJECTED";
 
             return (
               <div
                 key={p.id}
-                className={styles.card}
+                className={`${styles.card} ${isRejected ? styles.cardRejected : ""}`}
                 style={{ animationDelay: `${i * 50}ms` }}
               >
                 {/* Image */}
@@ -313,12 +317,20 @@ const OwnerProperties: React.FC = () => {
                     </div>
                   )}
                   <span className={`${styles.cardStatusBadge} ${getStatusBadge(p.status, p.hasActiveTenant, styles)}`}>
-                    {statusLabel}
+                    {getStatusLabel(p.status, p.hasActiveTenant)}
                   </span>
                   {p.type && (
                     <span className={styles.cardTypeBadge}>{p.type}</span>
                   )}
                 </div>
+
+                {/* Rejection notice inline on card */}
+                {isRejected && (
+                  <div className={styles.cardRejectedBanner}>
+                    <span>❌</span>
+                    <span>Rejected by admin{p.rejectionReason ? ` — "${p.rejectionReason}"` : ""}. Cannot be deleted.</span>
+                  </div>
+                )}
 
                 {/* Body */}
                 <div className={styles.cardBody}>
@@ -339,17 +351,18 @@ const OwnerProperties: React.FC = () => {
                       <div className={styles.cardPriceLabel}>/ month</div>
                     </div>
                     <div className={styles.cardActions}>
-                      
                       <a
                         href={`/owner/properties/${p.id}/edit`}
                         className={styles.cardEditBtn}
                       >
-                        ✏️ View
+                        {isRejected ? "👁 View" : "✏️ View"}
                       </a>
                       <button
                         className={styles.cardDeleteBtn}
                         onClick={() => { setDeleteTarget(p); setDeleteError(null); }}
                         type="button"
+                        disabled={isRejected || p.hasActiveTenant}
+                        title={isRejected ? "Rejected properties cannot be deleted" : undefined}
                       >
                         🗑️ Delete
                       </button>

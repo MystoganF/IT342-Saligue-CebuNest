@@ -178,6 +178,8 @@ const EditProperty: React.FC = () => {
   const { id }       = useParams<{ id: string }>();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  
+
   // ── Auth & metadata ────────────────────────────────────────────────────
   const [user, setUser]                   = useState<User | null>(null);
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
@@ -253,6 +255,7 @@ const EditProperty: React.FC = () => {
   // ── Property reviews ───────────────────────────────────────────────────
   const [reviews, setReviews]           = useState<PropertyReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState<string | null>(null);
 
   // ── Submit ─────────────────────────────────────────────────────────────
   const [submitting, setSubmitting] = useState(false);
@@ -302,6 +305,7 @@ const EditProperty: React.FC = () => {
         setBaths(p.baths != null ? String(p.baths) : "");
         setSqm(p.sqm != null ? String(p.sqm) : "");
         setCurrentStatus(p.status ?? "");
+        setRejectionReason(p.rejectionReason ?? null);
         if (p.status === "AVAILABLE" || p.status === "UNAVAILABLE") setStatus(p.status);
         setExistingImages(
           (p.images ?? []).map((img: any, idx: number) => ({
@@ -699,6 +703,8 @@ const EditProperty: React.FC = () => {
   // ── Derived ────────────────────────────────────────────────────────────
   if (!user) return null;
 
+  const isRejected = currentStatus === "REJECTED";
+
   const submitIcon     = submitMsg?.type === "success" ? "✓" : submitMsg?.type === "warning" ? "⚠" : "✕";
   const submitMsgClass = submitMsg?.type === "success" ? styles.submitMsgSuccess
                        : submitMsg?.type === "warning" ? styles.submitMsgWarning
@@ -926,8 +932,42 @@ const EditProperty: React.FC = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} style={{ pointerEvents: isRejected ? "none" : undefined, opacity: isRejected ? 0.6 : 1 }}>
         <main className={styles.main}>
+
+          {isRejected && (
+            <div style={{
+              display: "flex", alignItems: "flex-start", gap: "14px",
+              padding: "18px 22px",
+              background: "rgba(192,57,43,0.06)",
+              border: "1.5px solid rgba(192,57,43,0.22)",
+              borderRadius: "14px",
+              marginBottom: "20px",
+            }}>
+              <span style={{ fontSize: "22px", flexShrink: 0 }}>❌</span>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: "15px", color: "#c0392b", marginBottom: "4px" }}>
+                  This property was rejected by an admin
+                </div>
+                {rejectionReason && (
+                  <div style={{
+                    fontSize: "13px", color: "#7b2d22",
+                    background: "rgba(192,57,43,0.07)",
+                    borderLeft: "3px solid #c0392b",
+                    borderRadius: "0 6px 6px 0",
+                    padding: "8px 12px",
+                    marginTop: "6px",
+                    lineHeight: 1.5,
+                  }}>
+                    <strong>Reason:</strong> {rejectionReason}
+                  </div>
+                )}
+                <div style={{ fontSize: "12px", color: "#6e7071", marginTop: "8px" }}>
+                  This listing is read-only. 
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── Basic Info ── */}
           <div className={styles.card}>
@@ -1616,7 +1656,7 @@ const EditProperty: React.FC = () => {
             )}
             <button type="button" className={styles.cancelBtn}
               onClick={() => navigate(-1)} disabled={submitting}>Cancel</button>
-            <button type="submit" className={styles.submitBtn} disabled={submitting}>
+            <button type="submit" className={styles.submitBtn} disabled={submitting || isRejected}>
               {submitting ? <><span className={styles.submitSpinner} /> Saving…</> : "Save Changes"}
             </button>
           </div>

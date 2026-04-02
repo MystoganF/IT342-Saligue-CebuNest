@@ -33,6 +33,9 @@ public class PropertyDTO {
     private String  createdAt;
     private boolean hasActiveTenant;
 
+    // Added field for the rejection reason
+    private String  rejectionReason;
+
     private String ownerFacebookUrl;
     private String ownerInstagramUrl;
     private String ownerTwitterUrl;
@@ -47,6 +50,13 @@ public class PropertyDTO {
     // ── Standard mapping (no cover reordering) ───────────────────────────
     public static PropertyDTO from(Property p) {
         return fromWithCover(p, null);
+    }
+
+    // ── Mapping with rejection reason ────────────────────────────────────
+    public static PropertyDTO from(Property p, String rejectionReason) {
+        PropertyDTO dto = fromWithCover(p, null);
+        dto.setRejectionReason(rejectionReason);
+        return dto;
     }
 
     // ── Mapping with cover photo placed first ────────────────────────────
