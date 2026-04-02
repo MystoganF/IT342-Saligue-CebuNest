@@ -102,5 +102,16 @@ public class UserService {
         userRepository.deleteById(userId);
     }
 
+    @Transactional
+    public UserDTO adminUpdateEmail(Long userId, String newEmail) {
+        String trimmed = newEmail.trim().toLowerCase();
+        if (userRepository.existsByEmail(trimmed))
+            throw new IllegalArgumentException("Email already in use.");
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found."));
+        user.setEmail(trimmed);
+        return UserDTO.from(userRepository.save(user));
+    }
+
     private boolean blank(String s) { return s == null || s.isBlank(); }
 }

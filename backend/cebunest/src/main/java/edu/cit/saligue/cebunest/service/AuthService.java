@@ -60,6 +60,9 @@ public class AuthService {
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new IllegalArgumentException("Invalid email or password.");
         }
+        if (!user.isActive()) {
+            throw new IllegalArgumentException("Your account has been deactivated.");
+        }
 
         String roleName = user.getRole().getName();
         return buildAuthResponse(user, roleName);

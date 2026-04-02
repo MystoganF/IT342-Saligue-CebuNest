@@ -12,10 +12,29 @@ interface UserEntry {
   phoneNumber?: string | null; role: string;
   avatarUrl?: string | null; active: boolean; createdAt?: string;
 }
-type ModalMode = "detail" | "create" | "edit-role" | "deactivate" | null;
+type ModalMode = "detail" | "create" | "edit-role" | "edit-email" | "deactivate" | null;
 const ROLES = ["TENANT", "OWNER", "ADMIN"];
 const roleBg:    Record<string, string> = { ADMIN: "rgba(31,93,113,0.12)",  OWNER: "rgba(183,142,66,0.12)", TENANT: "rgba(45,140,106,0.12)" };
 const roleColor: Record<string, string> = { ADMIN: "#1f5d71", OWNER: "#b78e42", TENANT: "#2d8c6a" };
+
+// ── Global fetch wrapper — auto-logout on 401 ──────────────────────────────
+const apiFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  const token = localStorage.getItem("accessToken");
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers as Record<string, string> ?? {}),
+    },
+  });
+  if (res.status === 401) {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("user");
+    window.location.href = "/";
+  }
+  return res;
+};
 
 const AdminUsers: React.FC = () => {
   const navigate = useNavigate();
@@ -34,6 +53,7 @@ const AdminUsers: React.FC = () => {
   const [modalError, setModalError] = useState<string | null>(null);
   const [form, setForm]           = useState({ name: "", email: "", password: "", role: "TENANT" });
   const [newRole, setNewRole]     = useState("");
+  const [newEmail, setNewEmail]   = useState("");
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -49,10 +69,7 @@ const AdminUsers: React.FC = () => {
   const fetchUsers = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res   = await fetch(`${API_BASE}/api/admin/users`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res  = await apiFetch(`${API_BASE}/api/admin/users`);
       const data = await res.json();
       if (!res.ok || !data.success) { setError(data?.error?.message ?? "Failed."); return; }
       setAllUsers(data.data.users ?? []);
@@ -83,24 +100,22 @@ const AdminUsers: React.FC = () => {
   const hasMore = visible.length < filteredTotal;
 
   // ── Modal helpers ──────────────────────────────────────────────────────
-  const openDetail  = (u: UserEntry) => { setTarget(u); setModalError(null); setModal("detail"); };
-  const openCreate  = () => { setForm({ name: "", email: "", password: "", role: "TENANT" }); setModalError(null); setModal("create"); };
+  const openDetail   = (u: UserEntry) => { setTarget(u); setModalError(null); setModal("detail"); };
+  const openCreate   = () => { setForm({ name: "", email: "", password: "", role: "TENANT" }); setModalError(null); setModal("create"); };
   const openEditRole = (u: UserEntry) => { setTarget(u); setNewRole(u.role); setModalError(null); setModal("edit-role"); };
-  const openToggle  = (u: UserEntry) => { setTarget(u); setModalError(null); setModal("deactivate"); };
-  
-  const closeModal  = () => { if (!submitting) { setModal(null); setTarget(null); } };
+  const openEditEmail = (u: UserEntry) => { setTarget(u); setNewEmail(u.email); setModalError(null); setModal("edit-email"); };
+  const openToggle   = (u: UserEntry) => { setTarget(u); setModalError(null); setModal("deactivate"); };
+  const closeModal   = () => { if (!submitting) { setModal(null); setTarget(null); } };
 
-  const tok = () => localStorage.getItem("accessToken");
-
+  // ── API actions ────────────────────────────────────────────────────────
   const handleCreate = async () => {
     if (!form.name.trim())     { setModalError("Name is required.");     return; }
     if (!form.email.trim())    { setModalError("Email is required.");    return; }
     if (!form.password.trim()) { setModalError("Password is required."); return; }
     setSubmitting(true); setModalError(null);
     try {
-      const res  = await fetch(`${API_BASE}/api/admin/users`, {
+      const res  = await apiFetch(`${API_BASE}/api/admin/users`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(tok() ? { Authorization: `Bearer ${tok()}` } : {}) },
         body: JSON.stringify(form),
       });
       const data = await res.json();
@@ -114,10 +129,25 @@ const AdminUsers: React.FC = () => {
     if (!target) return;
     setSubmitting(true); setModalError(null);
     try {
-      const res  = await fetch(`${API_BASE}/api/admin/users/${target.id}/role`, {
+      const res  = await apiFetch(`${API_BASE}/api/admin/users/${target.id}/role`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", ...(tok() ? { Authorization: `Bearer ${tok()}` } : {}) },
         body: JSON.stringify({ role: newRole }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
+      await fetchUsers(); closeModal();
+    } catch { setModalError("Network error."); }
+    finally { setSubmitting(false); }
+  };
+
+  const handleEditEmail = async () => {
+    if (!target) return;
+    if (!newEmail.trim()) { setModalError("Email is required."); return; }
+    setSubmitting(true); setModalError(null);
+    try {
+      const res  = await apiFetch(`${API_BASE}/api/admin/users/${target.id}/email`, {
+        method: "PUT",
+        body: JSON.stringify({ email: newEmail }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
@@ -130,9 +160,8 @@ const AdminUsers: React.FC = () => {
     if (!target) return;
     setSubmitting(true); setModalError(null);
     try {
-      const res  = await fetch(`${API_BASE}/api/admin/users/${target.id}/active`, {
+      const res  = await apiFetch(`${API_BASE}/api/admin/users/${target.id}/active`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", ...(tok() ? { Authorization: `Bearer ${tok()}` } : {}) },
         body: JSON.stringify({ active: !target.active }),
       });
       const data = await res.json();
@@ -141,8 +170,6 @@ const AdminUsers: React.FC = () => {
     } catch { setModalError("Network error."); }
     finally { setSubmitting(false); }
   };
-
- 
 
   if (!admin) return null;
 
@@ -287,11 +314,11 @@ const AdminUsers: React.FC = () => {
 
                 <div className={styles.detailActions}>
                   <button className={styles.detailActionBtn} onClick={() => openEditRole(target)} type="button">✏️ Change Role</button>
+                  <button className={styles.detailActionBtn} onClick={() => openEditEmail(target)} type="button">✉️ Change Email</button>
                   <button className={`${styles.detailActionBtn} ${target.active ? styles.detailActionBtnWarn : styles.detailActionBtnGreen}`}
                     onClick={() => openToggle(target)} type="button">
                     {target.active ? "⏸ Deactivate" : "▶ Activate"}
                   </button>
-                 
                 </div>
               </div>
             </>}
@@ -357,6 +384,32 @@ const AdminUsers: React.FC = () => {
               </div>
             </>}
 
+            {/* EDIT EMAIL */}
+            {modal === "edit-email" && target && <>
+              <div className={styles.modalHeader}>
+                <span className={styles.modalIcon}>✉️</span>
+                <h3 className={styles.modalTitle}>Change Email</h3>
+                <button className={styles.modalCloseBtn} onClick={closeModal} type="button">✕</button>
+              </div>
+              <div className={styles.modalBody}>
+                <p className={styles.modalDesc}>Changing email for <strong>{target.name}</strong></p>
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>New Email</label>
+                  <input className={styles.fieldInput} type="email"
+                    placeholder="new@example.com" value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    disabled={submitting} />
+                </div>
+                {modalError && <p className={styles.modalError}>⚠ {modalError}</p>}
+                <div className={styles.modalFooter}>
+                  <button className={styles.cancelBtn} onClick={closeModal} disabled={submitting} type="button">Cancel</button>
+                  <button className={styles.confirmBtn} onClick={handleEditEmail} disabled={submitting} type="button">
+                    {submitting ? "Saving…" : "Save Email"}
+                  </button>
+                </div>
+              </div>
+            </>}
+
             {/* TOGGLE ACTIVE */}
             {modal === "deactivate" && target && <>
               <div className={`${styles.modalHeader} ${target.active ? styles.modalHeaderWarn : styles.modalHeaderGreen}`}>
@@ -381,8 +434,6 @@ const AdminUsers: React.FC = () => {
                 </div>
               </div>
             </>}
-
-          
 
           </div>
         </div>

@@ -137,4 +137,21 @@ public class AdminUserController {
         b.put("success", false); b.put("data", null); b.put("error", error); b.put("timestamp", ts());
         return ResponseEntity.status(status).body(b);
     }
+
+    @Data public static class EmailUpdateDTO { private String email; }
+
+    @PutMapping("/{id}/email")
+    public ResponseEntity<?> updateEmail(
+            @PathVariable Long id,
+            @RequestBody EmailUpdateDTO body,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (!isAdmin(currentUser)) return forbidden();
+        if (blank(body.getEmail())) return bad("VALID-001", "Email is required.");
+        try {
+            return ResponseEntity.ok(success(Map.of("user", userService.adminUpdateEmail(id, body.getEmail()))));
+        } catch (IllegalArgumentException e) {
+            return bad("BUSINESS-001", e.getMessage());
+        }
+    }
 }

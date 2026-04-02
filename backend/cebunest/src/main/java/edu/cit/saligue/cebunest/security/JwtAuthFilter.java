@@ -30,6 +30,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
+
+
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -51,6 +53,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         var user = userOpt.get();
+
+        if (!user.isActive()) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"success\":false,\"error\":{\"code\":\"AUTH-003\",\"message\":\"Account is deactivated.\"}}");
+            return;
+        }
+
         String roleName = "ROLE_" + user.getRole().getName();
         UsernamePasswordAuthenticationToken auth =
                 new UsernamePasswordAuthenticationToken(
