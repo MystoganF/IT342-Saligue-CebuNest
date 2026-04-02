@@ -14,6 +14,8 @@ import EditProperty      from "./modules/owner_module/owner_property_management_
 import MyRentals from "./modules/tenant_module/rented_property_module/my_rentals";
 import RentalDetail from "./modules/tenant_module/rented_property_module/RentalDetal";
 import AdminUsers from "./modules/admin_module/admin_user_management/AdminUsers";
+import AdminPropertyDetail from "./modules/admin_module/admin_property_management/AdminPropertyDetail";
+import AdminAuditLog from "./modules/admin_module/admin_audit_log/AdminAuditLog";
 
 function App() {
   return (
@@ -79,9 +81,20 @@ function App() {
           </ProtectedRoute>
         } />
 
+        <Route path="/admin/rental-requests/:id" element={
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
+            <AdminPropertyDetail />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/audit-log" element={
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
+            <AdminAuditLog />
+          </ProtectedRoute>
+        } />
+
         {/* Shared Routes (Accessible by multiple roles) */}
         <Route path="/profile" element={
-          // Assuming Owners and Admins might also need to edit their profiles
+        
           <ProtectedRoute allowedRoles={["TENANT", "OWNER", "ADMIN"]}>
             <Profile />
           </ProtectedRoute>

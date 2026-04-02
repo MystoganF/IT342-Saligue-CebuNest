@@ -2,7 +2,9 @@ package edu.cit.saligue.cebunest.controller;
 
 import edu.cit.saligue.cebunest.dto.PropertyDTO;
 import edu.cit.saligue.cebunest.entity.User;
+import edu.cit.saligue.cebunest.repository.PropertyRepository;
 import edu.cit.saligue.cebunest.service.AdminPropertyService;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,21 +23,37 @@ import java.util.Map;
 public class AdminPropertyController {
 
     private final AdminPropertyService adminPropertyService;
+    private final PropertyRepository   propertyRepository;
 
     // ── GET /api/admin/rental-requests/pending ────────────────────────────
     @GetMapping("/api/admin/rental-requests/pending")
-    public ResponseEntity<?> getPendingRequests(
-            @AuthenticationPrincipal User currentUser
-    ) {
-        if (currentUser == null) return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
-        if (!isAdmin(currentUser)) return buildError("AUTH-002", "Admin access required.", HttpStatus.FORBIDDEN);
-
+    public ResponseEntity<?> getPendingRequests(@AuthenticationPrincipal User currentUser) {
+        if (!isAdmin(currentUser)) return forbidden();
         try {
             List<PropertyDTO> pending = adminPropertyService.getPendingProperties();
-            return buildSuccess(Map.of("properties", pending, "count", pending.size()));
+            return ok(Map.of("properties", pending, "count", pending.size()));
         } catch (Exception e) {
             e.printStackTrace();
-            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            return err("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── GET /api/admin/rental-requests/{id} — full property detail ────────
+    @GetMapping("/api/admin/rental-requests/{id}")
+    public ResponseEntity<?> getPropertyDetail(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser) {
+        if (!isAdmin(currentUser)) return forbidden();
+        try {
+            PropertyDTO property = propertyRepository.findById(id)
+                    .map(PropertyDTO::from)
+                    .orElseThrow(() -> new IllegalArgumentException("Property not found."));
+            return ok(Map.of("property", property));
+        } catch (IllegalArgumentException e) {
+            return err("DB-001", e.getMessage(), HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return err("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -44,66 +62,69 @@ public class AdminPropertyController {
     public ResponseEntity<?> updateStatus(
             @PathVariable Long id,
             @RequestBody StatusUpdateDTO body,
-            @AuthenticationPrincipal User currentUser
-    ) {
-        if (currentUser == null) return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
-        if (!isAdmin(currentUser)) return buildError("AUTH-002", "Admin access required.", HttpStatus.FORBIDDEN);
+            @AuthenticationPrincipal User currentUser) {
+        if (!isAdmin(currentUser)) return forbidden();
 
         if (body.getStatus() == null || body.getStatus().isBlank())
-            return buildError("VALID-001", "Status is required.", HttpStatus.BAD_REQUEST);
+            return err("VALID-001", "Status is required.", HttpStatus.BAD_REQUEST);
 
         String status = body.getStatus().toUpperCase();
         if (!status.equals("APPROVED") && !status.equals("REJECTED"))
-            return buildError("VALID-001", "Status must be APPROVED or REJECTED.", HttpStatus.BAD_REQUEST);
-
+            return err("VALID-001", "Status must be APPROVED or REJECTED.", HttpStatus.BAD_REQUEST);
         if (status.equals("REJECTED") && (body.getReason() == null || body.getReason().isBlank()))
-            return buildError("VALID-001", "Rejection reason is required.", HttpStatus.BAD_REQUEST);
+            return err("VALID-001", "Rejection reason is required.", HttpStatus.BAD_REQUEST);
 
         try {
             PropertyDTO updated = adminPropertyService.updatePropertyStatus(
                     id, status, body.getReason(), currentUser);
-            return buildSuccess(Map.of("property", updated));
+            return ok(Map.of("property", updated));
         } catch (IllegalArgumentException e) {
-            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+            return err("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
             e.printStackTrace();
-            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+            return err("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── GET /api/admin/audit-logs ─────────────────────────────────────────
+    @GetMapping("/api/admin/audit-logs")
+    public ResponseEntity<?> getAuditLogs(
+            @RequestParam(defaultValue = "0")  int page,
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal User currentUser) {
+        if (!isAdmin(currentUser)) return forbidden();
+        try {
+            return ok(adminPropertyService.getAuditHistory(page, size));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return err("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
     // ── Inner DTO ─────────────────────────────────────────────────────────
-    @lombok.Data
+    @Data
     public static class StatusUpdateDTO {
         private String status;
         private String reason;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
-    private boolean isAdmin(User user) {
-        return user.getRole() != null
-                && user.getRole().getName().equalsIgnoreCase("ADMIN");
+    private boolean isAdmin(User u) {
+        return u != null && u.getRole() != null
+                && u.getRole().getName().equalsIgnoreCase("ADMIN");
     }
-
-    private ResponseEntity<?> buildSuccess(Object data) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("success",   true);
-        body.put("data",      data);
-        body.put("error",     null);
-        body.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
-        return ResponseEntity.ok(body);
+    private String ts() { return LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME); }
+    private ResponseEntity<?> ok(Object data) {
+        Map<String, Object> b = new HashMap<>();
+        b.put("success", true); b.put("data", data); b.put("error", null); b.put("timestamp", ts());
+        return ResponseEntity.ok(b);
     }
-
-    private ResponseEntity<?> buildError(String code, String message, HttpStatus status) {
+    private ResponseEntity<?> forbidden() { return err("AUTH-002", "Admin access required.", HttpStatus.FORBIDDEN); }
+    private ResponseEntity<?> err(String code, String msg, HttpStatus status) {
         Map<String, Object> error = new HashMap<>();
-        error.put("code",    code);
-        error.put("message", message);
-        error.put("details", null);
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("success",   false);
-        body.put("data",      null);
-        body.put("error",     error);
-        body.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
-        return ResponseEntity.status(status).body(body);
+        error.put("code", code); error.put("message", msg); error.put("details", null);
+        Map<String, Object> b = new HashMap<>();
+        b.put("success", false); b.put("data", null); b.put("error", error); b.put("timestamp", ts());
+        return ResponseEntity.status(status).body(b);
     }
 }

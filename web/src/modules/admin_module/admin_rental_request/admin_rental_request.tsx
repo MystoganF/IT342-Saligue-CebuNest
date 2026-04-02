@@ -178,6 +178,7 @@ const AdminRentalRequests: React.FC = () => {
           { path: "/admin/rental-requests", icon: "📋", label: "Rental Requests", badge: properties.length },
           { path: "/admin/properties",      icon: "🏘️", label: "All Properties"  },
           { path: "/admin/users",           icon: "👥", label: "Users"           },
+           { path: "/admin/audit-log",       icon: "📜", label: "Audit Log"       },
         ]}
       />
 
@@ -392,6 +393,13 @@ const AdminRentalRequests: React.FC = () => {
                   )}
 
                   <div className={styles.cardActions}>
+                    <button
+                      className={styles.detailBtn}
+                      onClick={() => navigate(`/admin/rental-requests/${p.id}`)}
+                      type="button"
+                    >
+                      🔍 View Details
+                    </button>
                     <button
                       className={styles.rejectBtn}
                       onClick={() => openReview(p, "REJECTED")}

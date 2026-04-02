@@ -663,3 +663,18 @@
   .cardActions { flex-direction: column; }
   .approveBtn, .rejectBtn { width: 100%; justify-content: center; }
 }
+
+.detailBtn {
+  padding: 9px 18px;
+  background: #fff;
+  color: #1f5d71;
+  border: 1.5px solid #c8dde3;
+  border-radius: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-right: auto;
+}
+.detailBtn:hover { background: #f0f4f5; }
