@@ -1,0 +1,425 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap');
+
+/* ─────────────────────────────────────
+   CSS VARIABLES & PAGE
+───────────────────────────────────── */
+.page {
+  --teal-deep:  #1f5d71;
+  --teal-aero:  #53a4a3;
+  --teal-soft:  #98c1c1;
+  --gold:       #b78e42;
+  --gold-light: #d4ab6a;
+  --slate:      #6e7071;
+  --cloud:      #dcdddd;
+  --bg:         #f0f4f5;
+  --sidebar-w:  240px;
+
+  min-height: 100vh;
+  background: var(--bg);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  color: #1a2a2e;
+  display: flex;
+}
+
+/* ─────────────────────────────────────
+   CONTENT AREA (accounts for sidebar)
+───────────────────────────────────── */
+.content {
+  flex: 1;
+  min-width: 0;
+  margin-left: var(--sidebar-w);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─────────────────────────────────────
+   PAGE HEADER BAR
+───────────────────────────────────── */
+.pageBar {
+  background: var(--teal-deep);
+  padding: 32px 40px 36px;
+  position: relative;
+  overflow: hidden;
+}
+.pageBarDeco {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  top: -120px; right: -80px;
+  width: 320px; height: 320px;
+  border: 1px solid rgba(83, 164, 163, 0.15);
+}
+.pageBarAccent {
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, var(--gold), var(--gold-light), transparent);
+}
+.pageBarInner {
+  position: relative;
+  max-width: 860px;
+  margin: 0 auto;
+  animation: fadeUp 0.5s ease both;
+}
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--teal-soft);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 12px;
+  transition: color 0.2s;
+  font-family: 'DM Sans', sans-serif;
+}
+.backBtn:hover { color: #fff; }
+.pageBarTitle {
+  font-family: 'Playfair Display', serif;
+  font-size: 26px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 4px;
+}
+.pageBarSub { font-size: 14px; color: var(--teal-soft); }
+
+
+/* ─────────────────────────────────────
+   MAIN LAYOUT
+───────────────────────────────────── */
+.main {
+  max-width: 860px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 32px 40px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+
+/* ─────────────────────────────────────
+   FORM CARD
+───────────────────────────────────── */
+.card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 32px;
+  box-shadow: 0 2px 8px rgba(31, 93, 113, 0.06);
+  animation: fadeUp 0.5s ease both;
+}
+
+.cardTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--teal-deep);
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cardTitle::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #f0f4f5;
+}
+
+
+/* ─────────────────────────────────────
+   FIELDS GRID
+───────────────────────────────────── */
+.fieldsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.fieldFull { grid-column: 1 / -1; }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.fieldLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--teal-deep);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.fieldInput,
+.fieldSelect,
+.fieldTextarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid #e5eced;
+  border-radius: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  color: #1a2a2e;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+.fieldInput:focus,
+.fieldSelect:focus,
+.fieldTextarea:focus {
+  border-color: var(--teal-aero);
+  box-shadow: 0 0 0 4px rgba(83, 164, 163, 0.1);
+}
+.fieldInput::placeholder,
+.fieldTextarea::placeholder { color: #b0bcbe; }
+.fieldTextarea { resize: vertical; min-height: 100px; }
+.fieldSelect {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236e7071' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+
+
+/* ─────────────────────────────────────
+   VISIBILITY TOGGLE
+───────────────────────────────────── */
+.visibilityWrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 4px 0;
+}
+.visibilityInfo { flex: 1; }
+.visibilityLabel {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a2a2e;
+  margin-bottom: 4px;
+}
+.visibilitySub {
+  font-size: 13px;
+  color: #6e7071;
+  line-height: 1.5;
+}
+
+.toggleBtn {
+  width: 48px;
+  height: 26px;
+  border-radius: 13px;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.25s;
+  padding: 0;
+}
+.toggleBtnOn  { background: #1f5d71; }
+.toggleBtnOff { background: #ccd6d8; }
+
+.toggleThumb {
+  position: absolute;
+  top: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+  transition: left 0.25s;
+}
+.toggleBtnOn  .toggleThumb { left: 25px; }
+.toggleBtnOff .toggleThumb { left: 3px; }
+
+
+/* ─────────────────────────────────────
+   MAP
+───────────────────────────────────── */
+.mapFrame {
+  width: 100%;
+  height: 300px;
+  border-radius: 14px;
+  border: 1.5px solid #e5eced;
+  overflow: hidden;
+  background: #f0f4f5;
+}
+.mapFrame iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+}
+
+
+/* ─────────────────────────────────────
+   IMAGE GALLERY
+───────────────────────────────────── */
+.imagePreviewGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+.imagePreviewWrap {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #f0f4f5;
+}
+.imagePreview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.imagePreview:hover { transform: scale(1.04); }
+
+.imagePreviewRemove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  background: rgba(10, 24, 30, 0.65);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.imagePreviewRemove:hover { background: #c0392b; }
+
+
+/* ─────────────────────────────────────
+   SUBMIT ROW
+───────────────────────────────────── */
+.submitRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.submitBtn {
+  padding: 12px 28px;
+  background: var(--teal-deep);
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 150px;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.submitBtn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%);
+}
+.submitBtn:hover:not(:disabled) {
+  background: #174d5e;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(31, 93, 113, 0.25);
+}
+.submitBtn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+.submitSpinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+
+/* ─────────────────────────────────────
+   LIGHTBOX
+───────────────────────────────────── */
+.lightboxOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+.lightboxImg {
+  max-width: min(90vw, 900px);
+  max-height: 75vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+  display: block;
+}
+.lightboxClose {
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  z-index: 2001;
+}
+.lightboxClose:hover { background: rgba(255,255,255,0.28); }
+
+
+/* ─────────────────────────────────────
+   KEYFRAMES
+───────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+
+/* ─────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────── */
+@media (max-width: 900px) {
+  .content { margin-left: 0; }
+}
+
+@media (max-width: 640px) {
+  .pageBar { padding: 24px 20px 28px; }
+  .main    { padding: 24px 20px 60px; }
+  .fieldsGrid { grid-template-columns: 1fr; }
+  .fieldFull  { grid-column: 1; }
+  .submitRow  { flex-direction: column; align-items: stretch; }
+  .submitBtn  { width: 100%; justify-content: center; }
+}

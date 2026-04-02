@@ -1,6 +1,7 @@
 package edu.cit.saligue.cebunest.controller;
 
 import edu.cit.saligue.cebunest.dto.PropertyDTO;
+import edu.cit.saligue.cebunest.dto.UpdatePropertyDTO;
 import edu.cit.saligue.cebunest.entity.Property;
 import edu.cit.saligue.cebunest.entity.User;
 import edu.cit.saligue.cebunest.repository.AuditLogRepository;
@@ -41,28 +42,23 @@ public class AdminPropertyController {
         }
     }
 
-    // ── GET /api/admin/rental-requests/{id} — full property detail ────────
+    // ── GET /api/admin/rental-requests/{id} ───────────────────────────────
     @GetMapping("/api/admin/rental-requests/{id}")
+    public ResponseEntity<?> getRentalRequestDetail(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser) {
+        if (!isAdmin(currentUser)) return forbidden();
+        return getSinglePropertyResponse(id);
+    }
+
+    // ── GET /api/admin/properties/{id} (THE MISSING LINK) ──────────────────
+    // Added this so your React AdminPropertyEdit can fetch data successfully
+    @GetMapping("/api/admin/properties/{id}")
     public ResponseEntity<?> getPropertyDetail(
             @PathVariable Long id,
             @AuthenticationPrincipal User currentUser) {
         if (!isAdmin(currentUser)) return forbidden();
-        try {
-            Property property = propertyRepository.findById(id)
-                    .orElseThrow(() -> new IllegalArgumentException("Property not found."));
-
-            String rejectionReason = null;
-            if (property.getStatus() == Property.PropertyStatus.REJECTED) {
-                rejectionReason = auditLogRepository.findLatestRejectionReason(id).orElse(null);
-            }
-
-            return ok(Map.of("property", PropertyDTO.from(property, rejectionReason)));
-        } catch (IllegalArgumentException e) {
-            return err("DB-001", e.getMessage(), HttpStatus.NOT_FOUND);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return err("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        return getSinglePropertyResponse(id);
     }
 
     // ── PUT /api/admin/rental-requests/{id}/status ────────────────────────
@@ -109,11 +105,77 @@ public class AdminPropertyController {
         }
     }
 
-    // ── Inner DTO ─────────────────────────────────────────────────────────
-    @Data
-    public static class StatusUpdateDTO {
-        private String status;
-        private String reason;
+    // ── GET /api/admin/properties (List) ──────────────────────────────────
+    @GetMapping("/api/admin/properties")
+    public ResponseEntity<?> getAllProperties(@AuthenticationPrincipal User currentUser) {
+        if (!isAdmin(currentUser)) return forbidden();
+        try {
+            List<PropertyDTO> properties = adminPropertyService.getAllProperties();
+            return ok(Map.of("properties", properties, "count", properties.size()));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return err("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── PUT /api/admin/properties/{id} (Update) ───────────────────────────
+    @PutMapping("/api/admin/properties/{id}")
+    public ResponseEntity<?> updatePropertyAsAdmin(
+            @PathVariable Long id,
+            @RequestBody UpdatePropertyDTO dto,
+            @AuthenticationPrincipal User currentUser) {
+        if (!isAdmin(currentUser)) return forbidden();
+
+        try {
+            if (dto.getTitle() == null || dto.getTitle().isBlank())
+                return err("VALID-001", "Title is required.", HttpStatus.BAD_REQUEST);
+            if (dto.getPrice() == null || dto.getPrice() <= 0)
+                return err("VALID-001", "Price must be greater than 0.", HttpStatus.BAD_REQUEST);
+
+            PropertyDTO updated = adminPropertyService.updatePropertyAsAdmin(id, dto, currentUser);
+            return ok(Map.of("property", updated));
+        } catch (IllegalArgumentException e) {
+            return err("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return err("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── PUT /api/admin/properties/{id}/visibility ─────────────────────────
+    @PutMapping("/api/admin/properties/{id}/visibility")
+    public ResponseEntity<?> toggleVisibility(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser) {
+        if (!isAdmin(currentUser)) return forbidden();
+        try {
+            PropertyDTO updated = adminPropertyService.togglePropertyVisibility(id);
+            return ok(Map.of("property", updated));
+        } catch (IllegalArgumentException e) {
+            return err("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return err("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── Private Helper for fetching single property ──────────────────────
+    private ResponseEntity<?> getSinglePropertyResponse(Long id) {
+        try {
+            Property property = propertyRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Property not found."));
+
+            String rejectionReason = null;
+            if (property.getStatus() == Property.PropertyStatus.REJECTED) {
+                rejectionReason = auditLogRepository.findLatestRejectionReason(id).orElse(null);
+            }
+
+            return ok(Map.of("property", PropertyDTO.from(property, rejectionReason)));
+        } catch (IllegalArgumentException e) {
+            return err("DB-001", e.getMessage(), HttpStatus.NOT_FOUND);
+        } catch (Exception e) {
+            return err("SYSTEM-001", "An unexpected error occurred.", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────
@@ -121,18 +183,28 @@ public class AdminPropertyController {
         return u != null && u.getRole() != null
                 && u.getRole().getName().equalsIgnoreCase("ADMIN");
     }
+
     private String ts() { return LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME); }
+
     private ResponseEntity<?> ok(Object data) {
         Map<String, Object> b = new HashMap<>();
         b.put("success", true); b.put("data", data); b.put("error", null); b.put("timestamp", ts());
         return ResponseEntity.ok(b);
     }
+
     private ResponseEntity<?> forbidden() { return err("AUTH-002", "Admin access required.", HttpStatus.FORBIDDEN); }
+
     private ResponseEntity<?> err(String code, String msg, HttpStatus status) {
         Map<String, Object> error = new HashMap<>();
         error.put("code", code); error.put("message", msg); error.put("details", null);
         Map<String, Object> b = new HashMap<>();
         b.put("success", false); b.put("data", null); b.put("error", error); b.put("timestamp", ts());
         return ResponseEntity.status(status).body(b);
+    }
+
+    @Data
+    public static class StatusUpdateDTO {
+        private String status;
+        private String reason;
     }
 }

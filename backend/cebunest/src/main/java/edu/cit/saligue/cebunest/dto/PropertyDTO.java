@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,9 +32,12 @@ public class PropertyDTO {
     private String  ownerName;
     private List<ImageDTO> images;
     private String  createdAt;
+
     private boolean hasActiveTenant;
 
-    // Added field for the rejection reason
+    // ── NEW: Active Tenant Info to fix the "cannot find symbol" error ──
+    private ActiveTenantDTO activeTenant;
+
     private String  rejectionReason;
 
     private String ownerFacebookUrl;
@@ -45,6 +49,19 @@ public class PropertyDTO {
     public static class ImageDTO {
         private Long   id;
         private String imageUrl;
+    }
+
+    // ── NEW: Nested DTO for Active Tenant ──
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class ActiveTenantDTO {
+        private Long tenantId;
+        private String tenantName;
+        private String tenantEmail;
+        private String startDate;
+        private Integer leaseDurationMonths;
     }
 
     // ── Standard mapping (no cover reordering) ───────────────────────────
@@ -92,11 +109,9 @@ public class PropertyDTO {
                 .sqm(p.getSqm())
                 .ownerId(p.getOwner().getId())
                 .ownerName(p.getOwner().getName())
-
                 .ownerFacebookUrl(p.getOwner().getFacebookUrl())
                 .ownerInstagramUrl(p.getOwner().getInstagramUrl())
                 .ownerTwitterUrl(p.getOwner().getTwitterUrl())
-
                 .images(images)
                 .createdAt(p.getCreatedAt() != null
                         ? p.getCreatedAt().format(java.time.format.DateTimeFormatter.ISO_DATE_TIME)

@@ -23,14 +23,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final UserRepository userRepository;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
         String authHeader = request.getHeader("Authorization");
-
-
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
@@ -38,37 +34,26 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         String token = authHeader.substring(7);
-
         if (!jwtUtil.isTokenValid(token)) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
+            filterChain.doFilter(request, response);
             return;
         }
 
         String email = jwtUtil.extractEmail(token);
-        var userOpt = userRepository.findByEmail(email);
+        userRepository.findByEmail(email).ifPresent(user -> {
+            if (user.isActive()) {
+                // Ensure the role is uppercase for Spring Security comparison
+                String roleName = "ROLE_" + user.getRole().getName().toUpperCase();
 
-        if (userOpt.isEmpty()) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "User not found");
-            return;
-        }
+                // DEBUG: Check your IDE console to see this output!
+                System.out.println("User: " + email + " logged in with role: " + roleName);
 
-        var user = userOpt.get();
-
-        if (!user.isActive()) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"success\":false,\"error\":{\"code\":\"AUTH-003\",\"message\":\"Account is deactivated.\"}}");
-            return;
-        }
-
-        String roleName = "ROLE_" + user.getRole().getName();
-        UsernamePasswordAuthenticationToken auth =
-                new UsernamePasswordAuthenticationToken(
-                        user,
-                        null,
-                        List.of(new SimpleGrantedAuthority(roleName))
+                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                        user, null, List.of(new SimpleGrantedAuthority(roleName))
                 );
-        SecurityContextHolder.getContext().setAuthentication(auth);
+                SecurityContextHolder.getContext().setAuthentication(auth);
+            }
+        });
 
         filterChain.doFilter(request, response);
     }

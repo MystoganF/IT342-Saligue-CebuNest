@@ -14,9 +14,10 @@ import EditProperty      from "./modules/owner_module/owner_property_management_
 import MyRentals from "./modules/tenant_module/rented_property_module/my_rentals";
 import RentalDetail from "./modules/tenant_module/rented_property_module/RentalDetal";
 import AdminUsers from "./modules/admin_module/admin_user_management/AdminUsers";
-import AdminPropertyDetail from "./modules/admin_module/admin_property_management/AdminPropertyDetail";
+import AdminPropertyDetail from "./modules/admin_module/admin_property_detail/AdminPropertyDetail";
 import AdminAuditLog from "./modules/admin_module/admin_audit_log/AdminAuditLog";
-
+import AdminProperties from "./modules/admin_module/admin_property_management/AdminProperties";
+import AdminPropertyEdit from "./modules/admin_module/admin_property_management/AdminEditProperty";
 function App() {
   return (
     <BrowserRouter>
@@ -91,6 +92,18 @@ function App() {
             <AdminAuditLog />
           </ProtectedRoute>
         } />
+
+        <Route path="/admin/properties" element={
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
+            <AdminProperties />
+          </ProtectedRoute>
+        } />
+        
+       <Route path="/admin/properties/:id/edit" element={
+        <ProtectedRoute allowedRoles={["ADMIN"]}>
+          <AdminPropertyEdit /> 
+        </ProtectedRoute>
+      } />
 
         {/* Shared Routes (Accessible by multiple roles) */}
         <Route path="/profile" element={
