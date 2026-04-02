@@ -8,6 +8,6 @@ import java.util.List;
 public interface PropertyReviewRepository extends JpaRepository<PropertyReview, Long> {
 
     List<PropertyReview> findByPropertyIdOrderByCreatedAtDesc(Long propertyId);
-
+    List<PropertyReview> findByPropertyIdIn(List<Long> propertyIds);
     boolean existsByRentalRequestId(Long rentalRequestId);
 }
