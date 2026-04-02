@@ -20,19 +20,70 @@ interface AuditEntry {
   ownerEmail: string;
   createdAt: string;
 }
+interface PropertyDetail {
+  id: number;
+  title: string;
+  description: string;
+  price: number;
+  location: string;
+  type: string;
+  status: string;
+  beds: number | null;
+  baths: number | null;
+  sqm: number | null;
+  ownerId: number;
+  ownerName: string;
+  ownerFacebookUrl?: string | null;
+  ownerInstagramUrl?: string | null;
+  ownerTwitterUrl?: string | null;
+  images: { id: number; imageUrl: string }[];
+  createdAt: string;
+}
+
+function formatPrice(price: number): string {
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency", currency: "PHP",
+    minimumFractionDigits: 0, maximumFractionDigits: 0,
+  }).format(price);
+}
+
+const apiFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  const token = localStorage.getItem("accessToken");
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers as Record<string, string> ?? {}),
+    },
+  });
+  if (res.status === 401) {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("user");
+    window.location.href = "/";
+  }
+  return res;
+};
 
 const AdminAuditLog: React.FC = () => {
   const navigate = useNavigate();
-  const [admin, setAdmin]       = useState<AdminUser | null>(null);
-  const [logs, setLogs]         = useState<AuditEntry[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [admin, setAdmin]             = useState<AdminUser | null>(null);
+  const [logs, setLogs]               = useState<AuditEntry[]>([]);
+  const [loading, setLoading]         = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError]       = useState<string | null>(null);
-  const [page, setPage]         = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [search, setSearch]     = useState("");
-  const [filter, setFilter]     = useState<"ALL" | "PROPERTY_APPROVED" | "PROPERTY_REJECTED">("ALL");
-  const [expanded, setExpanded] = useState<number | null>(null);
+  const [error, setError]             = useState<string | null>(null);
+  const [page, setPage]               = useState(0);
+  const [totalPages, setTotalPages]   = useState(1);
+  const [search, setSearch]           = useState("");
+  const [filter, setFilter]           = useState<"ALL" | "PROPERTY_APPROVED" | "PROPERTY_REJECTED">("ALL");
+  const [expanded, setExpanded]       = useState<number | null>(null);
+
+  // Property detail modal
+  const [detailLog, setDetailLog]         = useState<AuditEntry | null>(null);
+  const [property, setProperty]           = useState<PropertyDetail | null>(null);
+  const [propertyLoading, setPropertyLoading] = useState(false);
+  const [propertyError, setPropertyError] = useState<string | null>(null);
+  const [activeImg, setActiveImg]         = useState(0);
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -49,10 +100,7 @@ const AdminAuditLog: React.FC = () => {
     append ? setLoadingMore(true) : setLoading(true);
     setError(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res   = await fetch(`${API_BASE}/api/admin/audit-logs?page=${pageNum}&size=${PAGE_SIZE}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      const res  = await apiFetch(`${API_BASE}/api/admin/audit-logs?page=${pageNum}&size=${PAGE_SIZE}`);
       const data = await res.json();
       if (!res.ok || !data.success) { setError(data?.error?.message ?? "Failed to load."); return; }
       setLogs((prev) => append ? [...prev, ...data.data.logs] : data.data.logs);
@@ -63,6 +111,34 @@ const AdminAuditLog: React.FC = () => {
   }, []);
 
   useEffect(() => { if (admin) fetchLogs(0); }, [admin, fetchLogs]);
+
+  const openDetail = async (log: AuditEntry) => {
+    setDetailLog(log);
+    setProperty(null);
+    setPropertyError(null);
+    setActiveImg(0);
+    setPropertyLoading(true);
+    try {
+      const res  = await apiFetch(`${API_BASE}/api/admin/rental-requests/${log.targetId}`);
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setPropertyError(data?.error?.message ?? "Failed to load property.");
+        return;
+      }
+      setProperty(data.data.property);
+    } catch {
+      setPropertyError("Unable to connect to server.");
+    } finally {
+      setPropertyLoading(false);
+    }
+  };
+
+  const closeDetail = () => {
+    setDetailLog(null);
+    setProperty(null);
+    setPropertyError(null);
+    setActiveImg(0);
+  };
 
   const filtered = logs.filter((l) => {
     const q = search.toLowerCase();
@@ -166,12 +242,18 @@ const AdminAuditLog: React.FC = () => {
                               hour: "2-digit", minute: "2-digit",
                             })}
                           </div>
-                          {log.reason && (
-                            <button className={styles.expandBtn}
-                              onClick={() => setExpanded(isExpanded ? null : log.id)} type="button">
-                              {isExpanded ? "▲ Hide" : "▼ Reason"}
+                          <div className={styles.logActions}>
+                            {log.reason && (
+                              <button className={styles.expandBtn}
+                                onClick={() => setExpanded(isExpanded ? null : log.id)} type="button">
+                                {isExpanded ? "▲ Hide" : "▼ Reason"}
+                              </button>
+                            )}
+                            <button className={styles.viewDetailBtn}
+                              onClick={() => openDetail(log)} type="button">
+                              🏠 View Property
                             </button>
-                          )}
+                          </div>
                         </div>
                       </div>
                       {isExpanded && log.reason && (
@@ -196,6 +278,181 @@ const AdminAuditLog: React.FC = () => {
           </>
         )}
       </div>
+
+      {/* ── Property Detail Modal ── */}
+      {detailLog && (
+        <div className={styles.overlay} onClick={closeDetail}>
+          <div className={styles.detailModal} onClick={(e) => e.stopPropagation()}>
+
+            {/* Modal Header */}
+            <div className={`${styles.detailModalHeader} ${detailLog.action === "PROPERTY_APPROVED" ? styles.detailModalHeaderApprove : styles.detailModalHeaderReject}`}>
+              <div className={styles.detailModalHeaderLeft}>
+                <span className={`${styles.logBadge} ${detailLog.action === "PROPERTY_APPROVED" ? styles.logBadgeApprove : styles.logBadgeReject}`}>
+                  {detailLog.action === "PROPERTY_APPROVED" ? "✓ Approved" : "✕ Rejected"}
+                </span>
+                <h3 className={styles.detailModalTitle}>{detailLog.targetTitle}</h3>
+                <p className={styles.detailModalSub}>
+                  Reviewed by <strong>{detailLog.adminName}</strong> on{" "}
+                  {new Date(detailLog.createdAt).toLocaleDateString("en-PH", {
+                    year: "numeric", month: "long", day: "numeric",
+                  })}
+                </p>
+              </div>
+              <button className={styles.detailModalClose} onClick={closeDetail} type="button">✕</button>
+            </div>
+
+            <div className={styles.detailModalBody}>
+              {propertyLoading && (
+                <div className={styles.detailModalLoading}>
+                  <div className={styles.detailModalSkeletonHero} />
+                  <div className={styles.detailModalSkeletonLines}>
+                    {Array.from({ length: 4 }).map((_, i) => <div key={i} className={styles.detailModalSkeletonLine} />)}
+                  </div>
+                </div>
+              )}
+
+              {propertyError && !propertyLoading && (
+                <div className={styles.detailModalError}>
+                  <span>⚠️</span>
+                  <p>{propertyError}</p>
+                </div>
+              )}
+
+              {property && !propertyLoading && (
+                <>
+                  {/* Gallery */}
+                  {property.images.length > 0 && (
+                    <div className={styles.gallery}>
+                      <div className={styles.galleryMain}>
+                        <img
+                          src={property.images[activeImg]?.imageUrl}
+                          alt="Property"
+                          className={styles.galleryMainImg}
+                        />
+                        {property.images.length > 1 && (
+                          <>
+                            <button className={`${styles.galleryNav} ${styles.galleryNavPrev}`}
+                              onClick={() => setActiveImg((i) => Math.max(0, i - 1))}
+                              disabled={activeImg === 0} type="button">‹</button>
+                            <button className={`${styles.galleryNav} ${styles.galleryNavNext}`}
+                              onClick={() => setActiveImg((i) => Math.min(property.images.length - 1, i + 1))}
+                              disabled={activeImg === property.images.length - 1} type="button">›</button>
+                            <div className={styles.galleryCounter}>{activeImg + 1} / {property.images.length}</div>
+                          </>
+                        )}
+                      </div>
+                      {property.images.length > 1 && (
+                        <div className={styles.galleryStrip}>
+                          {property.images.map((img, i) => (
+                            <button key={img.id}
+                              className={`${styles.galleryThumb} ${i === activeImg ? styles.galleryThumbActive : ""}`}
+                              onClick={() => setActiveImg(i)} type="button">
+                              <img src={img.imageUrl} alt={`Photo ${i + 1}`} />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Info grid */}
+                  <div className={styles.propGrid}>
+                    {/* Left: main info */}
+                    <div className={styles.propMain}>
+                      <div className={styles.propTitleRow}>
+                        <div>
+                          <h2 className={styles.propTitle}>{property.title}</h2>
+                          <div className={styles.propMeta}>
+                            <span>📍 {property.location}</span>
+                            <span>🏷️ {property.type}</span>
+                            {property.createdAt && (
+                              <span>🕐 Submitted {new Date(property.createdAt).toLocaleDateString("en-PH", {
+                                year: "numeric", month: "long", day: "numeric",
+                              })}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className={styles.propPrice}>
+                          {formatPrice(property.price)}<span>/mo</span>
+                        </div>
+                      </div>
+
+                      {/* Specs */}
+                      <div className={styles.specRow}>
+                        {property.beds  != null && <div className={styles.specCard}><span className={styles.specIcon}>🛏</span><span className={styles.specVal}>{property.beds}</span><span className={styles.specLbl}>Beds</span></div>}
+                        {property.baths != null && <div className={styles.specCard}><span className={styles.specIcon}>🚿</span><span className={styles.specVal}>{property.baths}</span><span className={styles.specLbl}>Baths</span></div>}
+                        {property.sqm   != null && <div className={styles.specCard}><span className={styles.specIcon}>📐</span><span className={styles.specVal}>{property.sqm}</span><span className={styles.specLbl}>sqm</span></div>}
+                        <div className={styles.specCard}><span className={styles.specIcon}>📸</span><span className={styles.specVal}>{property.images.length}</span><span className={styles.specLbl}>Photos</span></div>
+                      </div>
+
+                      {/* Description */}
+                      {property.description && (
+                        <div className={styles.propSection}>
+                          <div className={styles.propSectionLabel}>Description</div>
+                          <p className={styles.propSectionText}>{property.description}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right: owner + audit info */}
+                    <div className={styles.propSide}>
+                      {/* Owner card */}
+                      <div className={styles.ownerCard}>
+                        <div className={styles.ownerCardLabel}>Property Owner</div>
+                        <div className={styles.ownerCardName}>{property.ownerName}</div>
+                        {(property.ownerFacebookUrl || property.ownerInstagramUrl || property.ownerTwitterUrl) && (
+                          <div className={styles.ownerLinks}>
+                            {property.ownerFacebookUrl  && <a href={property.ownerFacebookUrl}  target="_blank" rel="noreferrer" className={styles.ownerLink}>Facebook</a>}
+                            {property.ownerInstagramUrl && <a href={property.ownerInstagramUrl} target="_blank" rel="noreferrer" className={styles.ownerLink}>Instagram</a>}
+                            {property.ownerTwitterUrl   && <a href={property.ownerTwitterUrl}   target="_blank" rel="noreferrer" className={styles.ownerLink}>Twitter</a>}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Audit info */}
+                      <div className={styles.auditInfoCard}>
+                        <div className={styles.auditInfoLabel}>Audit Details</div>
+                        <div className={styles.auditInfoRow}>
+                          <span className={styles.auditInfoKey}>Action</span>
+                          <span className={`${styles.logBadge} ${detailLog.action === "PROPERTY_APPROVED" ? styles.logBadgeApprove : styles.logBadgeReject}`}>
+                            {detailLog.action === "PROPERTY_APPROVED" ? "✓ Approved" : "✕ Rejected"}
+                          </span>
+                        </div>
+                        <div className={styles.auditInfoRow}>
+                          <span className={styles.auditInfoKey}>Reviewed by</span>
+                          <span className={styles.auditInfoVal}>{detailLog.adminName}</span>
+                        </div>
+                        <div className={styles.auditInfoRow}>
+                          <span className={styles.auditInfoKey}>Date</span>
+                          <span className={styles.auditInfoVal}>
+                            {new Date(detailLog.createdAt).toLocaleDateString("en-PH", {
+                              year: "numeric", month: "long", day: "numeric",
+                            })}
+                          </span>
+                        </div>
+                        <div className={styles.auditInfoRow}>
+                          <span className={styles.auditInfoKey}>Time</span>
+                          <span className={styles.auditInfoVal}>
+                            {new Date(detailLog.createdAt).toLocaleTimeString("en-PH", {
+                              hour: "2-digit", minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                        {detailLog.reason && (
+                          <div className={styles.auditReasonBlock}>
+                            <span className={styles.auditInfoKey}>Rejection Reason</span>
+                            <p className={styles.auditReasonText}>{detailLog.reason}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
