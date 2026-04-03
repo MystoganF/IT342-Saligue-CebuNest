@@ -113,11 +113,19 @@ const AdminAuditLog: React.FC = () => {
   useEffect(() => { if (admin) fetchLogs(0); }, [admin, fetchLogs]);
 
   const openDetail = async (log: AuditEntry) => {
+    // 1. Add this safety check:
+    if (!log.targetId) {
+      setDetailLog(log);
+      setPropertyError("Cannot load property: The Audit Log is missing the property ID.");
+      return;
+    }
+
     setDetailLog(log);
     setProperty(null);
     setPropertyError(null);
     setActiveImg(0);
     setPropertyLoading(true);
+    
     try {
       const res  = await apiFetch(`${API_BASE}/api/admin/rental-requests/${log.targetId}`);
       const data = await res.json();
@@ -142,10 +150,12 @@ const AdminAuditLog: React.FC = () => {
 
   const filtered = logs.filter((l) => {
     const q = search.toLowerCase();
-    const matchSearch = l.targetTitle.toLowerCase().includes(q)
-      || l.ownerName.toLowerCase().includes(q)
-      || l.ownerEmail.toLowerCase().includes(q)
-      || l.adminName.toLowerCase().includes(q);
+    // Fallback to empty string using || "" if the value is null or undefined
+    const matchSearch = (l.targetTitle || "").toLowerCase().includes(q)
+      || (l.ownerName || "").toLowerCase().includes(q)
+      || (l.ownerEmail || "").toLowerCase().includes(q)
+      || (l.adminName || "").toLowerCase().includes(q);
+      
     const matchFilter = filter === "ALL" || l.action === filter;
     return matchSearch && matchFilter;
   });

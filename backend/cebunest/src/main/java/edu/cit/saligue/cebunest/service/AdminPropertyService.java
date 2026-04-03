@@ -1,5 +1,6 @@
 package edu.cit.saligue.cebunest.service;
 
+import edu.cit.saligue.cebunest.dto.AuditLogDTO; // FIXED: Imported the DTO
 import edu.cit.saligue.cebunest.dto.PropertyDTO;
 import edu.cit.saligue.cebunest.entity.AuditLog;
 import edu.cit.saligue.cebunest.entity.Property;
@@ -23,9 +24,10 @@ public class AdminPropertyService {
 
     private final PropertyRepository propertyRepository;
     private final AuditLogRepository auditLogRepository;
-    private final RentalRequestRepository rentalRequestRepository; // <-- Inject this
+    private final RentalRequestRepository rentalRequestRepository;
     private final PropertyTypeRepository propertyTypeRepository;
     private final PropertyImageRepository propertyImageRepository;
+    private final SupabaseStorageService storageService;
 
     // ── Get pending properties ───────────────────────────────────────────
     @Transactional(readOnly = true)
@@ -49,11 +51,11 @@ public class AdminPropertyService {
 
         if ("APPROVED".equalsIgnoreCase(statusStr)) {
             newStatus = Property.PropertyStatus.AVAILABLE;
-            action = "APPROVED";
+            action = "PROPERTY_APPROVED"; // FIXED: Ensure this matches your frontend exact string (was "APPROVED")
             reason = "Approved by admin";
         } else if ("REJECTED".equalsIgnoreCase(statusStr)) {
             newStatus = Property.PropertyStatus.REJECTED;
-            action = "REJECTED";
+            action = "PROPERTY_REJECTED"; // FIXED: Ensure this matches your frontend exact string (was "REJECTED")
             if (reason == null || reason.isBlank()) {
                 throw new IllegalArgumentException("Reason is required for rejection.");
             }
@@ -67,15 +69,18 @@ public class AdminPropertyService {
         // Create audit log
         AuditLog log = AuditLog.builder()
                 .admin(admin)
-                .targetId(saved.getId())      // Changed from propertyId to targetId
-                .targetTitle(saved.getTitle()) // Changed from propertyTitle to targetTitle
-                .targetType("PROPERTY")        // Good practice to set this as per your entity
+                .targetId(saved.getId())
+                .targetTitle(saved.getTitle())
+                .targetType("PROPERTY")
                 .action(action)
                 .reason(reason)
+                // FIXED: Actually saving the owner details so they appear in the UI
+                .ownerName(saved.getOwner().getName())
+                .ownerEmail(saved.getOwner().getEmail())
                 .build();
         auditLogRepository.save(log);
 
-        return PropertyDTO.from(saved, "REJECTED".equals(action) ? reason : null);
+        return PropertyDTO.from(saved, "PROPERTY_REJECTED".equals(action) ? reason : null);
     }
 
     // ── Get Audit History ────────────────────────────────────────────────
@@ -85,16 +90,10 @@ public class AdminPropertyService {
                 PageRequest.of(page, size, Sort.by("createdAt").descending())
         );
 
-        List<Map<String, Object>> logs = auditPage.getContent().stream().map(log -> {
-            Map<String, Object> m = new HashMap<>();
-            m.put("id", log.getId());
-            m.put("adminName", log.getAdmin().getName());
-            m.put("propertyTitle", log.getTargetTitle()); // Changed from log.getPropertyTitle() to log.getTargetTitle()
-            m.put("action", log.getAction());
-            m.put("reason", log.getReason());
-            m.put("createdAt", log.getCreatedAt().toString());
-            return m;
-        }).toList();
+        // FIXED: Replaced the manual HashMap mapping with your AuditLogDTO!
+        List<AuditLogDTO> logs = auditPage.getContent().stream()
+                .map(AuditLogDTO::from)
+                .toList();
 
         Map<String, Object> res = new HashMap<>();
         res.put("logs", logs);
@@ -209,5 +208,25 @@ public class AdminPropertyService {
         PropertyDTO dto = PropertyDTO.from(saved);
         dto.setHasActiveTenant(false); // We just verified there isn't one
         return dto;
+    }
+
+    // ── Admin Upload Images (Bypasses Owner Check) ───────────────────────
+    @Transactional
+    public PropertyDTO uploadImagesAsAdmin(Long propertyId, List<org.springframework.web.multipart.MultipartFile> files) throws java.io.IOException {
+        Property property = propertyRepository.findById(propertyId)
+                .orElseThrow(() -> new IllegalArgumentException("Property not found."));
+
+        // No owner check here! Admin bypasses it.
+
+        for (org.springframework.web.multipart.MultipartFile file : files) {
+            String url = storageService.uploadPropertyImage(propertyId, file);
+            edu.cit.saligue.cebunest.entity.PropertyImage image = edu.cit.saligue.cebunest.entity.PropertyImage.builder()
+                    .property(property)
+                    .imageUrl(url)
+                    .build();
+            propertyImageRepository.save(image);
+        }
+
+        return PropertyDTO.from(propertyRepository.findById(propertyId).get());
     }
 }

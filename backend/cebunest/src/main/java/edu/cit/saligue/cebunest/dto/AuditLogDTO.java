@@ -24,8 +24,8 @@ public class AuditLogDTO {
     public static AuditLogDTO from(AuditLog a) {
         return AuditLogDTO.builder()
                 .id(a.getId())
-                .adminId(a.getAdmin().getId())
-                .adminName(a.getAdmin().getName())
+                .adminId(a.getAdmin() != null ? a.getAdmin().getId() : null)
+                .adminName(a.getAdmin() != null ? a.getAdmin().getName() : "System")
                 .action(a.getAction())
                 .targetType(a.getTargetType())
                 .targetId(a.getTargetId())

@@ -207,4 +207,35 @@ public class AdminPropertyController {
         private String status;
         private String reason;
     }
+
+    // ── POST /api/admin/properties/{id}/images ────────────────────────────
+    @PostMapping("/api/admin/properties/{id}/images")
+    public ResponseEntity<?> uploadImagesAsAdmin(
+            @PathVariable Long id,
+            @RequestParam("files") List<org.springframework.web.multipart.MultipartFile> files,
+            @AuthenticationPrincipal User currentUser) {
+        if (!isAdmin(currentUser)) return forbidden();
+
+        if (files == null || files.isEmpty())
+            return err("VALID-001", "At least one image is required.", HttpStatus.BAD_REQUEST);
+        if (files.size() > 10)
+            return err("VALID-001", "Maximum 10 images allowed.", HttpStatus.BAD_REQUEST);
+
+        for (org.springframework.web.multipart.MultipartFile file : files) {
+            String ct = file.getContentType();
+            if (ct == null || !ct.startsWith("image/"))
+                return err("VALID-001", "Only image files are allowed.", HttpStatus.BAD_REQUEST);
+            if (file.getSize() > 5 * 1024 * 1024)
+                return err("VALID-001", "Each image must be under 5MB.", HttpStatus.BAD_REQUEST);
+        }
+
+        try {
+            PropertyDTO updated = adminPropertyService.uploadImagesAsAdmin(id, files);
+            return ok(Map.of("property", updated));
+        } catch (IllegalArgumentException e) {
+            return err("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return err("SYSTEM-001", "Image upload failed: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }

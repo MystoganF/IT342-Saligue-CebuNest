@@ -100,10 +100,10 @@ function App() {
         } />
         
        <Route path="/admin/properties/:id/edit" element={
-        <ProtectedRoute allowedRoles={["ADMIN"]}>
-          <AdminPropertyEdit /> 
-        </ProtectedRoute>
-      } />
+          <ProtectedRoute allowedRoles={["ADMIN"]}>
+            <AdminPropertyEdit /> 
+          </ProtectedRoute>
+        } />
 
         {/* Shared Routes (Accessible by multiple roles) */}
         <Route path="/profile" element={
