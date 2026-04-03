@@ -145,16 +145,11 @@ const Register: React.FC = () => {
       setIsError(false);
 
       try {
-        const profileRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-          headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
-        });
-        const profile = await profileRes.json();
-
         const { res, data } = await postJSON(`${API_BASE}/api/auth/google`, {
-          email: profile.email,
-          name: profile.name,
+          token: tokenResponse.access_token,
           role,
         });
+        // ... rest of your logic remains identical
 
         if (!res.ok || !data.success) {
           setErrorMsg(data?.error?.message ?? "Google sign-up failed.");
