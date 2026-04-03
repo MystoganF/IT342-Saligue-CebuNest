@@ -69,7 +69,8 @@ const AdminProperties: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
 
-  
+  // NEW: State for deactivation reason
+  const [deactivateReason, setDeactivateReason] = useState("");
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
@@ -122,22 +123,42 @@ const AdminProperties: React.FC = () => {
     if (!submitting) {
       setModal(null);
       setTarget(null);
+      setDeactivateReason(""); // Clear reason state
+      setModalError(null);
     }
   };
 
   const handleToggleVisibility = async () => {
     if (!target) return;
+
+    // Validate: If deactivating (moving from AVAILABLE), reason is required
+    if (target.status === "AVAILABLE" && !deactivateReason.trim()) {
+      setModalError("Please provide a reason for deactivation.");
+      return;
+    }
+
     setSubmitting(true); setModalError(null);
     try {
       const token = localStorage.getItem("accessToken");
       const res = await fetch(`${API_BASE}/api/admin/properties/${target.id}/visibility`, { 
         method: "PUT",
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ reason: deactivateReason })
       });
-      if (!res.ok) throw new Error("Failed update");
-      await fetchProperties(); setModal(null);
-    } catch { setModalError("Network error."); }
-    finally { setSubmitting(false); }
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || "Failed update");
+
+      await fetchProperties(); 
+      closeModal();
+    } catch (err: any) { 
+        setModalError(err.message || "Network error."); 
+    } finally { 
+        setSubmitting(false); 
+    }
   };
 
   if (!admin) return null;
@@ -275,18 +296,69 @@ const AdminProperties: React.FC = () => {
         </div>
       )}
 
-      {/* DEACTIVATE CONFIRMATION MODAL */}
+      {/* DEACTIVATE / ACTIVATE CONFIRMATION MODAL */}
       {modal === "deactivate" && target && (
-        <div className={styles.overlay} onClick={() => setModal("detail")}>
+        <div className={styles.overlay} onClick={() => closeModal()}>
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
-            <div className={styles.modalHeader} style={{background: 'linear-gradient(135deg, #fdf0ee, #fde0db)'}}>
-               <h3 className={styles.modalTitle}>Confirm Visibility Change</h3>
+            <div className={styles.modalHeader} style={{
+                background: target.status === "AVAILABLE" 
+                ? 'linear-gradient(135deg, #fdf0ee, #fde0db)' 
+                : 'linear-gradient(135deg, #f0fdf4, #dcfce7)'
+            }}>
+               <h3 className={styles.modalTitle}>
+                 {target.status === "AVAILABLE" ? "Confirm Deactivation" : "Confirm Activation"}
+               </h3>
             </div>
             <div className={styles.modalBody}>
-              <p className={styles.modalDesc}>Are you sure you want to change the visibility for <strong>{target.title}</strong>?</p>
-              <div className={styles.modalFooter}>
-                <button className={styles.cancelBtn} onClick={() => setModal("detail")}>Cancel</button>
-                <button className={target.status === "AVAILABLE" ? styles.dangerBtn : styles.confirmBtn} onClick={handleToggleVisibility} disabled={submitting}>
+              <p className={styles.modalDesc}>
+                Are you sure you want to change the visibility for <strong>{target.title}</strong>?
+              </p>
+
+              {/* Show Reason field ONLY when deactivating an AVAILABLE listing */}
+              {target.status === "AVAILABLE" && (
+                <div style={{ marginTop: "15px" }}>
+                    <label style={{ 
+                        display: "block", 
+                        fontSize: "12px", 
+                        fontWeight: 700, 
+                        marginBottom: "5px", 
+                        color: "#c0392b" 
+                    }}>
+                        REASON FOR DEACTIVATION (Visible to Owner)
+                    </label>
+                    <textarea
+                        style={{
+                            width: "100%",
+                            padding: "12px",
+                            borderRadius: "10px",
+                            border: "1.5px solid #eee",
+                            fontSize: "14px",
+                            minHeight: "100px",
+                            fontFamily: "inherit",
+                            resize: "none",
+                            outline: 'none',
+                            backgroundColor: '#fafafa'
+                        }}
+                        placeholder="Provide a specific reason (e.g., policy violation, duplicate listing, reported address issues)..."
+                        value={deactivateReason}
+                        onChange={(e) => setDeactivateReason(e.target.value)}
+                    />
+                </div>
+              )}
+
+              {modalError && (
+                <p style={{ color: "#c0392b", fontSize: "13px", marginTop: "12px", fontWeight: 600 }}>
+                    ⚠️ {modalError}
+                </p>
+              )}
+
+              <div className={styles.modalFooter} style={{ marginTop: "24px" }}>
+                <button className={styles.cancelBtn} onClick={() => closeModal()}>Cancel</button>
+                <button 
+                    className={target.status === "AVAILABLE" ? styles.dangerBtn : styles.confirmBtn} 
+                    onClick={handleToggleVisibility} 
+                    disabled={submitting}
+                >
                   {submitting ? "Processing..." : "Confirm Change"}
                 </button>
               </div>

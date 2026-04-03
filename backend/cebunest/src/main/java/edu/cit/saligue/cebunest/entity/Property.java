@@ -5,9 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @Table(name = "properties")
@@ -45,14 +45,24 @@ public class Property {
     @Enumerated(EnumType.STRING)
     private PropertyStatus status;
 
+    // --- NEW: Admin Lockout Fields ---
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean isAdminDisabled = false;
+
+    @Column(columnDefinition = "TEXT")
+    private String adminNote;
+    // --------------------------------
+
     private Integer beds;
     private Integer baths;
     private Integer sqm;
 
     @OneToMany(mappedBy = "property", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
-    private List<PropertyImage> images = new java.util.ArrayList<>();
+    private List<PropertyImage> images = new ArrayList<>();
 
+    @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     public enum PropertyStatus {

@@ -140,10 +140,16 @@ public class AdminPropertyController {
     @PutMapping("/api/admin/properties/{id}/visibility")
     public ResponseEntity<?> toggleVisibility(
             @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> body, // NEW: Accepts a reason
             @AuthenticationPrincipal User currentUser) {
+
         if (!isAdmin(currentUser)) return forbidden();
+
+        String reason = (body != null) ? body.get("reason") : "No reason provided by administrator.";
+
         try {
-            PropertyDTO updated = adminPropertyService.togglePropertyVisibility(id);
+            // Updated service call
+            PropertyDTO updated = adminPropertyService.togglePropertyVisibility(id, reason, currentUser);
             return ok(Map.of("property", updated));
         } catch (IllegalArgumentException e) {
             return err("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);

@@ -6,10 +6,9 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-
 import java.util.ArrayList;
 import java.util.List;
+
 
 @Data
 @Builder
@@ -34,11 +33,13 @@ public class PropertyDTO {
     private String  createdAt;
 
     private boolean hasActiveTenant;
-
-    // ── NEW: Active Tenant Info to fix the "cannot find symbol" error ──
     private ActiveTenantDTO activeTenant;
-
     private String  rejectionReason;
+
+    // --- NEW: Lockout Fields ---
+    private boolean isAdminDisabled;
+    private String  adminNote;
+    // ---------------------------
 
     private String ownerFacebookUrl;
     private String ownerInstagramUrl;
@@ -51,7 +52,6 @@ public class PropertyDTO {
         private String imageUrl;
     }
 
-    // ── NEW: Nested DTO for Active Tenant ──
     @Data
     @Builder
     @AllArgsConstructor
@@ -64,29 +64,23 @@ public class PropertyDTO {
         private Integer leaseDurationMonths;
     }
 
-    // ── Standard mapping (no cover reordering) ───────────────────────────
     public static PropertyDTO from(Property p) {
         return fromWithCover(p, null);
     }
 
-    // ── Mapping with rejection reason ────────────────────────────────────
     public static PropertyDTO from(Property p, String rejectionReason) {
         PropertyDTO dto = fromWithCover(p, null);
         dto.setRejectionReason(rejectionReason);
         return dto;
     }
 
-    // ── Mapping with cover photo placed first ────────────────────────────
     public static PropertyDTO fromWithCover(Property p, Long coverImageId) {
-        List<PropertyImage> raw = p.getImages() == null
-                ? List.of()
-                : new ArrayList<>(p.getImages());
+        List<PropertyImage> raw = p.getImages() == null ? List.of() : new ArrayList<>(p.getImages());
 
-        // Move the chosen cover image to position 0
         if (coverImageId != null) {
             raw.sort((a, b) -> {
                 if (a.getId().equals(coverImageId)) return -1;
-                if (b.getId().equals(coverImageId)) return  1;
+                if (b.getId().equals(coverImageId)) return 1;
                 return Long.compare(a.getId(), b.getId());
             });
         }
@@ -101,9 +95,11 @@ public class PropertyDTO {
                 .description(p.getDescription())
                 .price(p.getPrice())
                 .location(p.getLocation())
-                .typeId(p.getType()  != null ? p.getType().getId()   : null)
-                .type(p.getType()    != null ? p.getType().getName() : null)
+                .typeId(p.getType() != null ? p.getType().getId() : null)
+                .type(p.getType() != null ? p.getType().getName() : null)
                 .status(p.getStatus().name())
+                .isAdminDisabled(p.isAdminDisabled()) // Map the new field
+                .adminNote(p.getAdminNote())           // Map the new field
                 .beds(p.getBeds())
                 .baths(p.getBaths())
                 .sqm(p.getSqm())

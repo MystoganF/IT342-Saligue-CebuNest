@@ -29,6 +29,7 @@ public class AdminPropertyService {
     private final PropertyTypeRepository propertyTypeRepository;
     private final PropertyImageRepository propertyImageRepository;
     private final SupabaseStorageService storageService;
+    private final NotificationService notificationService;
 
     // ── Get Single Property Detail (Refactored from Controller) ──────────
     @Transactional(readOnly = true)
@@ -192,9 +193,8 @@ public class AdminPropertyService {
         return PropertyDTO.fromWithCover(reloaded, dto.getCoverImageId());
     }
 
-    // ── Toggle Visibility (Deactivate/Activate) ──────────────────────────
     @Transactional
-    public PropertyDTO togglePropertyVisibility(Long id) {
+    public PropertyDTO togglePropertyVisibility(Long id, String reason, User admin) {
         Property p = propertyRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Property not found."));
 
@@ -207,17 +207,28 @@ public class AdminPropertyService {
         }
 
         if (p.getStatus() == Property.PropertyStatus.AVAILABLE) {
+            // --- ACTION: DEACTIVATE ---
             p.setStatus(Property.PropertyStatus.UNAVAILABLE);
-        } else if (p.getStatus() == Property.PropertyStatus.UNAVAILABLE) {
-            p.setStatus(Property.PropertyStatus.AVAILABLE);
+            p.setAdminDisabled(true); // LOCK IT
+            p.setAdminNote(reason);
+
+            // Notify the owner
+            notificationService.send(
+                    p.getOwner(),
+                    "ADMIN_DEACTIVATION",
+                    "Listing restricted: '" + p.getTitle() + "'. Reason: " + reason,
+                    null,
+                    p.getId()
+            );
         } else {
-            throw new IllegalArgumentException("Can only toggle visibility for properties that are AVAILABLE or UNAVAILABLE.");
+            // --- ACTION: REACTIVATE (Lifting the lock) ---
+            p.setStatus(Property.PropertyStatus.AVAILABLE);
+            p.setAdminDisabled(false); // UNLOCK IT
+            p.setAdminNote(null);
         }
 
         Property saved = propertyRepository.save(p);
-        PropertyDTO dto = PropertyDTO.from(saved);
-        dto.setHasActiveTenant(false);
-        return dto;
+        return PropertyDTO.from(saved);
     }
 
     // ── Admin Upload Images (Bypasses Owner Check) ───────────────────────

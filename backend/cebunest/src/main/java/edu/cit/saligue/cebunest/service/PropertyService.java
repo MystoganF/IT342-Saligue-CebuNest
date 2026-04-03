@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -23,7 +22,7 @@ public class PropertyService {
     private final PropertyImageRepository propertyImageRepository;
     private final SupabaseStorageService  storageService;
     private final RentalRequestRepository rentalRequestRepository;
-    private final AuditLogRepository      auditLogRepository; // <-- Added AuditLogRepository
+    private final AuditLogRepository      auditLogRepository;
 
     // ── All available properties (tenant view) ───────────────────────────
     @Transactional(readOnly = true)
@@ -34,9 +33,7 @@ public class PropertyService {
 
         return propertyRepository.findFiltered(cleanSearch, cleanType, minPrice, maxPrice)
                 .stream()
-                // Filter 1: Must be explicitly AVAILABLE in the property table
                 .filter(p -> p.getStatus() == Property.PropertyStatus.AVAILABLE)
-                // Filter 2: Failsafe for out-of-sync test data - strictly hide if an active tenant exists
                 .filter(p -> rentalRequestRepository.findByPropertyIdAndStatus(
                         p.getId(), RentalRequest.RentalStatus.CONFIRMED).isEmpty())
                 .map(PropertyDTO::from).toList();
@@ -97,14 +94,10 @@ public class PropertyService {
                 .build();
 
         Property saved = propertyRepository.saveAndFlush(property);
-        saved.getOwner().getId();
-        saved.getOwner().getName();
-        saved.getType().getId();
-        saved.getType().getName();
         return PropertyDTO.from(saved);
     }
 
-    // ── Update property ──────────────────────────────────────────────────
+    // ── Update property (Owner View with Admin Lock Check) ────────────────
     @Transactional
     public PropertyDTO updateProperty(Long propertyId, UpdatePropertyDTO dto, User owner) {
         Property property = propertyRepository.findById(propertyId)
@@ -112,6 +105,11 @@ public class PropertyService {
 
         if (!property.getOwner().getId().equals(owner.getId()))
             throw new IllegalArgumentException("You do not own this property.");
+
+        // --- NEW: ADMIN LOCKOUT GUARD ---
+        if (property.isAdminDisabled() && "AVAILABLE".equalsIgnoreCase(dto.getStatus())) {
+            throw new IllegalArgumentException("This listing is restricted by an administrator. Reason: " + property.getAdminNote());
+        }
 
         PropertyType type = propertyTypeRepository.findById(dto.getTypeId())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid property type."));
@@ -132,11 +130,10 @@ public class PropertyService {
 
         // Visibility logic
         if (hasActiveTenant) {
-            // Force it to UNAVAILABLE if they have an active tenant (heals old out-of-sync test data)
             property.setStatus(Property.PropertyStatus.UNAVAILABLE);
         } else if (dto.getStatus() != null) {
-            // Respect frontend toggle if no active tenant
             Property.PropertyStatus current = property.getStatus();
+            // Allow toggle only for approved listings (AVAILABLE/UNAVAILABLE)
             if (current == Property.PropertyStatus.AVAILABLE || current == Property.PropertyStatus.UNAVAILABLE) {
                 if (dto.getStatus().equals("AVAILABLE"))
                     property.setStatus(Property.PropertyStatus.AVAILABLE);
@@ -147,7 +144,7 @@ public class PropertyService {
 
         propertyRepository.save(property);
 
-        // ── Delete removed images via direct JPQL ────────────────────────
+        // Delete removed images
         if (dto.getRemovedImageIds() != null && !dto.getRemovedImageIds().isEmpty()) {
             for (Long imageId : dto.getRemovedImageIds()) {
                 propertyImageRepository.deleteByIdAndPropertyId(imageId, propertyId);
@@ -194,7 +191,6 @@ public class PropertyService {
         if (!property.getOwner().getId().equals(owner.getId()))
             throw new IllegalArgumentException("You do not own this property.");
 
-        // NEW: block delete if there's an active tenant
         rentalRequestRepository
                 .findByPropertyIdAndStatus(propertyId, RentalRequest.RentalStatus.CONFIRMED)
                 .ifPresent(r -> {
@@ -207,7 +203,6 @@ public class PropertyService {
         propertyRepository.delete(property);
     }
 
-    // ── Helper ───────────────────────────────────────────────────────────
     private boolean blank(String s) {
         return s == null || s.isBlank();
     }
