@@ -179,6 +179,7 @@ const AdminRentalRequests: React.FC = () => {
           { path: "/admin/properties",      icon: "🏘️", label: "All Properties"  },
           { path: "/admin/users",           icon: "👥", label: "Users"           },
            { path: "/admin/audit-log",       icon: "📜", label: "Audit Log"       },
+          { path: "/admin/notifications",   icon: "🔔", label: "Create Notification"   },
         ]}
       />
 

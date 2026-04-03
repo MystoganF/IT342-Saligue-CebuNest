@@ -6,27 +6,15 @@ import logo from "../../assets/images/cebunest-logo.png";
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 interface NavUser {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-  avatarUrl?: string | null;
+  id: number; name: string; email: string; role: string; avatarUrl?: string | null;
 }
-
 interface OwnerNavbarProps {
-  user: NavUser;
-  notificationCount?: number;
-  onAddProperty?: () => void;
+  user: NavUser; notificationCount?: number; onAddProperty?: () => void;
 }
-
 interface AppNotification {
-  id: number;
-  type: string;
-  message: string;
-  rentalRequestId: number | null;
-  propertyId: number | null;
-  read: boolean;
-  createdAt: string;
+  id: number; type: string; message: string;
+  rentalRequestId: number | null; propertyId: number | null;
+  read: boolean; createdAt: string;
 }
 
 function timeAgo(isoStr: string): string {
@@ -42,13 +30,52 @@ function timeAgo(isoStr: string): string {
 }
 
 function notifIcon(type: string): string {
-  if (type === "PAYMENT_RECEIVED")    return "💳";
-  if (type === "RENTAL_CONFIRMED")    return "🏠";
-  if (type === "NEW_REVIEW")          return "⭐";
-  if (type === "EXTENSION_REQUESTED") return "📋";
-  if (type === "PROPERTY_APPROVED")   return "✅";
-  if (type === "PROPERTY_REJECTED")   return "❌";
+  if (type === "ADMIN_BROADCAST")                                  return "📢";
+  if (type === "MAINTENANCE")                                      return "🔧";
+  if (type === "POLICY_UPDATE")                                    return "📋";
+  if (type === "PAYMENT_REMINDER")                                 return "💳";
+  if (type === "EMERGENCY")                                        return "🚨";
+  if (type === "PAYMENT_RECEIVED")                                 return "💳";
+  if (type === "RENTAL_CONFIRMED")                                 return "🏠";
+  if (type === "NEW_REVIEW")                                       return "⭐";
+  if (type === "EXTENSION_REQUESTED")                              return "📋";
+  if (type === "PROPERTY_APPROVED" || type.includes("APPROVED"))  return "✅";
+  if (type === "PROPERTY_REJECTED" || type.includes("REJECTED"))  return "❌";
+  if (type.includes("TERMINATED"))                                 return "🚫";
   return "🔔";
+}
+
+function notifIconBg(type: string): string {
+  if (type === "EMERGENCY")                              return "rgba(192,57,43,0.14)";
+  if (type === "MAINTENANCE")                            return "rgba(183,142,66,0.14)";
+  if (type === "POLICY_UPDATE" || type === "EXTENSION_REQUESTED") return "rgba(31,93,113,0.10)";
+  if (type.includes("PAYMENT"))                          return "rgba(45,140,106,0.12)";
+  if (type.includes("APPROVED"))                         return "rgba(45,140,106,0.12)";
+  if (type.includes("REJECTED") || type.includes("TERMINATED")) return "rgba(192,57,43,0.10)";
+  if (type.includes("CONFIRMED"))                        return "rgba(83,164,163,0.12)";
+  if (type.includes("REVIEW"))                           return "rgba(183,142,66,0.12)";
+  return "rgba(31,93,113,0.06)";
+}
+
+function notifTypeLabel(type: string): string {
+  const map: Record<string, string> = {
+    ADMIN_BROADCAST: "Announcement",   MAINTENANCE: "Maintenance",
+    POLICY_UPDATE: "Policy Update",    PAYMENT_REMINDER: "Payment Reminder",
+    EMERGENCY: "Emergency",            PROPERTY_APPROVED: "Approved",
+    PROPERTY_REJECTED: "Rejected",     RENTAL_CONFIRMED: "Rental Confirmed",
+    LEASE_TERMINATED: "Lease Ended",   PAYMENT_RECEIVED: "Payment",
+    NEW_REVIEW: "New Review",          EXTENSION_REQUESTED: "Extension",
+  };
+  return map[type] ?? type.replace(/_/g, " ");
+}
+
+function notifTypeDotColor(type: string): string {
+  if (type === "EMERGENCY")                                         return "#c0392b";
+  if (type === "MAINTENANCE")                                       return "#b78e42";
+  if (type.includes("APPROVED") || type.includes("CONFIRMED") || type.includes("PAYMENT"))
+                                                                    return "#2d8c6a";
+  if (type.includes("REJECTED") || type.includes("TERMINATED"))    return "#c0392b";
+  return "#53a4a3";
 }
 
 const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
@@ -58,20 +85,17 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
   const [menuOpen, setMenuOpen]               = useState(false);
   const [notifOpen, setNotifOpen]             = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [notifLoading, setNotifLoading]   = useState(false);
-  const [markingAll, setMarkingAll]       = useState(false);
+  const [notifications, setNotifications]     = useState<AppNotification[]>([]);
+  const [notifLoading, setNotifLoading]       = useState(false);
+  const [markingAll, setMarkingAll]           = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef    = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node))
-        setMenuOpen(false);
-      if (notifRef.current && !notifRef.current.contains(e.target as Node))
-        setNotifOpen(false);
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setMenuOpen(false);
+      if (notifRef.current    && !notifRef.current.contains(e.target as Node))    setNotifOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -82,14 +106,10 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
     if (!token) return;
     setNotifLoading(true);
     try {
-      const res  = await fetch(`${API_BASE}/api/notifications`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res  = await fetch(`${API_BASE}/api/notifications`, { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
       if (data.success) setNotifications(data.data.notifications ?? []);
-    } catch { /* silent */ } finally {
-      setNotifLoading(false);
-    }
+    } catch { /* silent */ } finally { setNotifLoading(false); }
   }, []);
 
   useEffect(() => {
@@ -98,29 +118,21 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
-  useEffect(() => {
-    if (notifOpen) fetchNotifications();
-  }, [notifOpen, fetchNotifications]);
+  useEffect(() => { if (notifOpen) fetchNotifications(); }, [notifOpen, fetchNotifications]);
 
   const markRead = async (notif: AppNotification) => {
     if (!notif.read) {
       const token = localStorage.getItem("accessToken");
       try {
         await fetch(`${API_BASE}/api/notifications/${notif.id}/read`, {
-          method: "PATCH",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          method: "PATCH", headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
-        setNotifications(prev =>
-          prev.map(n => n.id === notif.id ? { ...n, read: true } : n)
-        );
+        setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
       } catch { /* silent */ }
     }
     setNotifOpen(false);
-    if (notif.propertyId) {
-      navigate(`/owner/properties/${notif.propertyId}/edit`);
-    } else {
-      navigate("/owner/dashboard");
-    }
+    if (notif.propertyId) navigate(`/owner/properties/${notif.propertyId}/edit`);
+    else navigate("/owner/dashboard");
   };
 
   const markAllRead = async () => {
@@ -128,13 +140,10 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
     setMarkingAll(true);
     try {
       await fetch(`${API_BASE}/api/notifications/read-all`, {
-        method: "PATCH",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        method: "PATCH", headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    } catch { /* silent */ } finally {
-      setMarkingAll(false);
-    }
+    } catch { /* silent */ } finally { setMarkingAll(false); }
   };
 
   const confirmLogout = () => {
@@ -144,16 +153,8 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
     navigate("/");
   };
 
-  const isActive = (path: string) =>
-    location.pathname === path ? styles.navLinkActive : "";
-
-  const initials = user.name
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
+  const isActive   = (path: string) => location.pathname === path ? styles.navLinkActive : "";
+  const initials   = user.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
@@ -168,10 +169,10 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
           </a>
 
           <div className={styles.navLinks}>
-            <a href="/owner/dashboard" className={`${styles.navLink} ${isActive("/owner/dashboard")}`}>
+            <a href="/owner/dashboard"   className={`${styles.navLink} ${isActive("/owner/dashboard")}`}>
               <span className={styles.navLinkIcon}>📊</span>Dashboard
             </a>
-            <a href="/owner/properties" className={`${styles.navLink} ${isActive("/owner/properties")}`}>
+            <a href="/owner/properties"  className={`${styles.navLink} ${isActive("/owner/properties")}`}>
               <span className={styles.navLinkIcon}>🏠</span>My Properties
             </a>
           </div>
@@ -181,6 +182,7 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
               + Add Property
             </button>
 
+            {/* ── Notification Bell ── */}
             <div className={styles.notifWrap} ref={notifRef}>
               <button
                 className={`${styles.notifBtn} ${notifOpen ? styles.notifBtnActive : ""}`}
@@ -196,9 +198,7 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
                   </svg>
                 </span>
                 {unreadCount > 0 && (
-                  <span className={styles.notifBadge}>
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
+                  <span className={styles.notifBadge}>{unreadCount > 9 ? "9+" : unreadCount}</span>
                 )}
               </button>
 
@@ -207,12 +207,7 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
                   <div className={styles.notifDropdownHeader}>
                     <span className={styles.notifDropdownTitle}>Notifications</span>
                     {unreadCount > 0 && (
-                      <button
-                        className={styles.markAllBtn}
-                        onClick={markAllRead}
-                        disabled={markingAll}
-                        type="button"
-                      >
+                      <button className={styles.markAllBtn} onClick={markAllRead} disabled={markingAll} type="button">
                         {markingAll ? "Marking…" : "Mark all read"}
                       </button>
                     )}
@@ -221,8 +216,7 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
                   <div className={styles.notifList}>
                     {notifLoading && notifications.length === 0 ? (
                       <div className={styles.notifEmpty}>
-                        <div className={styles.notifSpinner} />
-                        <span>Loading…</span>
+                        <div className={styles.notifSpinner} /><span>Loading…</span>
                       </div>
                     ) : notifications.length === 0 ? (
                       <div className={styles.notifEmpty}>
@@ -238,8 +232,25 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
                           onClick={() => markRead(notif)}
                           type="button"
                         >
-                          <span className={styles.notifItemIcon}>{notifIcon(notif.type)}</span>
+                          {/* ── Type-colored icon bubble ── */}
+                          <span
+                            className={styles.notifItemIcon}
+                            style={{ background: notifIconBg(notif.type) }}
+                          >
+                            {notifIcon(notif.type)}
+                          </span>
+
                           <div className={styles.notifItemBody}>
+                            {/* ── Type label badge ── */}
+                            <span
+                              className={styles.notifTypeBadge}
+                              style={{
+                                color: notifTypeDotColor(notif.type),
+                                borderColor: notifTypeDotColor(notif.type) + "33",
+                              }}
+                            >
+                              {notifTypeLabel(notif.type)}
+                            </span>
                             <p className={styles.notifItemMsg}>{notif.message}</p>
                             <span className={styles.notifItemTime}>{timeAgo(notif.createdAt)}</span>
                           </div>
@@ -251,11 +262,8 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
 
                   {notifications.length > 0 && (
                     <div className={styles.notifDropdownFooter}>
-                      <button
-                        className={styles.viewAllBtn}
-                        onClick={() => { setNotifOpen(false); navigate("/owner/properties"); }}
-                        type="button"
-                      >
+                      <button className={styles.viewAllBtn}
+                        onClick={() => { setNotifOpen(false); navigate("/owner/properties"); }} type="button">
                         View all properties →
                       </button>
                     </div>
@@ -264,17 +272,13 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
               )}
             </div>
 
+            {/* ── Profile Dropdown ── */}
             <div className={styles.profileWrap} ref={dropdownRef}>
-              <button
-                className={styles.profileBtn}
-                onClick={() => setMenuOpen(p => !p)}
-                aria-expanded={menuOpen}
-                aria-haspopup="true"
-              >
+              <button className={styles.profileBtn} onClick={() => setMenuOpen(p => !p)}
+                aria-expanded={menuOpen} aria-haspopup="true">
                 {user.avatarUrl
                   ? <img src={user.avatarUrl} alt={user.name} className={styles.avatar} />
-                  : <div className={styles.avatarPlaceholder}>{initials}</div>
-                }
+                  : <div className={styles.avatarPlaceholder}>{initials}</div>}
                 <span className={styles.profileName}>{user.name.split(" ")[0]}</span>
                 <span className={`${styles.chevron} ${menuOpen ? styles.chevronOpen : ""}`}>▼</span>
               </button>
@@ -292,11 +296,8 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
                       <span className={styles.dropdownItemIcon}>👤</span>Profile
                     </a>
                     <div className={styles.dropdownDivider} />
-                    <button
-                      className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`}
-                      role="menuitem"
-                      onClick={() => { setMenuOpen(false); setShowLogoutModal(true); }}
-                    >
+                    <button className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`} role="menuitem"
+                      onClick={() => { setMenuOpen(false); setShowLogoutModal(true); }}>
                       <span className={styles.dropdownItemIcon}>🚪</span>Logout
                     </button>
                   </div>

@@ -18,6 +18,8 @@ import AdminPropertyDetail from "./modules/admin_module/admin_property_detail/Ad
 import AdminAuditLog from "./modules/admin_module/admin_audit_log/AdminAuditLog";
 import AdminProperties from "./modules/admin_module/admin_property_management/AdminProperties";
 import AdminPropertyEdit from "./modules/admin_module/admin_property_management/AdminEditProperty";
+import AdminNotifications from "./modules/admin_module/admin_notification_module/Admin_Notification";
+
 function App() {
   return (
     <BrowserRouter>
@@ -104,6 +106,7 @@ function App() {
             <AdminPropertyEdit /> 
           </ProtectedRoute>
         } />
+        <Route path="/admin/notifications" element={<AdminNotifications />} />
 
         {/* Shared Routes (Accessible by multiple roles) */}
         <Route path="/profile" element={
