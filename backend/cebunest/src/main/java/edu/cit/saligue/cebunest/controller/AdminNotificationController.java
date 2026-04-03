@@ -2,7 +2,6 @@ package edu.cit.saligue.cebunest.controller;
 
 import edu.cit.saligue.cebunest.dto.AdminBroadcastDTO;
 import edu.cit.saligue.cebunest.entity.User;
-import edu.cit.saligue.cebunest.repository.UserRepository;
 import edu.cit.saligue.cebunest.service.NotificationService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +23,7 @@ import java.util.Map;
 public class AdminNotificationController {
 
     private final NotificationService notificationService;
-    private final UserRepository      userRepository;
+
 
     // ── POST /api/admin/notifications/broadcast ───────────────────────────
     @PostMapping("/broadcast")

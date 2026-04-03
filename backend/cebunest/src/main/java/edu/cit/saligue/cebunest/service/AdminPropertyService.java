@@ -1,6 +1,6 @@
 package edu.cit.saligue.cebunest.service;
 
-import edu.cit.saligue.cebunest.dto.AuditLogDTO; // FIXED: Imported the DTO
+import edu.cit.saligue.cebunest.dto.AuditLogDTO;
 import edu.cit.saligue.cebunest.dto.PropertyDTO;
 import edu.cit.saligue.cebunest.entity.AuditLog;
 import edu.cit.saligue.cebunest.entity.Property;
@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +29,20 @@ public class AdminPropertyService {
     private final PropertyTypeRepository propertyTypeRepository;
     private final PropertyImageRepository propertyImageRepository;
     private final SupabaseStorageService storageService;
+
+    // ── Get Single Property Detail (Refactored from Controller) ──────────
+    @Transactional(readOnly = true)
+    public PropertyDTO getPropertyDetail(Long id) {
+        Property property = propertyRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Property not found."));
+
+        String rejectionReason = null;
+        if (property.getStatus() == Property.PropertyStatus.REJECTED) {
+            rejectionReason = auditLogRepository.findLatestRejectionReason(id).orElse(null);
+        }
+
+        return PropertyDTO.from(property, rejectionReason);
+    }
 
     // ── Get pending properties ───────────────────────────────────────────
     @Transactional(readOnly = true)
@@ -51,11 +66,11 @@ public class AdminPropertyService {
 
         if ("APPROVED".equalsIgnoreCase(statusStr)) {
             newStatus = Property.PropertyStatus.AVAILABLE;
-            action = "PROPERTY_APPROVED"; // FIXED: Ensure this matches your frontend exact string (was "APPROVED")
+            action = "PROPERTY_APPROVED";
             reason = "Approved by admin";
         } else if ("REJECTED".equalsIgnoreCase(statusStr)) {
             newStatus = Property.PropertyStatus.REJECTED;
-            action = "PROPERTY_REJECTED"; // FIXED: Ensure this matches your frontend exact string (was "REJECTED")
+            action = "PROPERTY_REJECTED";
             if (reason == null || reason.isBlank()) {
                 throw new IllegalArgumentException("Reason is required for rejection.");
             }
@@ -74,7 +89,6 @@ public class AdminPropertyService {
                 .targetType("PROPERTY")
                 .action(action)
                 .reason(reason)
-                // FIXED: Actually saving the owner details so they appear in the UI
                 .ownerName(saved.getOwner().getName())
                 .ownerEmail(saved.getOwner().getEmail())
                 .build();
@@ -90,7 +104,6 @@ public class AdminPropertyService {
                 PageRequest.of(page, size, Sort.by("createdAt").descending())
         );
 
-        // FIXED: Replaced the manual HashMap mapping with your AuditLogDTO!
         List<AuditLogDTO> logs = auditPage.getContent().stream()
                 .map(AuditLogDTO::from)
                 .toList();
@@ -109,8 +122,7 @@ public class AdminPropertyService {
                 .map(p -> {
                     PropertyDTO dto = PropertyDTO.from(p);
 
-                    // Fetch active tenant
-                    java.util.Optional<RentalRequest> activeReq = rentalRequestRepository
+                    Optional<RentalRequest> activeReq = rentalRequestRepository
                             .findByPropertyIdAndStatus(p.getId(), RentalRequest.RentalStatus.CONFIRMED);
 
                     if (activeReq.isPresent()) {
@@ -186,7 +198,6 @@ public class AdminPropertyService {
         Property p = propertyRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Property not found."));
 
-        // Check for active tenant before allowing a status toggle
         boolean hasActiveTenant = rentalRequestRepository
                 .findByPropertyIdAndStatus(id, RentalRequest.RentalStatus.CONFIRMED)
                 .isPresent();
@@ -195,7 +206,6 @@ public class AdminPropertyService {
             throw new IllegalArgumentException("Cannot toggle visibility: This property has an active tenant.");
         }
 
-        // If it's available, hide it. If it's unavailable, show it.
         if (p.getStatus() == Property.PropertyStatus.AVAILABLE) {
             p.setStatus(Property.PropertyStatus.UNAVAILABLE);
         } else if (p.getStatus() == Property.PropertyStatus.UNAVAILABLE) {
@@ -206,7 +216,7 @@ public class AdminPropertyService {
 
         Property saved = propertyRepository.save(p);
         PropertyDTO dto = PropertyDTO.from(saved);
-        dto.setHasActiveTenant(false); // We just verified there isn't one
+        dto.setHasActiveTenant(false);
         return dto;
     }
 
@@ -215,8 +225,6 @@ public class AdminPropertyService {
     public PropertyDTO uploadImagesAsAdmin(Long propertyId, List<org.springframework.web.multipart.MultipartFile> files) throws java.io.IOException {
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new IllegalArgumentException("Property not found."));
-
-        // No owner check here! Admin bypasses it.
 
         for (org.springframework.web.multipart.MultipartFile file : files) {
             String url = storageService.uploadPropertyImage(propertyId, file);
