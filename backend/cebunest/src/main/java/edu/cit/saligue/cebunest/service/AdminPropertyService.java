@@ -64,17 +64,34 @@ public class AdminPropertyService {
 
         Property.PropertyStatus newStatus;
         String action;
+        String notificationType;
+        String notificationMessage;
 
         if ("APPROVED".equalsIgnoreCase(statusStr)) {
             newStatus = Property.PropertyStatus.AVAILABLE;
             action = "PROPERTY_APPROVED";
-            reason = "Approved by admin";
+
+            // --- Allow custom approval notes ---
+            if (reason == null || reason.isBlank()) {
+                reason = "Approved by admin";
+            }
+
+            notificationType = "PROPERTY_APPROVED";
+            notificationMessage = "Your property '" + property.getTitle() + "' has been approved and is now visible to tenants.";
+            if (!reason.equals("Approved by admin")) {
+                notificationMessage += " Note: " + reason;
+            }
+
         } else if ("REJECTED".equalsIgnoreCase(statusStr)) {
             newStatus = Property.PropertyStatus.REJECTED;
             action = "PROPERTY_REJECTED";
             if (reason == null || reason.isBlank()) {
                 throw new IllegalArgumentException("Reason is required for rejection.");
             }
+
+            notificationType = "PROPERTY_REJECTED";
+            notificationMessage = "Your property '" + property.getTitle() + "' has been rejected. Reason: " + reason;
+
         } else {
             throw new IllegalArgumentException("Invalid status update.");
         }
@@ -94,6 +111,16 @@ public class AdminPropertyService {
                 .ownerEmail(saved.getOwner().getEmail())
                 .build();
         auditLogRepository.save(log);
+
+        // --- NEW: Send Notification to Owner ---
+        notificationService.send(
+                saved.getOwner(),
+                notificationType,
+                notificationMessage,
+                null,
+                saved.getId()
+        );
+        // ---------------------------------------
 
         return PropertyDTO.from(saved, "PROPERTY_REJECTED".equals(action) ? reason : null);
     }
@@ -198,6 +225,11 @@ public class AdminPropertyService {
         Property p = propertyRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Property not found."));
 
+        // --- Guardrail: Block invalid statuses from being toggled ---
+        if (p.getStatus() == Property.PropertyStatus.REJECTED || p.getStatus() == Property.PropertyStatus.PENDING_REVIEW) {
+            throw new IllegalArgumentException("Cannot toggle visibility for a property that is pending or rejected.");
+        }
+
         boolean hasActiveTenant = rentalRequestRepository
                 .findByPropertyIdAndStatus(id, RentalRequest.RentalStatus.CONFIRMED)
                 .isPresent();
@@ -226,7 +258,7 @@ public class AdminPropertyService {
             p.setAdminDisabled(false); // UNLOCK IT
             p.setAdminNote(null);
 
-            // --- NEW: Notify the owner about activation ---
+            // Notify the owner about activation
             notificationService.send(
                     p.getOwner(),
                     "ADMIN_ACTIVATION",

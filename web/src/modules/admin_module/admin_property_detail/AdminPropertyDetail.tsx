@@ -98,6 +98,9 @@ const AdminPropertyDetail: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok || !data.success) { setReviewError(data?.error?.message ?? "Failed."); return; }
+      
+      // Update the local property status so the UI immediately reflects the change correctly!
+      setProperty(prev => prev ? { ...prev, status: reviewAction } : prev);
       setDone(true);
       closeReview();
     } catch { setReviewError("Network error."); }
@@ -118,7 +121,7 @@ const AdminPropertyDetail: React.FC = () => {
 
       <div className={styles.main}>
         {/* Back button */}
-        <button className={styles.backBtn} onClick={() => navigate("/admin/rental-requests")} type="button">
+        <button type="button" className={styles.backBtn} onClick={() => navigate("/admin/rental-requests")}>
           ← Back to Requests
         </button>
 
@@ -136,7 +139,7 @@ const AdminPropertyDetail: React.FC = () => {
             <span className={styles.stateIcon}>⚠️</span>
             <h3 className={styles.stateTitle}>Failed to load</h3>
             <p className={styles.stateBody}>{error}</p>
-            <button className={styles.stateBtn} onClick={fetchProperty} type="button">Try Again</button>
+            <button type="button" className={styles.stateBtn} onClick={fetchProperty}>Try Again</button>
           </div>
         )}
 
@@ -144,7 +147,7 @@ const AdminPropertyDetail: React.FC = () => {
           <>
             {done && (
               <div className={styles.doneBanner}>
-                ✓ Property has been {reviewAction === "APPROVED" ? "approved" : "rejected"}. Owner has been notified.
+                ✓ Property has been {property.status === "APPROVED" ? "approved" : "rejected"}. Owner has been notified.
               </div>
             )}
 
@@ -157,12 +160,12 @@ const AdminPropertyDetail: React.FC = () => {
                 }
                 {property.images.length > 1 && (
                   <>
-                    <button className={`${styles.galleryNav} ${styles.galleryNavPrev}`}
+                    <button type="button" className={`${styles.galleryNav} ${styles.galleryNavPrev}`}
                       onClick={() => setActiveImg((i) => Math.max(0, i - 1))}
-                      disabled={activeImg === 0} type="button">‹</button>
-                    <button className={`${styles.galleryNav} ${styles.galleryNavNext}`}
+                      disabled={activeImg === 0}>‹</button>
+                    <button type="button" className={`${styles.galleryNav} ${styles.galleryNavNext}`}
                       onClick={() => setActiveImg((i) => Math.min(property.images.length - 1, i + 1))}
-                      disabled={activeImg === property.images.length - 1} type="button">›</button>
+                      disabled={activeImg === property.images.length - 1}>›</button>
                     <div className={styles.galleryCounter}>{activeImg + 1} / {property.images.length}</div>
                   </>
                 )}
@@ -170,8 +173,8 @@ const AdminPropertyDetail: React.FC = () => {
               {property.images.length > 1 && (
                 <div className={styles.galleryStrip}>
                   {property.images.map((img, i) => (
-                    <button key={img.id} className={`${styles.galleryThumb} ${i === activeImg ? styles.galleryThumbActive : ""}`}
-                      onClick={() => setActiveImg(i)} type="button">
+                    <button type="button" key={img.id} className={`${styles.galleryThumb} ${i === activeImg ? styles.galleryThumbActive : ""}`}
+                      onClick={() => setActiveImg(i)}>
                       <img src={img.imageUrl} alt={`Photo ${i + 1}`} />
                     </button>
                   ))}
@@ -240,28 +243,28 @@ const AdminPropertyDetail: React.FC = () => {
                 </div>
 
                 {/* Actions — only show if still pending */}
-                {property.status === "PENDING_REVIEW" && !done && (
+                {property.status === "PENDING_REVIEW" && (
                   <div className={styles.actionCard}>
                     <div className={styles.actionCardLabel}>Review Decision</div>
                     <p className={styles.actionCardHint}>
                       Once you approve or reject, the owner will be notified immediately.
                     </p>
-                    <button className={styles.approveBtn} onClick={() => openReview("APPROVED")} type="button">
+                    <button type="button" className={styles.approveBtn} onClick={() => openReview("APPROVED")}>
                       ✓ Approve Listing
                     </button>
-                    <button className={styles.rejectBtn} onClick={() => openReview("REJECTED")} type="button">
+                    <button type="button" className={styles.rejectBtn} onClick={() => openReview("REJECTED")}>
                       ✕ Reject Listing
                     </button>
                   </div>
                 )}
 
-                {(property.status !== "PENDING_REVIEW" || done) && (
-                  <div className={styles.resolvedCard} data-status={done ? reviewAction ?? property.status : property.status}>
+                {property.status !== "PENDING_REVIEW" && (
+                  <div className={styles.resolvedCard} data-status={property.status}>
                     <span className={styles.resolvedIcon}>
-                      {(done ? reviewAction : property.status) === "APPROVED" ? "✅" : "❌"}
+                      {property.status === "APPROVED" ? "✅" : "❌"}
                     </span>
                     <div className={styles.resolvedText}>
-                      This property has been {(done ? reviewAction : property.status) === "APPROVED" ? "approved" : "rejected"}.
+                      This property has been {property.status === "APPROVED" ? "approved" : "rejected"}.
                     </div>
                   </div>
                 )}
@@ -305,10 +308,10 @@ const AdminPropertyDetail: React.FC = () => {
               {reviewError && <p className={styles.modalError}>⚠ {reviewError}</p>}
             </div>
             <div className={styles.modalFooter}>
-              <button className={styles.cancelBtn} onClick={closeReview} disabled={submitting} type="button">Cancel</button>
-              <button
+              <button type="button" className={styles.cancelBtn} onClick={closeReview} disabled={submitting}>Cancel</button>
+              <button type="button"
                 className={reviewAction === "APPROVED" ? styles.modalApproveBtn : styles.modalRejectBtn}
-                onClick={handleSubmit} disabled={submitting} type="button">
+                onClick={handleSubmit} disabled={submitting}>
                 {submitting ? "Processing…" : reviewAction === "APPROVED" ? "✓ Approve" : "✕ Reject"}
               </button>
             </div>

@@ -113,7 +113,6 @@ const AdminAuditLog: React.FC = () => {
   useEffect(() => { if (admin) fetchLogs(0); }, [admin, fetchLogs]);
 
   const openDetail = async (log: AuditEntry) => {
-    // 1. Add this safety check:
     if (!log.targetId) {
       setDetailLog(log);
       setPropertyError("Cannot load property: The Audit Log is missing the property ID.");
@@ -150,7 +149,6 @@ const AdminAuditLog: React.FC = () => {
 
   const filtered = logs.filter((l) => {
     const q = search.toLowerCase();
-    // Fallback to empty string using || "" if the value is null or undefined
     const matchSearch = (l.targetTitle || "").toLowerCase().includes(q)
       || (l.ownerName || "").toLowerCase().includes(q)
       || (l.ownerEmail || "").toLowerCase().includes(q)
@@ -180,7 +178,7 @@ const AdminAuditLog: React.FC = () => {
               {loading ? "Loading…" : `${filtered.length} action${filtered.length !== 1 ? "s" : ""} shown`}
             </p>
           </div>
-          <button className={styles.refreshBtn} onClick={() => fetchLogs(0)} disabled={loading} type="button">
+          <button type="button" className={styles.refreshBtn} onClick={() => fetchLogs(0)} disabled={loading}>
             ↻ Refresh
           </button>
         </div>
@@ -192,13 +190,13 @@ const AdminAuditLog: React.FC = () => {
             <input className={styles.searchInput} type="text"
               placeholder="Search by property, owner, or admin…"
               value={search} onChange={(e) => setSearch(e.target.value)} />
-            {search && <button className={styles.searchClear} onClick={() => setSearch("")} type="button">✕</button>}
+            {search && <button type="button" className={styles.searchClear} onClick={() => setSearch("")}>✕</button>}
           </div>
           <div className={styles.filterBtns}>
             {(["ALL", "PROPERTY_APPROVED", "PROPERTY_REJECTED"] as const).map((f) => (
-              <button key={f}
+              <button key={f} type="button"
                 className={`${styles.filterBtn} ${filter === f ? styles.filterBtnActive : ""}`}
-                onClick={() => setFilter(f)} type="button">
+                onClick={() => setFilter(f)}>
                 {f === "ALL" ? "All" : f === "PROPERTY_APPROVED" ? "✓ Approved" : "✕ Rejected"}
               </button>
             ))}
@@ -214,7 +212,7 @@ const AdminAuditLog: React.FC = () => {
             <span className={styles.stateIcon}>⚠️</span>
             <h3 className={styles.stateTitle}>Failed to load</h3>
             <p className={styles.stateBody}>{error}</p>
-            <button className={styles.stateBtn} onClick={() => fetchLogs(0)} type="button">Try Again</button>
+            <button type="button" className={styles.stateBtn} onClick={() => fetchLogs(0)}>Try Again</button>
           </div>
         ) : filtered.length === 0 ? (
           <div className={styles.stateBox}>
@@ -255,21 +253,23 @@ const AdminAuditLog: React.FC = () => {
                           </div>
                           <div className={styles.logActions}>
                             {log.reason && (
-                              <button className={styles.expandBtn}
-                                onClick={() => setExpanded(isExpanded ? null : log.id)} type="button">
-                                {isExpanded ? "▲ Hide" : "▼ Reason"}
+                              <button type="button" className={styles.expandBtn}
+                                onClick={() => setExpanded(isExpanded ? null : log.id)}>
+                                {isExpanded ? "▲ Hide" : (isApproved ? "▼ Note" : "▼ Reason")}
                               </button>
                             )}
-                            <button className={styles.viewDetailBtn}
-                              onClick={() => openDetail(log)} type="button">
+                            <button type="button" className={styles.viewDetailBtn}
+                              onClick={() => openDetail(log)}>
                               🏠 View Property
                             </button>
                           </div>
                         </div>
                       </div>
                       {isExpanded && log.reason && (
-                        <div className={styles.logReason}>
-                          <span className={styles.logReasonLabel}>Rejection reason:</span> {log.reason}
+                        <div className={`${styles.logReason} ${isApproved ? styles.logReasonApprove : styles.logReasonReject}`}>
+                          <span className={`${styles.logReasonLabel} ${isApproved ? styles.logReasonLabelApprove : styles.logReasonLabelReject}`}>
+                            {isApproved ? "Approval note:" : "Rejection reason:"}
+                          </span> {log.reason}
                         </div>
                       )}
                     </div>
@@ -280,8 +280,8 @@ const AdminAuditLog: React.FC = () => {
 
             {page + 1 < totalPages && (
               <div className={styles.loadMoreWrap}>
-                <button className={styles.loadMoreBtn} onClick={() => fetchLogs(page + 1, true)}
-                  disabled={loadingMore} type="button">
+                <button type="button" className={styles.loadMoreBtn} onClick={() => fetchLogs(page + 1, true)}
+                  disabled={loadingMore}>
                   {loadingMore ? "Loading…" : "Load More"}
                 </button>
               </div>
@@ -309,7 +309,7 @@ const AdminAuditLog: React.FC = () => {
                   })}
                 </p>
               </div>
-              <button className={styles.detailModalClose} onClick={closeDetail} type="button">✕</button>
+              <button type="button" className={styles.detailModalClose} onClick={closeDetail}>✕</button>
             </div>
 
             <div className={styles.detailModalBody}>
@@ -342,12 +342,12 @@ const AdminAuditLog: React.FC = () => {
                         />
                         {property.images.length > 1 && (
                           <>
-                            <button className={`${styles.galleryNav} ${styles.galleryNavPrev}`}
+                            <button type="button" className={`${styles.galleryNav} ${styles.galleryNavPrev}`}
                               onClick={() => setActiveImg((i) => Math.max(0, i - 1))}
-                              disabled={activeImg === 0} type="button">‹</button>
-                            <button className={`${styles.galleryNav} ${styles.galleryNavNext}`}
+                              disabled={activeImg === 0}>‹</button>
+                            <button type="button" className={`${styles.galleryNav} ${styles.galleryNavNext}`}
                               onClick={() => setActiveImg((i) => Math.min(property.images.length - 1, i + 1))}
-                              disabled={activeImg === property.images.length - 1} type="button">›</button>
+                              disabled={activeImg === property.images.length - 1}>›</button>
                             <div className={styles.galleryCounter}>{activeImg + 1} / {property.images.length}</div>
                           </>
                         )}
@@ -355,9 +355,9 @@ const AdminAuditLog: React.FC = () => {
                       {property.images.length > 1 && (
                         <div className={styles.galleryStrip}>
                           {property.images.map((img, i) => (
-                            <button key={img.id}
+                            <button type="button" key={img.id}
                               className={`${styles.galleryThumb} ${i === activeImg ? styles.galleryThumbActive : ""}`}
-                              onClick={() => setActiveImg(i)} type="button">
+                              onClick={() => setActiveImg(i)}>
                               <img src={img.imageUrl} alt={`Photo ${i + 1}`} />
                             </button>
                           ))}
@@ -451,8 +451,12 @@ const AdminAuditLog: React.FC = () => {
                         </div>
                         {detailLog.reason && (
                           <div className={styles.auditReasonBlock}>
-                            <span className={styles.auditInfoKey}>Rejection Reason</span>
-                            <p className={styles.auditReasonText}>{detailLog.reason}</p>
+                            <span className={styles.auditInfoKey}>
+                                {detailLog.action === "PROPERTY_APPROVED" ? "Approval Note" : "Rejection Reason"}
+                            </span>
+                            <p className={`${styles.auditReasonText} ${detailLog.action === "PROPERTY_APPROVED" ? styles.auditReasonTextApprove : styles.auditReasonTextReject}`}>
+                              {detailLog.reason}
+                            </p>
                           </div>
                         )}
                       </div>

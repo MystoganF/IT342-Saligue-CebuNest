@@ -332,3 +332,25 @@
   .detailModal { max-height: 95vh; }
   .galleryMain { height: 200px; }
 }
+/* ── List View Reason ── */
+.logReason {
+  margin-top: 10px; padding: 10px 14px;
+  border-radius: 8px; font-size: 13px; color: #6e7071; line-height: 1.5;
+}
+.logReasonApprove { background: rgba(45,140,106,0.05); border-left: 3px solid #2d8c6a; }
+.logReasonReject  { background: rgba(192,57,43,0.05); border-left: 3px solid #c0392b; }
+
+.logReasonLabel { font-weight: 700; }
+.logReasonLabelApprove { color: #2d8c6a; }
+.logReasonLabelReject  { color: #c0392b; }
+
+/* ── Modal View Reason ── */
+.auditReasonBlock {
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5eced;
+}
+.auditReasonText {
+  margin: 6px 0 0; font-size: 13px; color: #6e7071; line-height: 1.5;
+  padding: 8px 10px; border-radius: 0 6px 6px 0;
+}
+.auditReasonTextApprove { background: rgba(45,140,106,0.05); border-left: 3px solid #2d8c6a; }
+.auditReasonTextReject  { background: rgba(192,57,43,0.05); border-left: 3px solid #c0392b; }

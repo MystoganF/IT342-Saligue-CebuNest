@@ -146,7 +146,7 @@ const AdminRentalRequests: React.FC = () => {
           },
           body: JSON.stringify({
             status: reviewAction,
-            reason: reason.trim() || null,
+            reason: reason.trim() || null, // Sends the custom note/reason perfectly!
           }),
         }
       );
@@ -196,7 +196,7 @@ const AdminRentalRequests: React.FC = () => {
                 : `${properties.length} propert${properties.length !== 1 ? "ies" : "y"} awaiting review`}
             </p>
           </div>
-          <button className={styles.refreshBtn} onClick={fetchPending} disabled={loading} type="button">
+          <button type="button" className={styles.refreshBtn} onClick={fetchPending} disabled={loading}>
             ↻ Refresh
           </button>
         </div>
@@ -247,6 +247,7 @@ const AdminRentalRequests: React.FC = () => {
                   </div>
                 )}
 
+                {/* This is where your custom Approval Note gets typed in! */}
                 {reviewAction === "APPROVED" && (
                   <div className={styles.modalField}>
                     <label className={styles.modalFieldLabel}>Note (optional)</label>
@@ -268,18 +269,18 @@ const AdminRentalRequests: React.FC = () => {
 
               <div className={styles.modalFooter}>
                 <button
+                  type="button"
                   className={styles.modalCancelBtn}
                   onClick={closeReview}
                   disabled={submitting}
-                  type="button"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
                   className={reviewAction === "APPROVED" ? styles.modalApproveBtn : styles.modalRejectBtn}
                   onClick={handleSubmitReview}
                   disabled={submitting}
-                  type="button"
                 >
                   {submitting
                     ? <><span className={styles.spinner} /> Processing…</>
@@ -312,7 +313,7 @@ const AdminRentalRequests: React.FC = () => {
             <span className={styles.stateIcon}>⚠️</span>
             <h3 className={styles.stateTitle}>Failed to load</h3>
             <p className={styles.stateBody}>{error}</p>
-            <button className={styles.stateBtn} onClick={fetchPending} type="button">Try Again</button>
+            <button type="button" className={styles.stateBtn} onClick={fetchPending}>Try Again</button>
           </div>
         )}
 
@@ -369,9 +370,9 @@ const AdminRentalRequests: React.FC = () => {
                   {p.description && (
                     <div className={styles.cardDescWrap}>
                       <button
+                        type="button"
                         className={styles.cardDescToggle}
                         onClick={() => setExpandedId(expanded ? null : p.id)}
-                        type="button"
                       >
                         {expanded ? "▲ Hide description" : "▼ View description"}
                       </button>
@@ -395,23 +396,23 @@ const AdminRentalRequests: React.FC = () => {
 
                   <div className={styles.cardActions}>
                     <button
+                      type="button"
                       className={styles.detailBtn}
                       onClick={() => navigate(`/admin/rental-requests/${p.id}`)}
-                      type="button"
                     >
                       🔍 View Details
                     </button>
                     <button
+                      type="button"
                       className={styles.rejectBtn}
                       onClick={() => openReview(p, "REJECTED")}
-                      type="button"
                     >
                       ✕ Reject
                     </button>
                     <button
+                      type="button"
                       className={styles.approveBtn}
                       onClick={() => openReview(p, "APPROVED")}
-                      type="button"
                     >
                       ✓ Approve
                     </button>
