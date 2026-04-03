@@ -1,6 +1,8 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import styles from "./AdminSidebar.module.css";
+// Importing your new logo based on your folder structure
+import logo from "../../assets/images/cebunest-logo.png";
 
 interface AdminUser {
   name: string;
@@ -49,8 +51,10 @@ const AdminSidebar: React.FC<Props> = ({ user, navItems = DEFAULT_NAV }) => {
 
   return (
     <aside className={styles.sidebar}>
+      
+      {/* ── Side-by-side Logo ── */}
       <div className={styles.logo}>
-        <span className={styles.logoIcon}>🏡</span>
+        <img src={logo} alt="CebuNest Logo" className={styles.logoImage} />
         <span className={styles.logoText}>CebuNest</span>
       </div>
 

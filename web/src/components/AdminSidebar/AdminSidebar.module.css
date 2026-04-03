@@ -13,19 +13,29 @@
   font-family: 'DM Sans', sans-serif;
 }
 
+/* ── Side-by-side Logo Styling ── */
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 28px 24px 20px;
+  gap: 12px;
+  padding: 24px 24px 20px;
   border-bottom: 1px solid rgba(255,255,255,0.1);
 }
-.logoIcon { font-size: 22px; }
+
+.logoImage {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: 50%;
+  background: #fff;
+}
+
 .logoText {
   font-family: 'Playfair Display', serif;
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 700;
   color: #fff;
+  letter-spacing: 0.5px;
 }
 
 .nav {
