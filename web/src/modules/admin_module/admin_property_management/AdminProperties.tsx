@@ -28,6 +28,10 @@ interface PropertyEntry {
   hasActiveTenant: boolean;
   activeTenant?: ActiveTenant;
   images: { id: number; imageUrl: string }[];
+  // NEW FIELDS added for Admin deactivation tracking
+  adminDisabled?: boolean;
+  isAdminDisabled?: boolean;
+  adminNote?: string;
 }
 
 type ModalMode = "detail" | "deactivate" | null;
@@ -188,7 +192,7 @@ const AdminProperties: React.FC = () => {
           </div>
           <div className={styles.roleFilters}>
             {STATUSES.map((s) => (
-              <button key={s} className={`${styles.roleFilterBtn} ${statusFilter === s ? styles.roleFilterActive : ""}`} onClick={() => {setStatusFilter(s); setPage(1);}}>
+              <button key={s} type="button" className={`${styles.roleFilterBtn} ${statusFilter === s ? styles.roleFilterActive : ""}`} onClick={() => {setStatusFilter(s); setPage(1);}}>
                 {s.replace("_", " ")}
               </button>
             ))}
@@ -239,7 +243,7 @@ const AdminProperties: React.FC = () => {
 
             {visible.length < getFilteredCount() && (
               <div className={styles.loadMoreWrap}>
-                <button className={styles.loadMoreBtn} onClick={() => setPage(p => p + 1)}>Load More Properties</button>
+                <button type="button" className={styles.loadMoreBtn} onClick={() => setPage(p => p + 1)}>Load More Properties</button>
               </div>
             )}
           </>
@@ -252,7 +256,7 @@ const AdminProperties: React.FC = () => {
           <div className={styles.modal} onClick={e => e.stopPropagation()}>
             <div className={styles.modalHeader}>
                <h3 className={styles.modalTitle}>{target.title}</h3>
-               <button className={styles.modalCloseBtn} onClick={() => closeModal()}>✕</button>
+               <button type="button" className={styles.modalCloseBtn} onClick={() => closeModal()}>✕</button>
             </div>
             <div className={styles.modalBody}>
               <div className={styles.detailRows}>
@@ -264,6 +268,31 @@ const AdminProperties: React.FC = () => {
                         {target.hasActiveTenant ? "OCCUPIED" : target.status.replace("_", " ")}
                     </span>
                 </div>
+
+                {/* --- NEW: REASON ROW --- */}
+                {target.status === "UNAVAILABLE" && !target.hasActiveTenant && (
+                  <div className={styles.detailRow} style={{ borderTop: "none", paddingTop: 0, marginTop: "-5px" }}>
+                    <span className={styles.detailRowLabel}></span> {/* Empty to align with value */}
+                    <div className={styles.detailRowValue} style={{ 
+                      fontSize: "13px", 
+                      lineHeight: "1.4",
+                      background: (target.adminDisabled || target.isAdminDisabled) ? "rgba(192,57,43,0.06)" : "#f9f9f9",
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      borderLeft: (target.adminDisabled || target.isAdminDisabled) ? "3px solid #c0392b" : "3px solid #6e7071",
+                      color: (target.adminDisabled || target.isAdminDisabled) ? "#c0392b" : "#444",
+                      width: "100%"
+                    }}>
+                      <div style={{ fontWeight: 800, fontSize: "10px", textTransform: "uppercase", marginBottom: "4px" }}>
+                        {(target.adminDisabled || target.isAdminDisabled) ? "Admin Deactivated" : "Deactivated by User"}
+                      </div>
+                      {(target.adminDisabled || target.isAdminDisabled) 
+                        ? (target.adminNote || "No specific reason provided.") 
+                        : "Manual deactivation by Owner."}
+                    </div>
+                  </div>
+                )}
+                {/* ----------------------- */}
               </div>
 
               {target.hasActiveTenant && target.activeTenant && (
@@ -278,19 +307,29 @@ const AdminProperties: React.FC = () => {
                 </div>
               )}
 
+              {/* --- NEW: PROTECTED DETAIL ACTIONS --- */}
               <div className={styles.detailActions} style={{ marginTop: "24px" }}>
-                <button className={styles.detailActionBtn} onClick={() => navigate(`/admin/properties/${target.id}/edit`)}>✏️ Edit Property</button>
+                <button type="button" className={styles.detailActionBtn} onClick={() => navigate(`/admin/properties/${target.id}/edit`)}>✏️ Edit Property</button>
                 
                 {target.hasActiveTenant ? (
                   <div style={{ marginTop: "8px", fontSize: "12px", color: "#7d3c98", background: "rgba(125,60,152,0.06)", padding: "10px", borderRadius: "8px", textAlign: 'center' }}>
                     Cannot toggle visibility while property is occupied.
                   </div>
+                ) : target.status === "REJECTED" ? (
+                  <div style={{ marginTop: "8px", fontSize: "12px", color: "#c0392b", background: "rgba(192,57,43,0.06)", padding: "10px", borderRadius: "8px", textAlign: 'center', fontWeight: 600 }}>
+                    🚫 Cannot activate a rejected property.
+                  </div>
+                ) : target.status === "PENDING_REVIEW" ? (
+                  <div style={{ marginTop: "8px", fontSize: "12px", color: "#b78e42", background: "rgba(183,142,66,0.06)", padding: "10px", borderRadius: "8px", textAlign: 'center', fontWeight: 600 }}>
+                    ⏳ Property must be reviewed before visibility can be toggled.
+                  </div>
                 ) : (
-                  <button className={`${styles.detailActionBtn} ${target.status === 'AVAILABLE' ? styles.detailActionBtnWarn : styles.detailActionBtnGreen}`} onClick={() => setModal("deactivate")}>
+                  <button type="button" className={`${styles.detailActionBtn} ${target.status === 'AVAILABLE' ? styles.detailActionBtnWarn : styles.detailActionBtnGreen}`} onClick={() => setModal("deactivate")}>
                     {target.status === "AVAILABLE" ? "Deactivate listing" : "Activate listing"}
                   </button>
                 )}
               </div>
+              {/* -------------------------------------- */}
             </div>
           </div>
         </div>
@@ -353,8 +392,8 @@ const AdminProperties: React.FC = () => {
               )}
 
               <div className={styles.modalFooter} style={{ marginTop: "24px" }}>
-                <button className={styles.cancelBtn} onClick={() => closeModal()}>Cancel</button>
-                <button 
+                <button type="button" className={styles.cancelBtn} onClick={() => closeModal()}>Cancel</button>
+                <button type="button"
                     className={target.status === "AVAILABLE" ? styles.dangerBtn : styles.confirmBtn} 
                     onClick={handleToggleVisibility} 
                     disabled={submitting}

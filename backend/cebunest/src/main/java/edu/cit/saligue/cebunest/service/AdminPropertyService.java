@@ -225,6 +225,15 @@ public class AdminPropertyService {
             p.setStatus(Property.PropertyStatus.AVAILABLE);
             p.setAdminDisabled(false); // UNLOCK IT
             p.setAdminNote(null);
+
+            // --- NEW: Notify the owner about activation ---
+            notificationService.send(
+                    p.getOwner(),
+                    "ADMIN_ACTIVATION",
+                    "Listing restored: '" + p.getTitle() + "' is now visible on the platform again.",
+                    null,
+                    p.getId()
+            );
         }
 
         Property saved = propertyRepository.save(p);
