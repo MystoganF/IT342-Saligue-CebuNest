@@ -27,50 +27,45 @@ public class GoogleAuthService {
     private final RoleRepository roleRepository;
     private final JwtUtil jwtUtil;
 
+    // ─── Inside GoogleAuthService.java ───
+
     @Transactional
     public Map<String, Object> processGoogleLogin(String googleAccessToken, String requestedRole) {
-        // 1. Securely fetch user info from Google using the token
+        // 1. Fetch profile from Google
         Map<String, Object> googleUser = fetchGoogleProfile(googleAccessToken);
         String email = (String) googleUser.get("email");
         String name = (String) googleUser.get("name");
 
-        if (email == null) {
-            throw new IllegalArgumentException("Invalid token: Could not retrieve email from Google.");
-        }
+        if (email == null) throw new IllegalArgumentException("Google identity not found.");
 
-        // 2. Logic: No role provided (Existing Login attempt)
+        // 2. LOGIN FLOW (No role provided)
         if (requestedRole == null || requestedRole.isBlank()) {
             if (!userRepository.existsByEmail(email)) {
-                return Map.of(
-                        "requiresRoleSelection", true,
-                        "email", email,
-                        "name", name
-                );
+                return Map.of("requiresRoleSelection", true, "email", email, "name", name);
             }
-            User user = userRepository.findByEmail(email).get();
-            return buildTokenMap(user);
+            return buildTokenMap(userRepository.findByEmail(email).get());
         }
 
-        // 3. Logic: Role provided (New Registration attempt)
+        // 3. REGISTRATION FLOW (Role provided)
+        // CRITICAL FIX: If we are here, the user is trying to REGISTER.
+        // If they already exist, return the flag and STOP. Do not generate tokens.
         if (userRepository.existsByEmail(email)) {
-            // If they somehow bypass the UI and try to register an existing email
-            User user = userRepository.findByEmail(email).get();
-            return buildTokenMap(user);
+            return Map.of("alreadyExists", true);
         }
 
+        // 4. Create brand new user
         Role role = roleRepository.findByName(requestedRole.toUpperCase())
-                .orElseThrow(() -> new IllegalArgumentException("Role not found: " + requestedRole));
+                .orElseThrow(() -> new RuntimeException("Role not found."));
 
-        User newUser = User.builder()
+        User newUser = userRepository.save(User.builder()
                 .name(name != null ? name : email.split("@")[0])
                 .email(email)
-                .password("GOOGLE_OAUTH_" + UUID.randomUUID()) // Random pass for security
+                .password("GOOGLE_OAUTH_" + UUID.randomUUID())
                 .role(role)
                 .createdAt(LocalDateTime.now())
                 .active(true)
-                .build();
+                .build());
 
-        userRepository.save(newUser);
         return buildTokenMap(newUser);
     }
 
@@ -106,6 +101,10 @@ public class GoogleAuthService {
                 .avatarUrl(user.getAvatarUrl())
                 .build();
 
-        return Map.of("user", userDTO, "accessToken", accessToken, "refreshToken", refreshToken);
+        return Map.of(
+                "user", userDTO,
+                "accessToken", accessToken,
+                "refreshToken", refreshToken
+        );
     }
 }

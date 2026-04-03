@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
-import { useNavigate } from "react-router-dom"; // <-- Added import
+import { useNavigate, Link } from "react-router-dom";
 import styles from "./Register.module.css";
 import logo from "../../../assets/images/cebunest-logo.png";
 
@@ -11,25 +11,30 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 interface AuthResponse {
   success: boolean;
   data: {
-    accessToken: string;
-    refreshToken: string;
-    user: { role: string; [key: string]: unknown };
+    accessToken?: string;
+    refreshToken?: string;
+    user?: { role: string; [key: string]: unknown };
     alreadyExists?: boolean;
   };
   error?: { message: string };
 }
 
+// ─── helpers ───────────────────────────────────────────────────────────────
+
 function storeTokensAndRedirect(data: AuthResponse) {
-  localStorage.setItem("accessToken", data.data.accessToken);
-  localStorage.setItem("refreshToken", data.data.refreshToken);
-  localStorage.setItem("user", JSON.stringify(data.data.user));
+  // Only store if tokens actually exist in the response
+  if (data.data.accessToken) localStorage.setItem("accessToken", data.data.accessToken);
+  if (data.data.refreshToken) localStorage.setItem("refreshToken", data.data.refreshToken);
+  if (data.data.user) localStorage.setItem("user", JSON.stringify(data.data.user));
 
   const role = data.data.user?.role?.toUpperCase();
   let destination = "/home";
   if (role === "ADMIN") destination = "/admin/rental-requests";
   if (role === "OWNER") destination = "/owner/dashboard";
 
-  setTimeout(() => { window.location.href = destination; }, 1200);
+  setTimeout(() => {
+    window.location.href = destination;
+  }, 1200);
 }
 
 async function postJSON(url: string, body: object): Promise<{ res: Response; data: AuthResponse }> {
@@ -43,101 +48,99 @@ async function postJSON(url: string, body: object): Promise<{ res: Response; dat
 }
 
 const FEATURES = [
-  { icon: "🏠", title: "Browse Listings",  desc: "Filter by location and price" },
-  { icon: "📋", title: "Submit Requests",  desc: "Easy rental applications"      },
-  { icon: "💳", title: "Secure Payments",  desc: "Powered by PayMongo"           },
+  { icon: "🏠", title: "Browse Listings", desc: "Filter by location and price" },
+  { icon: "📋", title: "Submit Requests", desc: "Easy rental applications" },
+  { icon: "💳", title: "Secure Payments", desc: "Powered by PayMongo" },
 ];
 
 const ROLES: { value: Role; label: string }[] = [
   { value: "TENANT", label: "🏡 Tenant" },
-  { value: "OWNER",  label: "🔑 Owner"  },
+  { value: "OWNER", label: "🔑 Owner" },
 ];
 
 const SOCIAL_FIELDS = [
-  { id: "cn-reg-fb",  label: "Facebook",   icon: "f",  placeholder: "https://facebook.com/yourprofile",  key: "facebookUrl"  },
-  { id: "cn-reg-ig",  label: "Instagram",  icon: "in", placeholder: "https://instagram.com/yourhandle", key: "instagramUrl" },
-  { id: "cn-reg-tw",  label: "X / Twitter", icon: "𝕏",  placeholder: "https://x.com/yourhandle",         key: "twitterUrl"   },
+  { id: "cn-reg-fb", label: "Facebook", icon: "f", placeholder: "https://facebook.com/yourprofile", key: "facebookUrl" },
+  { id: "cn-reg-ig", label: "Instagram", icon: "in", placeholder: "https://instagram.com/yourhandle", key: "instagramUrl" },
+  { id: "cn-reg-tw", label: "X / Twitter", icon: "𝕏", placeholder: "https://x.com/yourhandle", key: "twitterUrl" },
 ] as const;
 
+// ─── component ─────────────────────────────────────────────────────────────
+
 const Register: React.FC = () => {
-  const navigate = useNavigate(); // <-- Added hook
+  const navigate = useNavigate();
 
   // ── Auto-Redirect if already logged in ──────────────────────────────────
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
-    const userStr = localStorage.getItem("user");
-
-    if (token && userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        const role = user?.role?.toUpperCase();
-        if (role === "ADMIN") navigate("/admin/rental-requests", { replace: true });
-        else if (role === "OWNER") navigate("/owner/dashboard", { replace: true });
-        else navigate("/home", { replace: true });
-      } catch (e) {
-        // If JSON fails, ignore and let them register
-      }
-    }
+    if (token) navigate("/home", { replace: true });
   }, [navigate]);
 
-  const [name, setName]                       = useState("");
-  const [phoneNumber, setPhoneNumber]         = useState("");
-  const [email, setEmail]                     = useState("");
-  const [password, setPassword]               = useState("");
+  // Form states
+  const [name, setName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [role, setRole]                       = useState<Role>("TENANT");
+  const [role, setRole] = useState<Role>("TENANT");
 
-  const [facebookUrl, setFacebookUrl]   = useState("");
+  // Social states
+  const [facebookUrl, setFacebookUrl] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
-  const [twitterUrl, setTwitterUrl]     = useState("");
-  const [showSocial, setShowSocial]     = useState(false);
+  const [twitterUrl, setTwitterUrl] = useState("");
+  const [showSocial, setShowSocial] = useState(false);
 
-  const [loading, setLoading]               = useState(false);
-  const [googleLoading, setGoogleLoading]   = useState(false);
-  const [message, setMessage]               = useState<string | null>(null);
-  const [isError, setIsError]               = useState(false);
+  // UI status states
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [isError, setIsError] = useState(false);
   const [showAlreadyExists, setShowAlreadyExists] = useState(false);
 
-  const setSuccess  = (msg: string) => { setIsError(false); setMessage(msg); };
-  const setErrorMsg = (msg: string) => { setIsError(true);  setMessage(msg); };
+  const setSuccess = (msg: string) => { setIsError(false); setMessage(msg); };
+  const setErrorMsg = (msg: string) => { setIsError(true); setMessage(msg); };
 
-  const socialValues: Record<string, string> = { facebookUrl, instagramUrl, twitterUrl };
-  const socialSetters: Record<string, React.Dispatch<React.SetStateAction<string>>> = {
+  const socialSetters: Record<string, (val: string) => void> = {
     facebookUrl: setFacebookUrl,
     instagramUrl: setInstagramUrl,
     twitterUrl: setTwitterUrl,
   };
 
+  const socialValues: Record<string, string> = {
+    facebookUrl, instagramUrl, twitterUrl
+  };
+
+  // ── Standard e-mail registration ────────────────────────────────────────
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
 
-    if (password !== confirmPassword) { setErrorMsg("Passwords do not match.");               return; }
-    if (password.length < 8)          { setErrorMsg("Password must be at least 8 characters."); return; }
+    if (password !== confirmPassword) return setErrorMsg("Passwords do not match.");
+    if (password.length < 8) return setErrorMsg("Password must be at least 8 characters.");
 
     setLoading(true);
     try {
       const { res, data } = await postJSON(`${API_BASE}/api/auth/register`, {
-        name, phoneNumber, email, password, confirmPassword, role,
-        facebookUrl:  facebookUrl.trim()  || undefined,
+        name, phoneNumber, email, password, role,
+        facebookUrl: facebookUrl.trim() || undefined,
         instagramUrl: instagramUrl.trim() || undefined,
-        twitterUrl:   twitterUrl.trim()   || undefined,
+        twitterUrl: twitterUrl.trim() || undefined,
       });
 
       if (!res.ok || !data.success) {
-        setErrorMsg(data?.error?.message ?? "Registration failed. Please try again.");
+        setErrorMsg(data?.error?.message ?? "Registration failed.");
         return;
       }
 
-      storeTokensAndRedirect(data);
       setSuccess("Account created! Redirecting...");
+      storeTokensAndRedirect(data);
     } catch {
-      setErrorMsg("Network error. Please check your connection.");
+      setErrorMsg("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  // ── Google OAuth registration ───────────────────────────────────────────
   const handleGoogleRegister = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       setGoogleLoading(true);
@@ -147,52 +150,69 @@ const Register: React.FC = () => {
       try {
         const { res, data } = await postJSON(`${API_BASE}/api/auth/google`, {
           token: tokenResponse.access_token,
-          role,
+          role, // Sending role tells backend we are in "Register Mode"
         });
-        // ... rest of your logic remains identical
 
         if (!res.ok || !data.success) {
           setErrorMsg(data?.error?.message ?? "Google sign-up failed.");
           return;
         }
 
+        // CRITICAL: If the backend returns alreadyExists, we MUST NOT call storeTokensAndRedirect
         if (data.data?.alreadyExists) {
           setShowAlreadyExists(true);
-          return;
+          setGoogleLoading(false);
+          return; // STOP HERE
         }
 
-        storeTokensAndRedirect(data);
+        // Only proceed to redirect if account was actually created
         setSuccess("Account created! Redirecting...");
+        storeTokensAndRedirect(data);
       } catch {
         setErrorMsg("Google sign-up failed. Please try again.");
       } finally {
         setGoogleLoading(false);
       }
     },
-    onError: () => setErrorMsg("Google sign-in was cancelled or failed."),
+    onError: () => setErrorMsg("Google sign-in failed."),
   });
 
   return (
-    <div className={styles.page}>
-
-      {/* Already Exists Modal */}
-      {showAlreadyExists && (
-        <div className={styles.modalOverlay} onClick={() => setShowAlreadyExists(false)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <div className={styles.modalIcon}>⚠️</div>
-              <h3 className={styles.modalTitle}>Account Already Exists</h3>
-              <p className={styles.modalSubtitle}>
-                This Google account is already registered with CebuNest. Please sign in instead.
-              </p>
-            </div>
-            <a href="/" className={styles.modalSigninBtn}>Go to Sign In →</a>
-            <p className={styles.modalNote}>Or close this and try a different Google account.</p>
+        <div className={styles.page}>
+          {showAlreadyExists && (
+      <div className={styles.modalOverlay} onClick={() => setShowAlreadyExists(false)}>
+        <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modalHeader}>
+            <div className={styles.modalIcon}>⚠️</div>
+            <h3 className={styles.modalTitle}>Account Already Exists</h3>
+            <p className={styles.modalSubtitle}>
+              This Google account is already registered with CebuNest. 
+              Please sign in instead.
+            </p>
           </div>
-        </div>
-      )}
 
-      {/* Left Panel */}
+          {/* Wrap both buttons in modalActions */}
+          <div className={styles.modalActions}>
+            <Link to="/" className={styles.modalSigninBtn}>
+              Go to Sign In →
+            </Link>
+            
+            <button 
+              className={styles.modalCloseBtn} 
+              onClick={() => setShowAlreadyExists(false)}
+            >
+              Try Another Account
+            </button>
+          </div>
+
+          <p className={styles.modalNote}>
+            Registration is restricted to one account per email.
+          </p>
+        </div>
+      </div>
+    )}
+
+      {/* ══ LEFT PANEL ═════════════════════════════════════════════════════ */}
       <div className={styles.leftPanel}>
         <div className={`${styles.deco} ${styles.deco1}`} />
         <div className={`${styles.deco} ${styles.deco2}`} />
@@ -210,8 +230,8 @@ const Register: React.FC = () => {
           </div>
           <h2 className={styles.brandHeading}>Find Your Perfect Home in Cebu</h2>
           <p className={styles.brandBody}>
-            Join thousands of tenants and property owners already using CebuNest.
-            Create your account and get started in minutes.
+            Join thousands of tenants and property owners using CebuNest. 
+            Streamline your rental experience today.
           </p>
         </div>
 
@@ -228,10 +248,9 @@ const Register: React.FC = () => {
         </div>
       </div>
 
-      {/* Right Panel */}
+      {/* ══ RIGHT PANEL ════════════════════════════════════════════════════ */}
       <div className={styles.rightPanel}>
         <div className={styles.formCard}>
-
           <div className={styles.formHeader}>
             <div className={styles.formEyebrow}>
               <div className={styles.headerDot} />
@@ -241,7 +260,6 @@ const Register: React.FC = () => {
             <p className={styles.formSubheading}>Fill in your details to get started.</p>
           </div>
 
-          {/* Role selector */}
           <div className={styles.roleGroup}>
             <span className={styles.roleGroupLabel}>I am a</span>
             <div className={styles.roleToggle}>
@@ -258,7 +276,6 @@ const Register: React.FC = () => {
             </div>
           </div>
 
-          {/* Google */}
           <button
             className={styles.googleBtn}
             type="button"
@@ -276,9 +293,7 @@ const Register: React.FC = () => {
               </svg>
             )}
             <span>
-              {googleLoading
-                ? "Signing up…"
-                : `Continue with Google as ${role === "TENANT" ? "Tenant" : "Owner"}`}
+              {googleLoading ? "Signing up…" : `Continue with Google as ${role === "TENANT" ? "Tenant" : "Owner"}`}
             </span>
           </button>
 
@@ -288,15 +303,13 @@ const Register: React.FC = () => {
             <div className={styles.dividerLine} />
           </div>
 
-          {/* Registration form */}
           <form className={styles.formFields} onSubmit={handleRegister}>
-
             {[
-              { id: "cn-reg-name",    label: "Name",             icon: "👤", type: "text",     placeholder: "Juan dela Cruz",       value: name,            onChange: setName            },
-              { id: "cn-reg-phone",   label: "Phone Number",     icon: "📞", type: "tel",      placeholder: "+63 912 345 6789",     value: phoneNumber,     onChange: setPhoneNumber     },
-              { id: "cn-reg-email",   label: "Email Address",    icon: "✉",  type: "email",    placeholder: "you@example.com",       value: email,           onChange: setEmail           },
-              { id: "cn-reg-pass",    label: "Password",         icon: "🔒", type: "password", placeholder: "Min. 8 characters",     value: password,        onChange: setPassword        },
-              { id: "cn-reg-confirm", label: "Confirm Password", icon: "🔒", type: "password", placeholder: "Re-enter your password", value: confirmPassword, onChange: setConfirmPassword },
+              { id: "cn-reg-name", label: "Name", icon: "👤", type: "text", placeholder: "Juan dela Cruz", value: name, onChange: setName },
+              { id: "cn-reg-phone", label: "Phone Number", icon: "📞", type: "tel", placeholder: "+63 912 345 6789", value: phoneNumber, onChange: setPhoneNumber },
+              { id: "cn-reg-email", label: "Email Address", icon: "✉", type: "email", placeholder: "you@example.com", value: email, onChange: setEmail },
+              { id: "cn-reg-pass", label: "Password", icon: "🔒", type: "password", placeholder: "Min. 8 characters", value: password, onChange: setPassword },
+              { id: "cn-reg-confirm", label: "Confirm Password", icon: "🔒", type: "password", placeholder: "Re-enter password", value: confirmPassword, onChange: setConfirmPassword },
             ].map(({ id, label, icon, type, placeholder, value, onChange }) => (
               <div key={id} className={styles.fieldGroup}>
                 <label className={styles.fieldLabel} htmlFor={id}>{label}</label>
@@ -310,21 +323,19 @@ const Register: React.FC = () => {
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                     required
-                    minLength={type === "password" && id === "cn-reg-pass" ? 8 : undefined}
+                    disabled={loading || googleLoading}
                   />
                 </div>
               </div>
             ))}
 
-            {/* Social links toggle */}
             <button
               type="button"
               className={styles.socialToggle}
               onClick={() => setShowSocial((v) => !v)}
             >
               <span className={styles.socialToggleIcon}>{showSocial ? "▲" : "▼"}</span>
-              {showSocial ? "Hide social links" : "Add social links"}{" "}
-              <span className={styles.socialToggleOptional}>(optional)</span>
+              {showSocial ? "Hide social links" : "Add social links (optional)"}
             </button>
 
             {showSocial && (
@@ -332,8 +343,7 @@ const Register: React.FC = () => {
                 {SOCIAL_FIELDS.map(({ id, label, icon, placeholder, key }) => (
                   <div key={id} className={styles.fieldGroup}>
                     <label className={styles.fieldLabel} htmlFor={id}>
-                      <span className={styles.socialBadge}>{icon}</span>
-                      {label}
+                      <span className={styles.socialBadge}>{icon}</span> {label}
                     </label>
                     <div className={styles.fieldWrap}>
                       <span className={`${styles.fieldIcon} ${styles.socialFieldIcon}`}>{icon}</span>
@@ -344,6 +354,7 @@ const Register: React.FC = () => {
                         placeholder={placeholder}
                         value={socialValues[key]}
                         onChange={(e) => socialSetters[key](e.target.value)}
+                        disabled={loading || googleLoading}
                       />
                     </div>
                   </div>
@@ -356,7 +367,7 @@ const Register: React.FC = () => {
               className={styles.submitBtn}
               disabled={loading || googleLoading}
             >
-              {loading ? "Creating Account..." : "Create Account"}
+              {loading ? <span className={styles.spinner} /> : "Create Account"}
             </button>
 
             {message && (
@@ -366,17 +377,10 @@ const Register: React.FC = () => {
             )}
           </form>
 
-          <div className={styles.divider}>
-            <div className={styles.dividerLine} />
-            <span className={styles.dividerText}>or</span>
-            <div className={styles.dividerLine} />
-          </div>
-
           <div className={styles.links}>
             <span className={styles.signinText}>Already have an account?</span>
-            <a href="/" className={`${styles.link} ${styles.linkSignin}`}>Sign In →</a>
+            <Link to="/" className={`${styles.link} ${styles.linkSignin}`}>Sign In →</Link>
           </div>
-
         </div>
       </div>
     </div>
