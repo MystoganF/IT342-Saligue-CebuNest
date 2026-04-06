@@ -1,10 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  useRef,
-} from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import Navbar from "../../../components/Navbar/Navbar";
 import styles from "./rental_detail.module.css";
@@ -48,7 +42,7 @@ interface Payment {
   amount: number;
   dueDate: string;
   paidAt: string | null;
-  status: "PENDING" | "PAID" | "OVERDUE" | "CANCELLED";
+  status: "PENDING" | "PAID" | "OVERDUE" | "CANCELLED" | "FAILED";
   checkoutUrl: string | null;
   paymongoPaymentId: string | null;
 }
@@ -79,6 +73,7 @@ interface Review {
   rating: number;
   comment: string | null;
   createdAt: string;
+  tenantAvatarUrl?: string | null;
 }
 
 interface LeaseExtension {
@@ -89,6 +84,22 @@ interface LeaseExtension {
   createdAt: string;
 }
 
+// ─── Helpers ──────────────────────────────────────────────────
+
+function getInitials(name: string | null | undefined): string {
+  if (!name) return "?";
+  return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+}
+
+function formatReviewDate(isoStr: string | null | undefined): string {
+  if (!isoStr) return "—";
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-PH", {
+    year: "numeric", month: "short", day: "numeric",
+  });
+}
+
 function formatPrice(n: number) {
   return new Intl.NumberFormat("en-PH", {
     style: "currency", currency: "PHP",
@@ -96,10 +107,12 @@ function formatPrice(n: number) {
   }).format(n);
 }
 
-function formatDate(d: string) {
+function formatDate(d: string | null | undefined) {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("en-PH", {
-    year: "numeric", month: "long", day: "numeric",
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-PH", {
+    year: "numeric", month: "short", day: "numeric",
   });
 }
 
@@ -153,15 +166,35 @@ const StarPicker: React.FC<{ value: number; onChange: (v: number) => void }> = (
   );
 };
 
-const StarDisplay: React.FC<{ rating: number }> = ({ rating }) => (
-  <span className={styles.starDisplay}>
+const StarDisplay: React.FC<{ rating: number; size?: number }> = ({ rating, size = 16 }) => (
+  <span className={styles.starDisplay} style={{ fontSize: size }}>
     {[1, 2, 3, 4, 5].map((s) => (
       <span key={s} className={s <= rating ? styles.starFilled : styles.starEmpty}>★</span>
     ))}
   </span>
 );
 
-// ─────────────────────────────────────────────────────────────────────────────
+function paymentStatusColor(status: string): { color: string; bg: string; border: string } {
+  switch (status) {
+    case "PAID": return { color: "#1a7a4a", bg: "#e8f7ef", border: "rgba(26,122,74,0.2)" };
+    case "OVERDUE": return { color: "#c0392b", bg: "#fdf0ee", border: "rgba(192,57,43,0.2)" };
+    case "FAILED": return { color: "#c0392b", bg: "#fdf0ee", border: "rgba(192,57,43,0.2)" };
+    case "PENDING": return { color: "#b78e42", bg: "#fffbea", border: "rgba(183,142,66,0.2)" };
+    default: return { color: "#6e7071", bg: "#f0f4f5", border: "#e5eced" };
+  }
+}
+
+function paymentStatusIcon(status: string): string {
+  switch (status) {
+    case "PAID": return "✓";
+    case "OVERDUE": return "⚠";
+    case "FAILED": return "✕";
+    case "PENDING": return "○";
+    default: return "–";
+  }
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
 
 const RentalDetail: React.FC = () => {
   const navigate = useNavigate();
@@ -194,11 +227,18 @@ const RentalDetail: React.FC = () => {
   const [viewingReceiptId, setViewingReceiptId]   = useState<number | null>(null);
 
   // ── Review states ──
+  const [allReviews, setAllReviews]         = useState<Review[]>([]); 
   const [existingReview, setExistingReview] = useState<Review | null>(null);
   const [reviewRating, setReviewRating]     = useState(0);
   const [reviewComment, setReviewComment]   = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewMsg, setReviewMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [reviewsLoading, setReviewsLoading] = useState(false); // FIXED: Added missing state
+
+  // ── Lazy Loading Reviews Modal State ──
+  const [modalFilterRating, setModalFilterRating] = useState<number | null>(null);
+  const [isFetchingModal, setIsFetchingModal]     = useState(false);
+  const [modalReviews, setModalReviews]           = useState<Review[]>([]);
 
   // ── Lease extension states ──
   const [extensions, setExtensions]               = useState<LeaseExtension[]>([]);
@@ -223,12 +263,15 @@ const RentalDetail: React.FC = () => {
   // ── Fetch everything (Optimized via Promise.all) ──────────────────────────
   const fetchAll = useCallback(async () => {
     if (!requestId) return;
-    setLoading(true); setError(null);
+    setLoading(true); 
+    setError(null);
+    setReviewsLoading(true); // FIXED: Set reviews loading state
     const token = localStorage.getItem("accessToken");
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    
+    // FIXED: Strong typing for headers to avoid TS errors
+    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
 
     try {
-      // 1. Fetch Request to get base data
       const reqRes  = await fetch(`${API_BASE}/api/rental-requests/my`, { headers });
       const reqData = await reqRes.json();
       if (!reqData.success) throw new Error("Failed to load rental.");
@@ -239,19 +282,16 @@ const RentalDetail: React.FC = () => {
       if (!found) throw new Error("Rental request not found.");
       setRequest(found);
 
-      // 2. Fetch everything else concurrently
       const promises: Promise<void>[] = [];
 
-      // -> Property Details
       promises.push(
         fetch(`${API_BASE}/api/properties/${found.propertyId}`, { headers })
           .then((r) => r.json())
           .then((d) => { if (d.success) setProperty(d.data.property); })
-          .catch(() => {}) // Fail silently for individual fetches
+          .catch(() => {}) 
       );
 
       if (found.status === "CONFIRMED" || found.status === "COMPLETED") {
-        // -> Payments
         promises.push(
           fetch(`${API_BASE}/api/payments/request/${found.id}`, { headers })
             .then((r) => r.json())
@@ -259,13 +299,16 @@ const RentalDetail: React.FC = () => {
               if (d.success) {
                 const fetched: Payment[] = d.data.payments ?? [];
                 setPayments(fetched);
-                const years = new Set(fetched.map((p) => new Date(p.dueDate).getFullYear().toString()));
+                const years = new Set(fetched.map((p) => {
+                  if (!p.dueDate) return "Unknown";
+                  const d = new Date(p.dueDate);
+                  return isNaN(d.getTime()) ? "Unknown" : d.getFullYear().toString();
+                }));
                 const initial: Record<string, boolean> = {};
-                years.forEach((y) => { initial[y] = false; }); // Init closed
+                years.forEach((y) => { initial[y] = false; }); 
                 setExpandedYears(initial);
 
-                // Cancel stale initiations asynchronously
-                const stale = fetched.find((p) => p.paymongoPaymentId !== null && p.status !== "PAID");
+                const stale = fetched.find((p) => p.paymongoPaymentId !== null && p.status !== "PAID" && p.status !== "FAILED");
                 if (stale) {
                   fetch(`${API_BASE}/api/payments/${stale.id}/cancel`, { method: "GET", headers })
                     .then((r) => r.json())
@@ -280,7 +323,6 @@ const RentalDetail: React.FC = () => {
             .catch(() => {})
         );
 
-        // -> Extensions
         promises.push(
           fetch(`${API_BASE}/api/lease-extensions/rental/${found.id}`, { headers })
             .then((r) => r.json())
@@ -288,14 +330,16 @@ const RentalDetail: React.FC = () => {
             .catch(() => {})
         );
 
-        // -> Reviews
         promises.push(
           fetch(`${API_BASE}/api/property-reviews/property/${found.propertyId}`, { headers })
             .then((r) => r.json())
             .then((d) => {
               if (d.success) {
+                const fetchedReviews = d.data.reviews ?? [];
+                setAllReviews(fetchedReviews); 
+                
                 const storedUser: User = JSON.parse(localStorage.getItem("user") || "{}");
-                const mine = (d.data.reviews ?? []).find(
+                const mine = fetchedReviews.find(
                   (r: Review & { rentalRequestId: number }) => r.tenantId === storedUser.id && r.rentalRequestId === found.id
                 );
                 if (mine) {
@@ -315,12 +359,13 @@ const RentalDetail: React.FC = () => {
       setError(err.message || "Unable to load rental details."); 
     } finally { 
       setLoading(false); 
+      setReviewsLoading(false); // FIXED: End reviews loading state
     }
   }, [requestId]);
 
   useEffect(() => { if (user) fetchAll(); }, [user, fetchAll]);
 
-  // ── Payment verify redirect ───────────────────────────────────────────────
+  // ── Payment verify & FAILURE redirect ──────────────────────────────────────
   useEffect(() => {
     const paymentIdParam = searchParams.get("payment_id");
     const paymentStatus  = searchParams.get("payment");
@@ -330,36 +375,51 @@ const RentalDetail: React.FC = () => {
     const paymentId = parseInt(paymentIdParam, 10);
     if (isNaN(paymentId)) return;
     const token = localStorage.getItem("accessToken");
+    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}; // FIXED
     setTimeout(() => { paymentSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }, 400);
 
+    // CANCELLED
     if (paymentStatus === "cancelled") {
       setVerifyBanner({ state: "error", text: "Payment was cancelled. You can try again whenever you're ready." });
       fetch(`${API_BASE}/api/payments/${paymentId}/cancel`, {
-        method: "GET", headers: token ? { Authorization: `Bearer ${token}` } : {},
+        method: "GET", headers,
       }).then((r) => r.json()).then((data) => {
         if (data.success) {
-          setPayments((prev) => prev.map((p) =>
-            p.id === paymentId ? { ...p, checkoutUrl: null, paymongoPaymentId: null } : p
-          ));
+          setPayments((prev) => prev.map((p) => p.id === paymentId ? { ...p, checkoutUrl: null, paymongoPaymentId: null } : p));
         }
       }).catch(() => {});
       return;
     }
 
-    if (paymentStatus !== "success") return;
-    setVerifyBanner({ state: "verifying", text: "Verifying your payment with PayMongo…" });
-    fetch(`${API_BASE}/api/payments/${paymentId}/verify`, {
-      method: "GET", headers: token ? { Authorization: `Bearer ${token}` } : {},
-    }).then((r) => r.json()).then((data) => {
-      if (!data.success) { setVerifyBanner({ state: "error", text: data?.error?.message ?? "Verification failed." }); return; }
-      const updated: Payment = data.data.payment;
-      if (updated.status === "PAID") {
-        setVerifyBanner({ state: "success", text: `Month ${updated.installmentNumber} payment of ${formatPrice(updated.amount)} confirmed! ✓` });
-        setPayments((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-      } else {
-        setVerifyBanner({ state: "error", text: "Payment not yet confirmed by PayMongo. It may take a moment — please refresh." });
-      }
-    }).catch(() => { setVerifyBanner({ state: "error", text: "Network error during verification. Please refresh." }); });
+    // FAILED
+    if (paymentStatus === "failed") {
+      setVerifyBanner({ state: "error", text: "Your payment failed or was declined. Please try again." });
+      fetch(`${API_BASE}/api/payments/${paymentId}/fail`, {
+        method: "GET", headers,
+      }).then((r) => r.json()).then((data) => {
+        if (data.success) {
+          setPayments((prev) => prev.map((p) => p.id === paymentId ? { ...p, status: "FAILED", checkoutUrl: null, paymongoPaymentId: null } : p));
+        }
+      }).catch(() => {});
+      return;
+    }
+
+    // SUCCESS
+    if (paymentStatus === "success") {
+      setVerifyBanner({ state: "verifying", text: "Verifying your payment with PayMongo…" });
+      fetch(`${API_BASE}/api/payments/${paymentId}/verify`, {
+        method: "GET", headers,
+      }).then((r) => r.json()).then((data) => {
+        if (!data.success) { setVerifyBanner({ state: "error", text: data?.error?.message ?? "Verification failed." }); return; }
+        const updated: Payment = data.data.payment;
+        if (updated.status === "PAID") {
+          setVerifyBanner({ state: "success", text: `Month ${updated.installmentNumber} payment of ${formatPrice(updated.amount)} confirmed! ✓` });
+          setPayments((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+        } else {
+          setVerifyBanner({ state: "error", text: "Payment not yet confirmed by PayMongo. It may take a moment — please refresh." });
+        }
+      }).catch(() => { setVerifyBanner({ state: "error", text: "Network error during verification. Please refresh." }); });
+    }
   }, [searchParams, user, setSearchParams]);
 
   // ── Map ───────────────────────────────────────────────────────────────────
@@ -373,19 +433,42 @@ const RentalDetail: React.FC = () => {
       .finally(() => setMapLoading(false));
   }, [property?.location]);
 
-  // ── Pay now ───────────────────────────────────────────────────────────────
+  // ── Pay now / Re-Initiate ──────────────────────────────────────────────────
   const handlePay = async (paymentId: number) => {
     setInitiating(paymentId);
     try {
       const token = localStorage.getItem("accessToken");
+      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}; // FIXED
       const res   = await fetch(`${API_BASE}/api/payments/${paymentId}/initiate`, {
-        method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {},
+        method: "POST", headers,
       });
       const data  = await res.json();
       if (!res.ok || !data.success) { setVerifyBanner({ state: "error", text: data?.error?.message ?? "Failed to create payment link." }); return; }
       if (data.data.payment.checkoutUrl) window.location.href = data.data.payment.checkoutUrl;
     } catch { setVerifyBanner({ state: "error", text: "Network error. Please try again." }); }
     finally { setInitiating(null); }
+  };
+
+  // ── Reset Expired Paymongo Link ──────────────────────────────────────────
+  const handleResetPayment = async (paymentId: number) => {
+    setInitiating(paymentId);
+    try {
+      const token = localStorage.getItem("accessToken");
+      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}; // FIXED
+      await fetch(`${API_BASE}/api/payments/${paymentId}/cancel`, { 
+        method: "GET", headers 
+      });
+      setPayments(prev => prev.map(p => p.id === paymentId ? { ...p, checkoutUrl: null, paymongoPaymentId: null } : p));
+      
+      const res = await fetch(`${API_BASE}/api/payments/${paymentId}/initiate`, {
+        method: "POST", headers,
+      });
+      const data = await res.json();
+      if (data.success && data.data.payment.checkoutUrl) window.location.href = data.data.payment.checkoutUrl;
+    } catch { 
+      setVerifyBanner({ state: "error", text: "Failed to reset link. Please try again." }); 
+      setInitiating(null);
+    }
   };
 
   // ── Review submit ─────────────────────────────────────────────────────────
@@ -396,17 +479,41 @@ const RentalDetail: React.FC = () => {
     setReviewSubmitting(true); setReviewMsg(null);
     try {
       const token = localStorage.getItem("accessToken");
+      const headers: HeadersInit = { 
+        "Content-Type": "application/json", 
+        ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+      }; // FIXED
+
       const res   = await fetch(`${API_BASE}/api/property-reviews`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        headers,
         body: JSON.stringify({ rentalRequestId: request.id, rating: reviewRating, comment: reviewComment.trim() || null }),
       });
       const data  = await res.json();
       if (!res.ok || !data.success) { setReviewMsg({ type: "error", text: data?.error?.message ?? "Failed to submit review." }); return; }
-      setExistingReview(data.data.review);
+      
+      const newReview = data.data.review;
+      setExistingReview(newReview);
+      setAllReviews(prev => [newReview, ...prev]); 
       setReviewMsg({ type: "success", text: "Review submitted! Thank you for your feedback." });
     } catch { setReviewMsg({ type: "error", text: "Network error. Please try again." }); }
     finally { setReviewSubmitting(false); }
+  };
+
+  // ── Open Reviews Modal (Simulate Lazy Fetch) ─────────────────────────────
+  const openReviewModal = (rating: number) => {
+    setModalFilterRating(rating);
+    setIsFetchingModal(true);
+    
+    setTimeout(() => {
+      setModalReviews(rating === 0 ? allReviews : allReviews.filter(r => r.rating === rating));
+      setIsFetchingModal(false);
+    }, 600);
+  };
+
+  const closeReviewModal = () => {
+    setModalFilterRating(null);
+    setModalReviews([]);
   };
 
   // ── Lease extension submit ────────────────────────────────────────────────
@@ -416,9 +523,14 @@ const RentalDetail: React.FC = () => {
     setExtSubmitting(true); setExtMsg(null);
     try {
       const token = localStorage.getItem("accessToken");
+      const headers: HeadersInit = { 
+        "Content-Type": "application/json", 
+        ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+      }; // FIXED
+
       const res   = await fetch(`${API_BASE}/api/lease-extensions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        headers,
         body: JSON.stringify({
           rentalRequestId: request.id,
           requestedMonths: extMonths,
@@ -450,12 +562,16 @@ const RentalDetail: React.FC = () => {
   const { paymentsByYear, nextPayablePaymentId } = useMemo(() => {
     if (!payments.length) return { paymentsByYear: {}, nextPayablePaymentId: null };
     const grouped = payments.reduce((acc, p) => {
-      const year = new Date(p.dueDate).getFullYear().toString();
+      if (!p.dueDate) return acc;
+      const d = new Date(p.dueDate);
+      const year = isNaN(d.getTime()) ? "Unknown" : d.getFullYear().toString();
       if (!acc[year]) acc[year] = [];
       acc[year].push(p);
       return acc;
     }, {} as Record<string, Payment[]>);
-    const unpaid = payments.filter((p) => p.status === "PENDING" || p.status === "OVERDUE")
+    
+    // Include FAILED in unpaid calculation so they can try again
+    const unpaid = payments.filter((p) => p.status === "PENDING" || p.status === "OVERDUE" || p.status === "FAILED")
       .sort((a, b) => a.installmentNumber - b.installmentNumber);
     return { paymentsByYear: grouped, nextPayablePaymentId: unpaid.length > 0 ? unpaid[0].id : null };
   }, [payments]);
@@ -465,11 +581,16 @@ const RentalDetail: React.FC = () => {
   const totalAmount  = payments.reduce((s, p) => s + p.amount, 0);
   const paidAmount   = payments.filter((p) => p.status === "PAID").reduce((s, p) => s + p.amount, 0);
   const progressPct  = totalCount > 0 ? Math.round((paidCount / totalCount) * 100) : 0;
-  const nextDue      = payments.find((p) => p.status === "PENDING" || p.status === "OVERDUE");
+  const nextDue      = payments.find((p) => p.status === "PENDING" || p.status === "OVERDUE" || p.status === "FAILED");
   const canReview    = request?.status === "CONFIRMED" || request?.status === "COMPLETED";
   const isConfirmed  = request?.status === "CONFIRMED";
   const hasPendingExt = extensions.some((e) => e.status === "PENDING");
   const activeReceipt = viewingReceiptId ? payments.find((p) => p.id === viewingReceiptId) : null;
+  
+  // Calculate average rating
+  const averageRating = allReviews.length > 0 
+    ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length 
+    : 0;
 
   if (!user) return null;
 
@@ -565,7 +686,7 @@ const RentalDetail: React.FC = () => {
             <div className={styles.divider} />
             <div className={styles.ownerRow} style={{ display: "flex", alignItems: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "16px", flex: 1 }}>
-                <div className={styles.ownerAvatar}>{request.ownerName?.charAt(0).toUpperCase()}</div>
+                <div className={styles.ownerAvatar}>{request.ownerName?.charAt(0)?.toUpperCase() || "?"}</div>
                 <div>
                   <div style={{ textTransform: "uppercase", letterSpacing: "1px", fontSize: "0.8rem", color: "#64748b", fontWeight: "600", marginBottom: "4px" }}>Listed by</div>
                   <div style={{ fontWeight: "bold", fontSize: "1.1rem", color: "#0f172a" }}>{request.ownerName}</div>
@@ -590,7 +711,7 @@ const RentalDetail: React.FC = () => {
             </div>
           </div>
 
-          {/* Review Card */}
+          {/* User Review Form Card */}
           {canReview && (
             <div className={styles.reviewCard}>
               <div className={styles.reviewCardTitle}><span>⭐</span> Rate This Property</div>
@@ -626,6 +747,96 @@ const RentalDetail: React.FC = () => {
               )}
             </div>
           )}
+
+          {/* ── Public Reviews Summary & List ── */}
+          <div className={styles.card} style={{ padding: '28px 32px' }}>
+            <div className={styles.cardTitle} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: '20px' }}>
+              <div>Tenant Reviews</div>
+            </div>
+            
+            {reviewsLoading && <div className={styles.requestsLoading}>Loading reviews…</div>}
+            {!reviewsLoading && allReviews.length === 0 && <div className={styles.requestsEmpty}><span className={styles.requestsEmptyIcon}>⭐</span><p>No reviews yet for this property.</p></div>}
+            
+            {!reviewsLoading && allReviews.length > 0 && (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '24px' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '42px', fontWeight: 800, color: '#1f5d71', lineHeight: 1 }}>{averageRating.toFixed(1)}</div>
+                    <div style={{ margin: '4px 0' }}>
+                      <StarDisplay rating={Math.round(averageRating)} />
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#6e7071' }}>{allReviews.length} review{allReviews.length !== 1 ? "s" : ""}</div>
+                  </div>
+                  
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {[5, 4, 3, 2, 1].map((star) => { 
+                      const count = allReviews.filter((r) => r.rating === star).length; 
+                      const pct = allReviews.length > 0 ? Math.round((count / allReviews.length) * 100) : 0; 
+                      return (
+                        <div 
+                          key={star} 
+                          onClick={() => openReviewModal(star)}
+                          style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', cursor: 'pointer' }}
+                          title={`Click to view all ${star}-star reviews`}
+                          onMouseOver={(e) => e.currentTarget.style.opacity = '0.7'}
+                          onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                        >
+                          <span style={{ fontWeight: 700, color: '#1f5d71', width: '20px' }}>{star}★</span>
+                          <div style={{ flex: 1, height: '8px', background: '#e5eced', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${pct}%`, background: '#f59e0b', borderRadius: '4px' }} />
+                          </div>
+                          <span style={{ color: '#6e7071', width: '20px', textAlign: 'right' }}>{count}</span>
+                        </div>
+                      ); 
+                    })}
+                  </div>
+                </div>
+
+                {/* SHOW ONLY TOP 2 RECENT REVIEWS IN THE MAIN PAGE */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "0", borderTop: '1px solid #f0f4f5' }}>
+                  {allReviews.slice(0, 2).map((rev) => (
+                    <div key={rev.id} className={styles.reviewItem}>
+                      <div className={styles.reviewItemHeader}>
+                        <div className={styles.reviewAvatar}>
+                          {rev.tenantAvatarUrl ? <img src={rev.tenantAvatarUrl} alt={rev.tenantName} className={styles.reviewAvatarImg} /> : <span>{getInitials(rev.tenantName)}</span>}
+                        </div>
+                        <div className={styles.reviewItemMeta}>
+                          <span className={styles.reviewItemName}>{rev.tenantName}</span>
+                          <span className={styles.reviewItemDate}>{formatDate(rev.createdAt)}</span>
+                        </div>
+                        <StarDisplay rating={rev.rating} size={15} />
+                      </div>
+                      {rev.comment && (<p className={styles.reviewItemComment}>{rev.comment}</p>)}
+                    </div>
+                  ))}
+                </div>
+
+                {/* BUTTON TO OPEN FILTER/VIEW ALL MODAL */}
+                {allReviews.length > 2 && (
+                  <button 
+                    type="button" 
+                    onClick={() => openReviewModal(0)} 
+                    style={{ 
+                      marginTop: "16px", 
+                      width: "100%", 
+                      padding: "12px", 
+                      borderRadius: "10px", 
+                      border: "1.5px solid rgba(83,164,163,0.3)", 
+                      background: "rgba(83,164,163,0.05)", 
+                      color: "#1f5d71", 
+                      fontWeight: "bold", 
+                      cursor: "pointer", 
+                      transition: "0.2s" 
+                    }}
+                    onMouseOver={(e) => (e.currentTarget.style.background = "rgba(83,164,163,0.15)")}
+                    onMouseOut={(e) => (e.currentTarget.style.background = "rgba(83,164,163,0.05)")}
+                  >
+                    View All {allReviews.length} Reviews
+                  </button>
+                )}
+              </>
+            )}
+          </div>
 
           {/* Map */}
           <div className={styles.mapCard}>
@@ -670,8 +881,8 @@ const RentalDetail: React.FC = () => {
                   <span className={styles.progressRemaining}>{formatPrice(totalAmount - paidAmount)} remaining</span>
                 </div>
                 {nextDue && (
-                  <div className={`${styles.nextDue} ${nextDue.status === "OVERDUE" ? styles.nextDueOverdue : ""}`}>
-                    {nextDue.status === "OVERDUE" ? "⚠ Overdue:" : "📅 Next due:"}{" "}
+                  <div className={`${styles.nextDue} ${nextDue.status === "OVERDUE" || nextDue.status === "FAILED" ? styles.nextDueOverdue : ""}`}>
+                    {nextDue.status === "OVERDUE" ? "⚠ Overdue:" : nextDue.status === "FAILED" ? "✕ Failed:" : "📅 Next due:"}{" "}
                     <strong>{formatDate(nextDue.dueDate)}</strong> — {formatPrice(nextDue.amount)}
                   </div>
                 )}
@@ -706,7 +917,6 @@ const RentalDetail: React.FC = () => {
                   {Object.keys(paymentsByYear).sort().map((year) => {
                     const isExpanded   = expandedYears[year] === true;
                     const yearPayments = paymentsByYear[year];
-                    // Only show PENDING or OVERDUE in the schedule
                     const schedulePayments = yearPayments.filter(p => p.status !== "PAID");
                     const yearPaid     = yearPayments.filter((p) => p.status === "PAID").length;
                     
@@ -733,8 +943,10 @@ const RentalDetail: React.FC = () => {
                                 const isNext          = p.id === nextPayablePaymentId;
                                 const isLocked        = !isNext;
                                 const isActionLoading = initiating === p.id;
+                                const hasError        = p.status === "OVERDUE" || p.status === "FAILED";
+                                
                                 return (
-                                  <div key={p.id} className={[styles.paymentRow, isLocked ? styles.paymentRowLocked : "", isNext ? styles.paymentRowNext : "", p.status === "OVERDUE" ? styles.paymentRowOverdue : ""].filter(Boolean).join(" ")}>
+                                  <div key={p.id} className={[styles.paymentRow, isLocked ? styles.paymentRowLocked : "", isNext ? styles.paymentRowNext : "", hasError ? styles.paymentRowOverdue : ""].filter(Boolean).join(" ")}>
                                     <div className={styles.paymentRowLeft}>
                                       <div className={[styles.paymentMonthBadge, isNext ? styles.paymentMonthBadgeNext : ""].filter(Boolean).join(" ")}>
                                         {isLocked ? "🔒" : p.installmentNumber}
@@ -742,17 +954,28 @@ const RentalDetail: React.FC = () => {
                                       <div className={styles.paymentRowInfo}>
                                         <span className={styles.paymentLabel}>Month {p.installmentNumber}</span>
                                         <span className={styles.paymentDates}>Due {formatDate(p.dueDate)}</span>
+                                        {/* Reset Expired Link button for Pending status if there's a problem */}
+                                        {p.status === "PENDING" && p.checkoutUrl && !isLocked && (
+                                            <div 
+                                                style={{ fontSize: "11px", color: "#b78e42", textDecoration: "underline", cursor: "pointer", marginTop: "4px" }}
+                                                onClick={() => handleResetPayment(p.id)}
+                                            >
+                                                Link expired? Click to reset
+                                            </div>
+                                        )}
                                       </div>
                                     </div>
                                     <div className={styles.paymentRowRight}>
                                       <span className={styles.paymentAmount}>{formatPrice(p.amount)}</span>
-                                      {p.status === "OVERDUE" ? (
+                                      {hasError ? (
                                         <div className={styles.paymentRowActions}>
-                                          <span className={`${styles.payStatusBadge} ${styles.payStatusOverdue}`}>Overdue</span>
+                                          <span className={`${styles.payStatusBadge} ${styles.payStatusOverdue}`}>
+                                            {p.status === "OVERDUE" ? "Overdue" : "Failed"}
+                                          </span>
                                           {isNext && (
                                             <button type="button" className={`${styles.payNowBtn} ${styles.payNowBtnOverdue}`}
                                               onClick={() => handlePay(p.id)} disabled={isActionLoading}>
-                                              {isActionLoading ? <span className={styles.payBtnSpinner} /> : "Pay Now"}
+                                              {isActionLoading ? <span className={styles.payBtnSpinner} /> : "Try Again"}
                                             </button>
                                           )}
                                         </div>
@@ -987,6 +1210,54 @@ const RentalDetail: React.FC = () => {
             <button className={styles.modalActionBtn} onClick={() => setViewingReceiptId(null)}>
               Close Receipt
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reviews Lazy Fetch Modal ── */}
+      {modalFilterRating !== null && (
+        <div className={styles.modalOverlay} onClick={closeReviewModal}>
+          <div style={{ maxWidth: '600px', width: '100%', padding: '24px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', background: '#fff', borderRadius: '16px' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '20px', margin: 0, color: '#1f5d71', fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>
+                {modalFilterRating === 0 ? "All" : modalFilterRating} Star Reviews
+              </h3>
+              <button onClick={closeReviewModal} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>✕</button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '8px' }}>
+              {isFetchingModal ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#6e7071', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                  <span className={styles.payBtnSpinner} style={{ borderColor: 'rgba(31,93,113,0.3)', borderTopColor: '#1f5d71', width: '24px', height: '24px' }}></span>
+                  Loading reviews...
+                </div>
+              ) : modalReviews.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#6e7071', fontSize: '14px' }}>No reviews found for this rating.</div>
+              ) : (
+                modalReviews.map(r => (
+                  <div key={r.id} className={styles.reviewItem}>
+                    <div className={styles.reviewItemHeader}>
+                      <div className={styles.reviewAvatar}>
+                        {r.tenantAvatarUrl
+                          ? <img src={r.tenantAvatarUrl} alt={r.tenantName} className={styles.reviewAvatarImg} />
+                          : <span>{getInitials(r.tenantName)}</span>
+                        }
+                      </div>
+                      <div className={styles.reviewItemMeta}>
+                        <span className={styles.reviewItemName}>{r.tenantName}</span>
+                        <span className={styles.reviewItemDate}>{formatReviewDate(r.createdAt)}</span>
+                      </div>
+                      <StarDisplay rating={r.rating} size={15} />
+                    </div>
+                    {r.comment && <p className={styles.reviewItemComment}>{r.comment}</p>}
+                  </div>
+                ))
+              )}
+            </div>
+            
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={closeReviewModal} style={{ padding: '10px 20px', background: '#f0f4f5', color: '#1f5d71', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Close</button>
+            </div>
           </div>
         </div>
       )}

@@ -165,4 +165,23 @@ public class RentalPaymentController {
     public static class ConfirmDTO {
         private Long requestId;
     }
+
+    // ── GET /api/payments/{id}/fail — mark payment as failed ────────────
+    @GetMapping("/{id}/fail")
+    public ResponseEntity<?> markPaymentFailed(
+            @PathVariable("id") Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+        try {
+            RentalPaymentDTO payment = rentalPaymentService.markFailed(id, currentUser);
+            return buildSuccess(Map.of("payment", payment));
+        } catch (IllegalArgumentException e) {
+            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 }

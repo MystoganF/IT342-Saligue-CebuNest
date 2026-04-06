@@ -52,6 +52,7 @@ public class RentalPayment {
         PENDING,   // not yet paid
         PAID,      // confirmed paid
         OVERDUE,   // past due date
-        CANCELLED  // request was cancelled
+        CANCELLED,
+        FAILED
     }
 }

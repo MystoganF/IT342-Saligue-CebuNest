@@ -244,4 +244,23 @@ public class RentalPaymentService {
 
         return RentalPaymentDTO.from(payment);
     }
+
+    // ── Mark Payment as Failed ────────────────────────────────────────────
+    @Transactional
+    public RentalPaymentDTO markFailed(Long paymentId, User currentUser) {
+        RentalPayment payment = rentalPaymentRepository.findById(paymentId)
+                .orElseThrow(() -> new IllegalArgumentException("Payment not found."));
+
+        authorizeTenantOrOwner(payment.getRentalRequest(), currentUser);
+
+        if (payment.getStatus() == RentalPayment.PaymentStatus.PAID)
+            return RentalPaymentDTO.from(payment);
+
+        payment.setStatus(RentalPayment.PaymentStatus.FAILED);
+        payment.setPaymongoPaymentId(null);
+        payment.setCheckoutUrl(null);
+        rentalPaymentRepository.save(payment);
+
+        return RentalPaymentDTO.from(payment);
+    }
 }
