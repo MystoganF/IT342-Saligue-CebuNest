@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import Navbar from "../../../components/Navbar/Navbar";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useParams, useNavigate, useOutletContext } from "react-router-dom";
+import { tenantApi } from "../tenantApi";
 import styles from "./Property_detail.module.css";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+// ─── types ─────────────────────────────────────────────────────────────────
 
 interface User {
   id: number;
@@ -61,6 +61,8 @@ interface RentalPayment {
   paymongoPaymentId?: string;
 }
 
+// ─── helpers ───────────────────────────────────────────────────────────────
+
 function formatPrice(price: number): string {
   return new Intl.NumberFormat("en-PH", {
     style: "currency",
@@ -108,6 +110,7 @@ function avgRating(reviews: Review[]): number {
   return reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
 }
 
+// Keeping native fetch here since it's an external 3rd-party API
 async function geocodeLocation(location: string): Promise<{ lat: number; lon: number } | null> {
   try {
     const res = await fetch(
@@ -121,6 +124,29 @@ async function geocodeLocation(location: string): Promise<{ lat: number; lon: nu
     return null;
   }
 }
+
+function getBookingBlockReason(req: ExistingRequest | null): string | null {
+  if (!req) return null;
+  switch (req.status) {
+    case "PENDING":   return "pending";
+    case "APPROVED":  return "approved";
+    case "CONFIRMED": return "confirmed";
+    default:          return null;
+  }
+}
+
+function getBookingBtnLabel(req: ExistingRequest | null, submitted: boolean): string {
+  if (submitted) return "✓ Request Sent";
+  if (!req) return "Request to Rent";
+  switch (req.status) {
+    case "PENDING":   return "Request Pending…";
+    case "APPROVED":  return "Awaiting Confirmation";
+    case "CONFIRMED": return "Already a Tenant";
+    default:          return "Request to Rent";
+  }
+}
+
+// ─── Sub-components ────────────────────────────────────────────────────────
 
 const StarDisplay: React.FC<{ rating: number; size?: number }> = ({ rating, size = 16 }) => (
   <span className={styles.starDisplay} style={{ fontSize: size }}>
@@ -196,32 +222,15 @@ const Lightbox: React.FC<LightboxProps> = ({ images, startIndex, onClose }) => {
   );
 };
 
-function getBookingBlockReason(req: ExistingRequest | null): string | null {
-  if (!req) return null;
-  switch (req.status) {
-    case "PENDING":   return "pending";
-    case "APPROVED":  return "approved";
-    case "CONFIRMED": return "confirmed";
-    default:          return null;
-  }
-}
-
-function getBookingBtnLabel(req: ExistingRequest | null, submitted: boolean): string {
-  if (submitted) return "✓ Request Sent";
-  if (!req) return "Request to Rent";
-  switch (req.status) {
-    case "PENDING":   return "Request Pending…";
-    case "APPROVED":  return "Awaiting Confirmation";
-    case "CONFIRMED": return "Already a Tenant";
-    default:          return "Request to Rent";
-  }
-}
+// ─── Main Component ────────────────────────────────────────────────────────
 
 const PropertyDetail: React.FC = () => {
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [user, setUser]         = useState<User | null>(null);
+  // Grab user from TenantLayout context instead of localStorage
+  const { user } = useOutletContext<{ user: User }>();
+
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
@@ -255,20 +264,10 @@ const PropertyDetail: React.FC = () => {
   const [confirming, setConfirming]   = useState(false);
   const [confirmMsg, setConfirmMsg]   = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-    const token  = localStorage.getItem("accessToken");
-    if (!stored || !token) { navigate("/"); return; }
-    try { setUser(JSON.parse(stored)); } catch { navigate("/"); }
-  }, [navigate]);
-
+  // Fetch Property Details
   useEffect(() => {
     if (!id) return;
-    const token = localStorage.getItem("accessToken");
-    fetch(`${API_BASE}/api/properties/${id}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then(r => r.json())
+    tenantApi.getPropertyById(id)
       .then(data => {
         if (!data.success) { setError(data?.error?.message ?? "Property not found."); return; }
         setProperty(data.data.property);
@@ -277,27 +276,21 @@ const PropertyDetail: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
+  // Fetch Reviews
   useEffect(() => {
     if (!id) return;
     setReviewsLoading(true);
-    const token = localStorage.getItem("accessToken");
-    fetch(`${API_BASE}/api/property-reviews/property/${id}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then(r => r.json())
+    tenantApi.getPropertyReviews(id)
       .then(data => { if (data.success) setReviews(data.data.reviews ?? []); })
       .catch(console.error)
       .finally(() => setReviewsLoading(false));
   }, [id]);
 
+  // Check Existing Request
   useEffect(() => {
     if (!id || !user) return;
-    const token = localStorage.getItem("accessToken");
     setRequestCheckLoading(true);
-    fetch(`${API_BASE}/api/rental-requests/my/property/${id}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then(r => r.json())
+    tenantApi.getMyRentalRequestForProperty(id)
       .then(data => {
         if (data.success && data.data.request && data.data.request.status) {
           setExistingRequest({ id: data.data.request.id, status: data.data.request.status });
@@ -309,40 +302,33 @@ const PropertyDetail: React.FC = () => {
       .finally(() => setRequestCheckLoading(false));
   }, [id, user]);
 
+  // Fetch Payments if Confirmed
   useEffect(() => {
     if (existingRequest?.status === "CONFIRMED" && existingRequest.id) {
       setPaymentsLoading(true);
-      const token = localStorage.getItem("accessToken");
-      fetch(`${API_BASE}/api/payments/request/${existingRequest.id}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-        .then(r => r.json())
+      tenantApi.getPaymentsForRequest(existingRequest.id)
         .then(data => { if (data.success) setPayments(data.data.payments || []); })
         .catch(console.error)
         .finally(() => setPaymentsLoading(false));
     }
   }, [existingRequest?.status, existingRequest?.id]);
 
+  // Fetch Geocode for Map
   useEffect(() => {
     if (!property?.location) return;
     setMapLoading(true);
     geocodeLocation(property.location).then(coords => { setMapCoords(coords); setMapLoading(false); });
   }, [property?.location]);
 
+  // Handlers
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!property || !user) return;
     setSubmitting(true);
     setBookingMsg(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res   = await fetch(`${API_BASE}/api/rental-requests`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ propertyId: property.id, startDate, leaseDurationMonths }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      const data = await tenantApi.submitRentalRequest({ propertyId: property.id, startDate, leaseDurationMonths });
+      if (!data.success) {
         setBookingMsg({ type: "error", text: data?.error?.message ?? "Request failed. Please try again." });
         return;
       }
@@ -360,14 +346,8 @@ const PropertyDetail: React.FC = () => {
     setConfirming(true);
     setConfirmMsg(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res   = await fetch(`${API_BASE}/api/payments/confirm`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ requestId: existingRequest.id }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      const data = await tenantApi.confirmRental(existingRequest.id);
+      if (!data.success) {
         setConfirmMsg({ type: "error", text: data?.error?.message ?? "Failed to confirm rental." });
         return;
       }
@@ -383,12 +363,7 @@ const PropertyDetail: React.FC = () => {
   const handlePayClick = async (paymentId: number) => {
     setPaymentActionLoading(paymentId);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`${API_BASE}/api/payments/${paymentId}/initiate`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
+      const data = await tenantApi.initiatePayment(paymentId);
       if (data.success && data.data.payment.checkoutUrl) {
         window.location.href = data.data.payment.checkoutUrl;
       } else {
@@ -445,7 +420,6 @@ const PropertyDetail: React.FC = () => {
   if (loading) {
     return (
       <div className={styles.page}>
-        {user && <Navbar user={user} />}
         <div className={styles.skeleton}>
           <div className={styles.skeletonLeft}>
             <div className={styles.skeletonImg} />
@@ -463,7 +437,6 @@ const PropertyDetail: React.FC = () => {
   if (error || !property) {
     return (
       <div className={styles.page}>
-        {user && <Navbar user={user} />}
         <div className={styles.errorBox}>
           <span className={styles.errorIcon}>🏚️</span>
           <h2 className={styles.errorTitle}>Property Not Found</h2>
@@ -476,7 +449,6 @@ const PropertyDetail: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      <Navbar user={user!} />
 
       {lightboxOpen && hasImages && (
         <Lightbox images={images} startIndex={activeImg} onClose={() => setLightboxOpen(false)} />

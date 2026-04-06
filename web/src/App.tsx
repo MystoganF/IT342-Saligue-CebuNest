@@ -19,6 +19,8 @@ import AdminAuditLog from "./modules/admin_module/admin_audit_log/AdminAuditLog"
 import AdminProperties from "./modules/admin_module/admin_property_management/AdminProperties";
 import AdminPropertyEdit from "./modules/admin_module/admin_property_management/AdminEditProperty";
 import AdminNotifications from "./modules/admin_module/admin_notification_module/Admin_Notification";
+import TenantLayout from "./modules/tenant_module/TenantLayout";
+
 
 function App() {
   return (
@@ -28,27 +30,13 @@ function App() {
         <Route path="/"           element={<Login />}           />
         <Route path="/register"   element={<Register />}        />
  
-        {/* Tenant Routes */}
-        <Route path="/home" element={
-          <ProtectedRoute allowedRoles={["TENANT"]}>
-            <Home />
-          </ProtectedRoute>
-        } />
-        <Route path="/properties/:id" element={
-          <ProtectedRoute allowedRoles={["TENANT"]}>
-            <PropertyDetail />
-          </ProtectedRoute>
-        } />
-        <Route path="/my-rentals" element={
-          <ProtectedRoute allowedRoles={["TENANT"]}>
-            <MyRentals />
-          </ProtectedRoute>
-        } />
-        <Route path="/my-rentals/:requestId" element={
-          <ProtectedRoute allowedRoles={["TENANT"]}>
-            <RentalDetail />
-          </ProtectedRoute>
-        } />
+        {/* 🟢 NEW: Nested Tenant Routes using the Base Layout 🟢 */}
+        <Route element={<ProtectedRoute allowedRoles={["TENANT"]}><TenantLayout /></ProtectedRoute>}>
+          <Route path="/home" element={<Home />} />
+          <Route path="/properties/:id" element={<PropertyDetail />} />
+          <Route path="/my-rentals" element={<MyRentals />} />
+          <Route path="/my-rentals/:requestId" element={<RentalDetail />} />
+        </Route>
  
         {/* Owner Routes */}
         <Route path="/owner/dashboard" element={

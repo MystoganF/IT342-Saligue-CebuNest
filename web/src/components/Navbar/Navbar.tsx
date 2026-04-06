@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom"; // <-- Added Link here
 import styles from "./Navbar.module.css";
 import logo from "../../assets/images/cebunest-logo.png";
 
@@ -180,24 +180,24 @@ const Navbar: React.FC<NavbarProps> = ({ user }) => {
       <nav className={styles.navbar}>
         <div className={styles.inner}>
 
-          {/* ── Brand ── */}
-          <a href="/home" className={styles.brand}>
+          {/* ── Brand (CHANGED FROM <a> TO <Link>) ── */}
+          <Link to="/home" className={styles.brand}>
             <img src={logo} alt="CebuNest" className={styles.brandLogo} />
             <span className={styles.brandName}>CebuNest</span>
             <span className={styles.brandDot} />
-          </a>
+          </Link>
 
-          {/* ── Nav Links ── */}
+          {/* ── Nav Links (CHANGED FROM <a> TO <Link>) ── */}
           <div className={styles.navLinks}>
-            <a href="/home" className={`${styles.navLink} ${isActive("/home")}`}>
+            <Link to="/home" className={`${styles.navLink} ${isActive("/home")}`}>
               <span className={styles.navLinkIcon}>🏠</span>
               Browse
-            </a>
+            </Link>
 
-            <a href="/my-rentals" className={`${styles.navLink} ${isActive("/my-rentals")}`}>
+            <Link to="/my-rentals" className={`${styles.navLink} ${isActive("/my-rentals")}`}>
               <span className={styles.navLinkIcon}>📋</span>
               My Rentals
-            </a>
+            </Link>
           </div>
 
           {/* ── Right Actions ── */}
@@ -317,15 +317,16 @@ const Navbar: React.FC<NavbarProps> = ({ user }) => {
                     <span className={styles.dropdownRole}>{user.role}</span>
                   </div>
                   <div className={styles.dropdownItems}>
-                    <a
-                      href="/profile"
+                    {/* ── Profile Link (CHANGED FROM <a> TO <Link>) ── */}
+                    <Link
+                      to="/profile"
                       className={styles.dropdownItem}
                       role="menuitem"
                       onClick={() => setMenuOpen(false)}
                     >
                       <span className={styles.dropdownItemIcon}>👤</span>
                       Profile
-                    </a>
+                    </Link>
                     <div className={styles.dropdownDivider} />
                     <button
                       className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`}

@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import Navbar from "../../../components/Navbar/Navbar"
+import { useNavigate, useOutletContext } from "react-router-dom";
+import { tenantApi } from "../tenantApi";
 import styles from "./Home.module.css";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 // ─── types ─────────────────────────────────────────────────────────────────
 
@@ -141,8 +139,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, animatio
 const Home: React.FC = () => {
   const navigate = useNavigate();
 
-  // Auth state — read from localStorage (set on login)
-  const [user, setUser] = useState<User | null>(null);
+  // Auth state — retrieve user object from TenantLayout context wrapper
+  const { user } = useOutletContext<{ user: User }>();
 
   // Properties state
   const [properties, setProperties]   = useState<Property[]>([]);
@@ -159,50 +157,30 @@ const Home: React.FC = () => {
   const [minPrice, setMinPrice]       = useState("");
   const [maxPrice, setMaxPrice]       = useState("");
 
-  // ── Redirect if not logged in ──────────────────────────────────────────
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-    const token  = localStorage.getItem("accessToken");
-    if (!stored || !token) {
-      navigate("/");
-      return;
-    }
-    try {
-      setUser(JSON.parse(stored));
-    } catch {
-      navigate("/");
-    }
-  }, [navigate]);
-
   // ── Fetch property types for filter chips ──────────────────────────────
   useEffect(() => {
-    fetch(`${API_BASE}/api/properties/types`)
-      .then((r) => r.json())
+    tenantApi.getPropertyTypes()
       .then((data) => {
         if (data.success) setPropertyTypes(data.data.types ?? []);
       })
       .catch(() => {}); // silently fail — chips just won't show
   }, []);
 
-  // ── Fetch properties from backend ──────────────────────────────────────
+  // ── Fetch properties from backend via API file ─────────────────────────
   const fetchProperties = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const params = new URLSearchParams();
-      if (searchQuery)          params.set("search",   searchQuery);
-      if (activeType !== "ALL") params.set("type",     activeType);
-      if (minPrice)             params.set("minPrice", minPrice);
-      if (maxPrice)             params.set("maxPrice", maxPrice);
+      const params: Record<string, string> = {};
+      if (searchQuery)          params.search   = searchQuery;
+      if (activeType !== "ALL") params.type     = activeType;
+      if (minPrice)             params.minPrice = minPrice;
+      if (maxPrice)             params.maxPrice = maxPrice;
 
-      const token = localStorage.getItem("accessToken");
-      const res   = await fetch(`${API_BASE}/api/properties?${params.toString()}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
+      const data = await tenantApi.getProperties(params);
 
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         setError(data?.error?.message ?? "Failed to load listings.");
         return;
       }
@@ -215,8 +193,8 @@ const Home: React.FC = () => {
   }, [searchQuery, activeType, minPrice, maxPrice]);
 
   useEffect(() => {
-    if (user) fetchProperties();
-  }, [user, fetchProperties]);
+    fetchProperties();
+  }, [fetchProperties]);
 
   // ── Handlers ──────────────────────────────────────────────────────────
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -236,13 +214,10 @@ const Home: React.FC = () => {
                 "Good evening";
 
   // ── Render ─────────────────────────────────────────────────────────────
-  if (!user) return null; // wait for auth check
-
   return (
     <div className={styles.page}>
 
-      {/* ── Navbar ── */}
-      <Navbar user={user} />
+      {/* ── Navbar removed (Handled by TenantLayout wrapper) ── */}
 
       {/* ── Hero ── */}
       <section className={styles.hero}>

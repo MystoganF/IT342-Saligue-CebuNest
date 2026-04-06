@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-import Navbar from "../../../components/Navbar/Navbar";
+import { useNavigate, useParams, useSearchParams, useOutletContext } from "react-router-dom";
+import { tenantApi } from "../tenantApi";
 import styles from "./rental_detail.module.css";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-
+// ─── Interfaces ─────────────────────────────────────────────────────────────
 interface User {
   id: number;
   name: string;
@@ -13,9 +12,7 @@ interface User {
   avatarUrl?: string | null;
 }
 
-interface PropertyImage {
-  imageUrl: string;
-}
+interface PropertyImage { imageUrl: string; }
 
 interface Property {
   id: number;
@@ -84,8 +81,7 @@ interface LeaseExtension {
   createdAt: string;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────
-
+// ─── Helpers ───────────────────────────────────────────────────────────────
 function getInitials(name: string | null | undefined): string {
   if (!name) return "?";
   return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
@@ -95,9 +91,7 @@ function formatReviewDate(isoStr: string | null | undefined): string {
   if (!isoStr) return "—";
   const d = new Date(isoStr);
   if (isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-PH", {
-    year: "numeric", month: "short", day: "numeric",
-  });
+  return d.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
 }
 
 function formatPrice(n: number) {
@@ -111,9 +105,7 @@ function formatDate(d: string | null | undefined) {
   if (!d) return "—";
   const date = new Date(d);
   if (isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-PH", {
-    year: "numeric", month: "short", day: "numeric",
-  });
+  return date.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
 }
 
 function geocodeUrl(location: string) {
@@ -121,21 +113,17 @@ function geocodeUrl(location: string) {
 }
 
 function mapSrc(lat: number, lon: number) {
-  return (
-    `https://www.openstreetmap.org/export/embed.html` +
-    `?bbox=${lon - 0.01},${lat - 0.01},${lon + 0.01},${lat + 0.01}` +
-    `&layer=mapnik&marker=${lat},${lon}`
-  );
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${lon - 0.01},${lat - 0.01},${lon + 0.01},${lat + 0.01}&layer=mapnik&marker=${lat},${lon}`;
 }
 
+// ─── Sub-Components ────────────────────────────────────────────────────────
 const FacebookIcon = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
     <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
   </svg>
 );
 const InstagramIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-    strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
     <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
     <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
     <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
@@ -157,11 +145,7 @@ const StarPicker: React.FC<{ value: number; onChange: (v: number) => void }> = (
           onMouseEnter={() => setHovered(s)} onMouseLeave={() => setHovered(0)}
           onClick={() => onChange(s)} aria-label={`Rate ${s} star${s > 1 ? "s" : ""}`}>★</button>
       ))}
-      {value > 0 && (
-        <span className={styles.starLabel}>
-          {["", "Poor", "Fair", "Good", "Very Good", "Excellent"][value]}
-        </span>
-      )}
+      {value > 0 && <span className={styles.starLabel}>{["", "Poor", "Fair", "Good", "Very Good", "Excellent"][value]}</span>}
     </div>
   );
 };
@@ -174,35 +158,16 @@ const StarDisplay: React.FC<{ rating: number; size?: number }> = ({ rating, size
   </span>
 );
 
-function paymentStatusColor(status: string): { color: string; bg: string; border: string } {
-  switch (status) {
-    case "PAID": return { color: "#1a7a4a", bg: "#e8f7ef", border: "rgba(26,122,74,0.2)" };
-    case "OVERDUE": return { color: "#c0392b", bg: "#fdf0ee", border: "rgba(192,57,43,0.2)" };
-    case "FAILED": return { color: "#c0392b", bg: "#fdf0ee", border: "rgba(192,57,43,0.2)" };
-    case "PENDING": return { color: "#b78e42", bg: "#fffbea", border: "rgba(183,142,66,0.2)" };
-    default: return { color: "#6e7071", bg: "#f0f4f5", border: "#e5eced" };
-  }
-}
-
-function paymentStatusIcon(status: string): string {
-  switch (status) {
-    case "PAID": return "✓";
-    case "OVERDUE": return "⚠";
-    case "FAILED": return "✕";
-    case "PENDING": return "○";
-    default: return "–";
-  }
-}
-
-// ─── Component ───────────────────────────────────────────────────────────────
-
+// ─── Main Component ────────────────────────────────────────────────────────
 const RentalDetail: React.FC = () => {
   const navigate = useNavigate();
   const { requestId } = useParams<{ requestId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Grab user from TenantLayout context instead of localStorage
+  const { user } = useOutletContext<{ user: User }>();
+
   // ── Core States ──
-  const [user, setUser]         = useState<User | null>(null);
   const [request, setRequest]   = useState<RentalRequest | null>(null);
   const [property, setProperty] = useState<Property | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -214,9 +179,7 @@ const RentalDetail: React.FC = () => {
   const [mapLoading, setMapLoading] = useState(false);
   const [initiating, setInitiating] = useState<number | null>(null);
 
-  const [verifyBanner, setVerifyBanner] = useState<{
-    state: "verifying" | "success" | "error"; text: string;
-  } | null>(null);
+  const [verifyBanner, setVerifyBanner] = useState<{ state: "verifying" | "success" | "error"; text: string; } | null>(null);
   const autoVerifyAttempted = useRef(false);
   const paymentSectionRef = useRef<HTMLDivElement>(null);
 
@@ -233,7 +196,7 @@ const RentalDetail: React.FC = () => {
   const [reviewComment, setReviewComment]   = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewMsg, setReviewMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [reviewsLoading, setReviewsLoading] = useState(false); // FIXED: Added missing state
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   // ── Lazy Loading Reviews Modal State ──
   const [modalFilterRating, setModalFilterRating] = useState<number | null>(null);
@@ -248,32 +211,15 @@ const RentalDetail: React.FC = () => {
   const [extMsg, setExtMsg]                       = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showExtForm, setShowExtForm]             = useState(false);
 
-  // ── Auth ──────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-    const token  = localStorage.getItem("accessToken");
-    if (!stored || !token) { navigate("/"); return; }
-    try {
-      const parsed: User = JSON.parse(stored);
-      if (parsed.role?.toUpperCase() !== "TENANT") { navigate("/home"); return; }
-      setUser(parsed);
-    } catch { navigate("/"); }
-  }, [navigate]);
-
   // ── Fetch everything (Optimized via Promise.all) ──────────────────────────
   const fetchAll = useCallback(async () => {
     if (!requestId) return;
     setLoading(true); 
     setError(null);
-    setReviewsLoading(true); // FIXED: Set reviews loading state
-    const token = localStorage.getItem("accessToken");
-    
-    // FIXED: Strong typing for headers to avoid TS errors
-    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+    setReviewsLoading(true);
 
     try {
-      const reqRes  = await fetch(`${API_BASE}/api/rental-requests/my`, { headers });
-      const reqData = await reqRes.json();
+      const reqData = await tenantApi.getMyRentalRequests();
       if (!reqData.success) throw new Error("Failed to load rental.");
 
       const found: RentalRequest = (reqData.data.requests ?? []).find(
@@ -285,16 +231,14 @@ const RentalDetail: React.FC = () => {
       const promises: Promise<void>[] = [];
 
       promises.push(
-        fetch(`${API_BASE}/api/properties/${found.propertyId}`, { headers })
-          .then((r) => r.json())
+        tenantApi.getPropertyById(found.propertyId)
           .then((d) => { if (d.success) setProperty(d.data.property); })
           .catch(() => {}) 
       );
 
       if (found.status === "CONFIRMED" || found.status === "COMPLETED") {
         promises.push(
-          fetch(`${API_BASE}/api/payments/request/${found.id}`, { headers })
-            .then((r) => r.json())
+          tenantApi.getPaymentsForRequest(found.id)
             .then((d) => {
               if (d.success) {
                 const fetched: Payment[] = d.data.payments ?? [];
@@ -310,8 +254,7 @@ const RentalDetail: React.FC = () => {
 
                 const stale = fetched.find((p) => p.paymongoPaymentId !== null && p.status !== "PAID" && p.status !== "FAILED");
                 if (stale) {
-                  fetch(`${API_BASE}/api/payments/${stale.id}/cancel`, { method: "GET", headers })
-                    .then((r) => r.json())
+                  tenantApi.cancelPayment(stale.id)
                     .then((cancelData) => {
                       if (cancelData.success) {
                         setPayments((prev) => prev.map((p) => p.id === stale.id ? { ...p, checkoutUrl: null, paymongoPaymentId: null } : p));
@@ -324,23 +267,20 @@ const RentalDetail: React.FC = () => {
         );
 
         promises.push(
-          fetch(`${API_BASE}/api/lease-extensions/rental/${found.id}`, { headers })
-            .then((r) => r.json())
+          tenantApi.getLeaseExtensions(found.id)
             .then((d) => { if (d.success) setExtensions(d.data.extensionRequests ?? []); })
             .catch(() => {})
         );
 
         promises.push(
-          fetch(`${API_BASE}/api/property-reviews/property/${found.propertyId}`, { headers })
-            .then((r) => r.json())
+          tenantApi.getPropertyReviews(found.propertyId)
             .then((d) => {
               if (d.success) {
                 const fetchedReviews = d.data.reviews ?? [];
                 setAllReviews(fetchedReviews); 
                 
-                const storedUser: User = JSON.parse(localStorage.getItem("user") || "{}");
                 const mine = fetchedReviews.find(
-                  (r: Review & { rentalRequestId: number }) => r.tenantId === storedUser.id && r.rentalRequestId === found.id
+                  (r: Review & { rentalRequestId: number }) => r.tenantId === user.id && r.rentalRequestId === found.id
                 );
                 if (mine) {
                   setExistingReview(mine);
@@ -359,68 +299,65 @@ const RentalDetail: React.FC = () => {
       setError(err.message || "Unable to load rental details."); 
     } finally { 
       setLoading(false); 
-      setReviewsLoading(false); // FIXED: End reviews loading state
+      setReviewsLoading(false);
     }
-  }, [requestId]);
+  }, [requestId, user.id]);
 
-  useEffect(() => { if (user) fetchAll(); }, [user, fetchAll]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // ── Payment verify & FAILURE redirect ──────────────────────────────────────
   useEffect(() => {
     const paymentIdParam = searchParams.get("payment_id");
     const paymentStatus  = searchParams.get("payment");
-    if (!paymentIdParam || !paymentStatus || !user || autoVerifyAttempted.current) return;
+    if (!paymentIdParam || !paymentStatus || autoVerifyAttempted.current) return;
     autoVerifyAttempted.current = true;
     setSearchParams({}, { replace: true });
+    
     const paymentId = parseInt(paymentIdParam, 10);
     if (isNaN(paymentId)) return;
-    const token = localStorage.getItem("accessToken");
-    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}; // FIXED
+    
     setTimeout(() => { paymentSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }, 400);
 
     // CANCELLED
     if (paymentStatus === "cancelled") {
       setVerifyBanner({ state: "error", text: "Payment was cancelled. You can try again whenever you're ready." });
-      fetch(`${API_BASE}/api/payments/${paymentId}/cancel`, {
-        method: "GET", headers,
-      }).then((r) => r.json()).then((data) => {
-        if (data.success) {
-          setPayments((prev) => prev.map((p) => p.id === paymentId ? { ...p, checkoutUrl: null, paymongoPaymentId: null } : p));
-        }
-      }).catch(() => {});
+      tenantApi.cancelPayment(paymentId)
+        .then((data) => {
+          if (data.success) {
+            setPayments((prev) => prev.map((p) => p.id === paymentId ? { ...p, checkoutUrl: null, paymongoPaymentId: null } : p));
+          }
+        }).catch(() => {});
       return;
     }
 
     // FAILED
     if (paymentStatus === "failed") {
       setVerifyBanner({ state: "error", text: "Your payment failed or was declined. Please try again." });
-      fetch(`${API_BASE}/api/payments/${paymentId}/fail`, {
-        method: "GET", headers,
-      }).then((r) => r.json()).then((data) => {
-        if (data.success) {
-          setPayments((prev) => prev.map((p) => p.id === paymentId ? { ...p, status: "FAILED", checkoutUrl: null, paymongoPaymentId: null } : p));
-        }
-      }).catch(() => {});
+      tenantApi.failPayment(paymentId)
+        .then((data) => {
+          if (data.success) {
+            setPayments((prev) => prev.map((p) => p.id === paymentId ? { ...p, status: "FAILED", checkoutUrl: null, paymongoPaymentId: null } : p));
+          }
+        }).catch(() => {});
       return;
     }
 
     // SUCCESS
     if (paymentStatus === "success") {
       setVerifyBanner({ state: "verifying", text: "Verifying your payment with PayMongo…" });
-      fetch(`${API_BASE}/api/payments/${paymentId}/verify`, {
-        method: "GET", headers,
-      }).then((r) => r.json()).then((data) => {
-        if (!data.success) { setVerifyBanner({ state: "error", text: data?.error?.message ?? "Verification failed." }); return; }
-        const updated: Payment = data.data.payment;
-        if (updated.status === "PAID") {
-          setVerifyBanner({ state: "success", text: `Month ${updated.installmentNumber} payment of ${formatPrice(updated.amount)} confirmed! ✓` });
-          setPayments((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-        } else {
-          setVerifyBanner({ state: "error", text: "Payment not yet confirmed by PayMongo. It may take a moment — please refresh." });
-        }
-      }).catch(() => { setVerifyBanner({ state: "error", text: "Network error during verification. Please refresh." }); });
+      tenantApi.verifyPayment(paymentId)
+        .then((data) => {
+          if (!data.success) { setVerifyBanner({ state: "error", text: data?.error?.message ?? "Verification failed." }); return; }
+          const updated: Payment = data.data.payment;
+          if (updated.status === "PAID") {
+            setVerifyBanner({ state: "success", text: `Month ${updated.installmentNumber} payment of ${formatPrice(updated.amount)} confirmed! ✓` });
+            setPayments((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+          } else {
+            setVerifyBanner({ state: "error", text: "Payment not yet confirmed by PayMongo. It may take a moment — please refresh." });
+          }
+        }).catch(() => { setVerifyBanner({ state: "error", text: "Network error during verification. Please refresh." }); });
     }
-  }, [searchParams, user, setSearchParams]);
+  }, [searchParams, setSearchParams]);
 
   // ── Map ───────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -437,13 +374,8 @@ const RentalDetail: React.FC = () => {
   const handlePay = async (paymentId: number) => {
     setInitiating(paymentId);
     try {
-      const token = localStorage.getItem("accessToken");
-      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}; // FIXED
-      const res   = await fetch(`${API_BASE}/api/payments/${paymentId}/initiate`, {
-        method: "POST", headers,
-      });
-      const data  = await res.json();
-      if (!res.ok || !data.success) { setVerifyBanner({ state: "error", text: data?.error?.message ?? "Failed to create payment link." }); return; }
+      const data = await tenantApi.initiatePayment(paymentId);
+      if (!data.success) { setVerifyBanner({ state: "error", text: data?.error?.message ?? "Failed to create payment link." }); return; }
       if (data.data.payment.checkoutUrl) window.location.href = data.data.payment.checkoutUrl;
     } catch { setVerifyBanner({ state: "error", text: "Network error. Please try again." }); }
     finally { setInitiating(null); }
@@ -453,17 +385,10 @@ const RentalDetail: React.FC = () => {
   const handleResetPayment = async (paymentId: number) => {
     setInitiating(paymentId);
     try {
-      const token = localStorage.getItem("accessToken");
-      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}; // FIXED
-      await fetch(`${API_BASE}/api/payments/${paymentId}/cancel`, { 
-        method: "GET", headers 
-      });
+      await tenantApi.cancelPayment(paymentId);
       setPayments(prev => prev.map(p => p.id === paymentId ? { ...p, checkoutUrl: null, paymongoPaymentId: null } : p));
       
-      const res = await fetch(`${API_BASE}/api/payments/${paymentId}/initiate`, {
-        method: "POST", headers,
-      });
-      const data = await res.json();
+      const data = await tenantApi.initiatePayment(paymentId);
       if (data.success && data.data.payment.checkoutUrl) window.location.href = data.data.payment.checkoutUrl;
     } catch { 
       setVerifyBanner({ state: "error", text: "Failed to reset link. Please try again." }); 
@@ -478,19 +403,13 @@ const RentalDetail: React.FC = () => {
     if (reviewRating === 0) { setReviewMsg({ type: "error", text: "Please select a star rating." }); return; }
     setReviewSubmitting(true); setReviewMsg(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const headers: HeadersInit = { 
-        "Content-Type": "application/json", 
-        ...(token ? { Authorization: `Bearer ${token}` } : {}) 
-      }; // FIXED
-
-      const res   = await fetch(`${API_BASE}/api/property-reviews`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ rentalRequestId: request.id, rating: reviewRating, comment: reviewComment.trim() || null }),
+      const data = await tenantApi.submitPropertyReview({
+        rentalRequestId: request.id,
+        rating: reviewRating,
+        comment: reviewComment.trim() || null
       });
-      const data  = await res.json();
-      if (!res.ok || !data.success) { setReviewMsg({ type: "error", text: data?.error?.message ?? "Failed to submit review." }); return; }
+
+      if (!data.success) { setReviewMsg({ type: "error", text: data?.error?.message ?? "Failed to submit review." }); return; }
       
       const newReview = data.data.review;
       setExistingReview(newReview);
@@ -522,23 +441,13 @@ const RentalDetail: React.FC = () => {
     if (!request) return;
     setExtSubmitting(true); setExtMsg(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const headers: HeadersInit = { 
-        "Content-Type": "application/json", 
-        ...(token ? { Authorization: `Bearer ${token}` } : {}) 
-      }; // FIXED
-
-      const res   = await fetch(`${API_BASE}/api/lease-extensions`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          rentalRequestId: request.id,
-          requestedMonths: extMonths,
-          reason: extReason.trim() || null,
-        }),
+      const data = await tenantApi.submitLeaseExtension({
+        rentalRequestId: request.id,
+        requestedMonths: extMonths,
+        reason: extReason.trim() || null
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      
+      if (!data.success) {
         setExtMsg({ type: "error", text: data?.error?.message ?? "Failed to submit request." });
         return;
       }
@@ -570,7 +479,6 @@ const RentalDetail: React.FC = () => {
       return acc;
     }, {} as Record<string, Payment[]>);
     
-    // Include FAILED in unpaid calculation so they can try again
     const unpaid = payments.filter((p) => p.status === "PENDING" || p.status === "OVERDUE" || p.status === "FAILED")
       .sort((a, b) => a.installmentNumber - b.installmentNumber);
     return { paymentsByYear: grouped, nextPayablePaymentId: unpaid.length > 0 ? unpaid[0].id : null };
@@ -587,23 +495,18 @@ const RentalDetail: React.FC = () => {
   const hasPendingExt = extensions.some((e) => e.status === "PENDING");
   const activeReceipt = viewingReceiptId ? payments.find((p) => p.id === viewingReceiptId) : null;
   
-  // Calculate average rating
   const averageRating = allReviews.length > 0 
     ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length 
     : 0;
 
-  if (!user) return null;
-
   if (loading) return (
     <div className={styles.page}>
-      <Navbar user={user} />
       <div className={styles.loadingWrap}><div className={styles.loadingSpinner} /><p>Loading rental details…</p></div>
     </div>
   );
 
   if (error || !request) return (
     <div className={styles.page}>
-      <Navbar user={user} />
       <div className={styles.errorWrap}>
         <span>🏚️</span><h2>Not Found</h2>
         <p>{error ?? "This rental doesn't exist."}</p>
@@ -616,7 +519,8 @@ const RentalDetail: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      <Navbar user={user} />
+      
+      {/* ── Navbar removed (Handled by TenantLayout) ── */}
 
       <div className={styles.backBar}>
         <button className={styles.backBtn} onClick={() => navigate("/my-rentals")} type="button">
@@ -748,7 +652,7 @@ const RentalDetail: React.FC = () => {
             </div>
           )}
 
-          {/* ── Public Reviews Summary & List ── */}
+          {/* Public Reviews Summary & List */}
           <div className={styles.card} style={{ padding: '28px 32px' }}>
             <div className={styles.cardTitle} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: '20px' }}>
               <div>Tenant Reviews</div>
@@ -792,7 +696,6 @@ const RentalDetail: React.FC = () => {
                   </div>
                 </div>
 
-                {/* SHOW ONLY TOP 2 RECENT REVIEWS IN THE MAIN PAGE */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "0", borderTop: '1px solid #f0f4f5' }}>
                   {allReviews.slice(0, 2).map((rev) => (
                     <div key={rev.id} className={styles.reviewItem}>
@@ -811,22 +714,15 @@ const RentalDetail: React.FC = () => {
                   ))}
                 </div>
 
-                {/* BUTTON TO OPEN FILTER/VIEW ALL MODAL */}
                 {allReviews.length > 2 && (
                   <button 
                     type="button" 
                     onClick={() => openReviewModal(0)} 
                     style={{ 
-                      marginTop: "16px", 
-                      width: "100%", 
-                      padding: "12px", 
-                      borderRadius: "10px", 
-                      border: "1.5px solid rgba(83,164,163,0.3)", 
-                      background: "rgba(83,164,163,0.05)", 
-                      color: "#1f5d71", 
-                      fontWeight: "bold", 
-                      cursor: "pointer", 
-                      transition: "0.2s" 
+                      marginTop: "16px", width: "100%", padding: "12px", 
+                      borderRadius: "10px", border: "1.5px solid rgba(83,164,163,0.3)", 
+                      background: "rgba(83,164,163,0.05)", color: "#1f5d71", 
+                      fontWeight: "bold", cursor: "pointer", transition: "0.2s" 
                     }}
                     onMouseOver={(e) => (e.currentTarget.style.background = "rgba(83,164,163,0.15)")}
                     onMouseOut={(e) => (e.currentTarget.style.background = "rgba(83,164,163,0.05)")}
@@ -954,7 +850,6 @@ const RentalDetail: React.FC = () => {
                                       <div className={styles.paymentRowInfo}>
                                         <span className={styles.paymentLabel}>Month {p.installmentNumber}</span>
                                         <span className={styles.paymentDates}>Due {formatDate(p.dueDate)}</span>
-                                        {/* Reset Expired Link button for Pending status if there's a problem */}
                                         {p.status === "PENDING" && p.checkoutUrl && !isLocked && (
                                             <div 
                                                 style={{ fontSize: "11px", color: "#b78e42", textDecoration: "underline", cursor: "pointer", marginTop: "4px" }}
@@ -1055,7 +950,6 @@ const RentalDetail: React.FC = () => {
                 
                 {extensionExpanded && (
                   <div style={{ padding: "16px", borderTop: "1px solid #e2e8f0" }}>
-                    {/* Past extension requests */}
                     {extensions.length > 0 && (
                       <div style={{ marginBottom: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
                         {extensions.map((ext) => (
@@ -1086,7 +980,6 @@ const RentalDetail: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Extension message */}
                     {extMsg && (
                       <div style={{
                         padding: "10px 12px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", marginBottom: "10px",

@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import Navbar from "../../../components/Navbar/Navbar";
+import { useNavigate, useSearchParams, useOutletContext } from "react-router-dom";
+import { tenantApi } from "../tenantApi";
 import styles from "./my_rentals.module.css";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-
+// ─── Interfaces ─────────────────────────────────────────────────────────────
 interface User {
   id: number;
   name: string;
@@ -31,6 +30,7 @@ interface RentalRequest {
 
 type Tab = "active" | "pending" | "rejected" | "past";
 
+// ─── Helpers ───────────────────────────────────────────────────────────────
 function formatPrice(amount: number): string {
   return new Intl.NumberFormat("en-PH", {
     style: "currency", currency: "PHP",
@@ -68,11 +68,14 @@ function statusBadgeStyle(status: string): React.CSSProperties {
   }
 }
 
+// ─── Main Component ────────────────────────────────────────────────────────
 const MyRentals: React.FC = () => {
   const navigate       = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const [user, setUser]         = useState<User | null>(null);
+  // Grab user from TenantLayout context instead of localStorage
+  const { user } = useOutletContext<{ user: User }>();
+
   const [requests, setRequests] = useState<RentalRequest[]>([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
@@ -83,35 +86,19 @@ const MyRentals: React.FC = () => {
 
   const [banner, setBanner] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // ── Auth ───────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-    const token  = localStorage.getItem("accessToken");
-    if (!stored || !token) { navigate("/"); return; }
-    try {
-      const parsed: User = JSON.parse(stored);
-      if (parsed.role?.toUpperCase() !== "TENANT") { navigate("/home"); return; }
-      setUser(parsed);
-    } catch { navigate("/"); }
-  }, [navigate]);
-
-  // ── PayMongo redirect banner ───────────────────────────────────────────
+  // ── PayMongo redirect banner ──
   useEffect(() => {
     const ps = searchParams.get("payment");
     if (ps === "success")   setBanner({ type: "success", text: "Payment received! Open your rental to verify." });
     if (ps === "cancelled") setBanner({ type: "error",   text: "Payment cancelled. You can try again from the rental detail page." });
   }, [searchParams]);
 
-  // ── Fetch ──────────────────────────────────────────────────────────────
+  // ── Fetch ──
   const fetchRequests = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res   = await fetch(`${API_BASE}/api/rental-requests/my`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) { setError("Failed to load rentals."); return; }
+      const data = await tenantApi.getMyRentalRequests();
+      if (!data.success) { setError("Failed to load rentals."); return; }
       setRequests(data.data.requests ?? []);
     } catch {
       setError("Unable to connect to server.");
@@ -120,23 +107,14 @@ const MyRentals: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { if (user) fetchRequests(); }, [user, fetchRequests]);
+  useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
-  // ── Confirm rental (always MONTHLY) ───────────────────────────────────
+  // ── Confirm rental (always MONTHLY) ──
   const handleConfirm = async (requestId: number) => {
     setConfirming(requestId); setConfirmError(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res   = await fetch(`${API_BASE}/api/payments/confirm`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ requestId }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      const data = await tenantApi.confirmRental(requestId);
+      if (!data.success) {
         setConfirmError(data?.error?.message ?? "Failed to confirm."); return;
       }
       await fetchRequests();
@@ -147,8 +125,6 @@ const MyRentals: React.FC = () => {
       setConfirming(null);
     }
   };
-
-  if (!user) return null;
 
   const filtered = requests.filter((r) => {
     switch (tab) {
@@ -183,15 +159,16 @@ const MyRentals: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      <Navbar user={user} />
+      
+      {/* ── Navbar removed (Handled by TenantLayout) ── */}
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>My Rentals</h1>
         <p className={styles.pageSub}>Track your rental requests and payment schedules.</p>
       </div>
 
-      {/* ── Banner ── */}
+      {/* Banner */}
       {banner && (
         <div className={styles.bannerWrap}>
           <div className={`${styles.banner} ${banner.type === "success" ? styles.bannerSuccess : styles.bannerError}`}>
@@ -203,7 +180,7 @@ const MyRentals: React.FC = () => {
 
       <div className={styles.main}>
 
-        {/* ── Tabs ── */}
+        {/* Tabs */}
         <div className={styles.tabs}>
           {tabConfig.map(({ key, icon, label }) => (
             <button key={key} type="button"
@@ -219,7 +196,7 @@ const MyRentals: React.FC = () => {
           ))}
         </div>
 
-        {/* ── Skeletons ── */}
+        {/* Skeletons */}
         {loading && (
           <div className={styles.skeletonList}>
             {[1, 2, 3].map((i) => (
@@ -235,7 +212,7 @@ const MyRentals: React.FC = () => {
           </div>
         )}
 
-        {/* ── Error ── */}
+        {/* Error */}
         {!loading && error && (
           <div className={styles.stateBox}>
             <span className={styles.stateIcon}>⚠️</span>
@@ -244,7 +221,7 @@ const MyRentals: React.FC = () => {
           </div>
         )}
 
-        {/* ── Empty ── */}
+        {/* Empty */}
         {!loading && !error && filtered.length === 0 && (
           <div className={styles.stateBox}>
             <span className={styles.stateIcon}>
@@ -259,7 +236,7 @@ const MyRentals: React.FC = () => {
           </div>
         )}
 
-        {/* ── Cards ── */}
+        {/* Cards */}
         {!loading && !error && filtered.length > 0 && (
           <div className={styles.rentalList}>
             {filtered.map((req) => (
