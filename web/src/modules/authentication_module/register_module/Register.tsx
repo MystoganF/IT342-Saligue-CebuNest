@@ -120,7 +120,7 @@ const Register: React.FC = () => {
     setLoading(true);
     try {
       const { res, data } = await postJSON(`${API_BASE}/api/auth/register`, {
-        name, phoneNumber, email, password, role,
+        name, phoneNumber, email, password, confirmPassword ,role,
         facebookUrl: facebookUrl.trim() || undefined,
         instagramUrl: instagramUrl.trim() || undefined,
         twitterUrl: twitterUrl.trim() || undefined,
