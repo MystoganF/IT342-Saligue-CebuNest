@@ -58,12 +58,13 @@ public class RentalPaymentService {
 
         generatePaymentSchedule(request);
 
-        // ── Notify owner that tenant confirmed ────────────────────────────
+        // ── FIX: Added property.getId() as the 5th argument ───────────────
         notificationService.send(
                 property.getOwner(),
                 "RENTAL_CONFIRMED",
                 request.getTenant().getName() + " has confirmed their rental for \"" + property.getTitle() + "\". The lease is now active.",
-                request.getId()
+                request.getId(),
+                property.getId()
         );
 
         return RentalRequestDTO.from(request);
@@ -185,14 +186,15 @@ public class RentalPaymentService {
                             "Date: " + payment.getPaidAt() + "\n\n" +
                             "Thank you!\n— CebuNest Team");
 
-            // ── Notify owner that payment was received ────────────────────
+            // ── FIX: Added rental.getProperty().getId() as the 5th argument ──
             notificationService.send(
                     rental.getProperty().getOwner(),
                     "PAYMENT_RECEIVED",
                     tenantName + " paid month " + payment.getInstallmentNumber()
                             + " (₱" + String.format("%.0f", payment.getAmount()) + ") for \""
                             + propTitle + "\".",
-                    rental.getId()
+                    rental.getId(),
+                    rental.getProperty().getId()
             );
         }
 

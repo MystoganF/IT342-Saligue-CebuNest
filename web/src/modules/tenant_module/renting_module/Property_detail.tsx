@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Navbar from "../../../components/Navbar/Navbar";
 import styles from "./Property_detail.module.css";
@@ -242,6 +242,10 @@ const PropertyDetail: React.FC = () => {
 
   const [reviews, setReviews]               = useState<Review[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
+  
+  // ── Reviews Modal State ──
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
+  const [modalRatingFilter, setModalRatingFilter] = useState<number>(0);
 
   const [payments, setPayments]                         = useState<RentalPayment[]>([]);
   const [paymentsLoading, setPaymentsLoading]           = useState(false);
@@ -273,7 +277,6 @@ const PropertyDetail: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
-  // ── FIX: Added the token headers to this fetch request ──
   useEffect(() => {
     if (!id) return;
     setReviewsLoading(true);
@@ -435,6 +438,9 @@ const PropertyDetail: React.FC = () => {
   const avg              = avgRating(reviews);
   const blockReason      = getBookingBlockReason(existingRequest);
   const isBookingBlocked = blockReason !== null;
+  
+  // Modal Filter Logic
+  const filteredModalReviews = modalRatingFilter === 0 ? reviews : reviews.filter(r => r.rating === modalRatingFilter);
 
   if (loading) {
     return (
@@ -604,26 +610,56 @@ const PropertyDetail: React.FC = () => {
                 <p>No reviews yet. Be the first to review after your stay!</p>
               </div>
             ) : (
-              <div className={styles.reviewsList}>
-                {reviews.map((r) => (
-                  <div key={r.id} className={styles.reviewItem}>
-                    <div className={styles.reviewItemHeader}>
-                      <div className={styles.reviewAvatar}>
-                        {r.tenantAvatarUrl
-                          ? <img src={r.tenantAvatarUrl} alt={r.tenantName} className={styles.reviewAvatarImg} />
-                          : <span>{getInitials(r.tenantName)}</span>
-                        }
+              <>
+                {/* INITIAL DISPLAY (TOP 2) */}
+                <div className={styles.reviewsList}>
+                  {reviews.slice(0, 2).map((r) => (
+                    <div key={r.id} className={styles.reviewItem}>
+                      <div className={styles.reviewItemHeader}>
+                        <div className={styles.reviewAvatar}>
+                          {r.tenantAvatarUrl
+                            ? <img src={r.tenantAvatarUrl} alt={r.tenantName} className={styles.reviewAvatarImg} />
+                            : <span>{getInitials(r.tenantName)}</span>
+                          }
+                        </div>
+                        <div className={styles.reviewItemMeta}>
+                          <span className={styles.reviewItemName}>{r.tenantName}</span>
+                          <span className={styles.reviewItemDate}>{formatReviewDate(r.createdAt)}</span>
+                        </div>
+                        <StarDisplay rating={r.rating} size={15} />
                       </div>
-                      <div className={styles.reviewItemMeta}>
-                        <span className={styles.reviewItemName}>{r.tenantName}</span>
-                        <span className={styles.reviewItemDate}>{formatReviewDate(r.createdAt)}</span>
-                      </div>
-                      <StarDisplay rating={r.rating} size={15} />
+                      {r.comment && <p className={styles.reviewItemComment}>{r.comment}</p>}
                     </div>
-                    {r.comment && <p className={styles.reviewItemComment}>{r.comment}</p>}
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+                
+                {/* OPEN MODAL BUTTON */}
+                {reviews.length > 0 && (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setModalRatingFilter(0);
+                      setShowReviewsModal(true);
+                    }} 
+                    style={{ 
+                      marginTop: "16px", 
+                      width: "100%", 
+                      padding: "12px", 
+                      borderRadius: "10px", 
+                      border: "1.5px solid rgba(83,164,163,0.3)", 
+                      background: "rgba(83,164,163,0.05)", 
+                      color: "#1f5d71", 
+                      fontWeight: "bold", 
+                      cursor: "pointer", 
+                      transition: "0.2s" 
+                    }}
+                    onMouseOver={(e) => (e.currentTarget.style.background = "rgba(83,164,163,0.15)")}
+                    onMouseOut={(e) => (e.currentTarget.style.background = "rgba(83,164,163,0.05)")}
+                  >
+                    View & Filter All {reviews.length} Reviews
+                  </button>
+                )}
+              </>
             )}
           </div>
 
@@ -857,6 +893,62 @@ const PropertyDetail: React.FC = () => {
         </div>
 
       </div>
+
+      {/* ── Reviews Filtering Modal ── */}
+      {showReviewsModal && (
+        <div className={styles.lightboxOverlay} onClick={() => setShowReviewsModal(false)}>
+          <div style={{ maxWidth: '600px', width: '100%', padding: '24px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', background: '#fff', borderRadius: '16px' }} onClick={e => e.stopPropagation()}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 className={styles.infoTitle} style={{ fontSize: '20px', margin: 0 }}>Tenant Reviews</h3>
+              <button onClick={() => setShowReviewsModal(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>✕</button>
+            </div>
+
+            <select
+              value={modalRatingFilter}
+              onChange={(e) => setModalRatingFilter(Number(e.target.value))}
+              style={{ marginBottom: '16px', padding: '12px', borderRadius: '8px', border: '1px solid #e5eced', outline: 'none', fontFamily: 'inherit', fontWeight: 600, color: '#1a2a2e' }}
+            >
+              <option value={0}>All Ratings</option>
+              <option value={5}>5 Stars</option>
+              <option value={4}>4 Stars</option>
+              <option value={3}>3 Stars</option>
+              <option value={2}>2 Stars</option>
+              <option value={1}>1 Star</option>
+            </select>
+
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '8px' }}>
+              {modalRatingFilter !== 0 && reviews.filter(r => r.rating === modalRatingFilter).length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#6e7071', fontSize: '14px' }}>No reviews match this filter.</div>
+              ) : (
+                (modalRatingFilter === 0 ? reviews : reviews.filter(r => r.rating === modalRatingFilter)).map(r => (
+                  <div key={r.id} className={styles.reviewItem}>
+                    <div className={styles.reviewItemHeader}>
+                      <div className={styles.reviewAvatar}>
+                        {r.tenantAvatarUrl
+                          ? <img src={r.tenantAvatarUrl} alt={r.tenantName} className={styles.reviewAvatarImg} />
+                          : <span>{getInitials(r.tenantName)}</span>
+                        }
+                      </div>
+                      <div className={styles.reviewItemMeta}>
+                        <span className={styles.reviewItemName}>{r.tenantName}</span>
+                        <span className={styles.reviewItemDate}>{formatReviewDate(r.createdAt)}</span>
+                      </div>
+                      <StarDisplay rating={r.rating} size={15} />
+                    </div>
+                    {r.comment && <p className={styles.reviewItemComment}>{r.comment}</p>}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowReviewsModal(false)} style={{ padding: '10px 20px', background: '#f0f4f5', color: '#1f5d71', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
