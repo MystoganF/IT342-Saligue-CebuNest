@@ -78,7 +78,15 @@ public class RentalRequestService {
                 tenant,
                 "REQUEST_PENDING",
                 "Your rental request for \"" + property.getTitle() + "\" has been submitted. Waiting for owner review.",
-                saved.getId()
+                property.getId()
+        );
+        // 🚨 ADD THIS NEW BLOCK: Notify the Owner! 🚨
+        notificationService.send(
+                property.getOwner(), // <--- Target the Owner!
+                "NEW_RENTAL_REQUEST",
+                "You have a new rental request from " + tenant.getName() + " for \"" + property.getTitle() + "\".",
+                null,
+                property.getId()
         );
 
         return RentalRequestDTO.from(saved);

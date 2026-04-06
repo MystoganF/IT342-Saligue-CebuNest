@@ -168,6 +168,7 @@ const RentalDetail: React.FC = () => {
   const { requestId } = useParams<{ requestId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // ── Core States ──
   const [user, setUser]         = useState<User | null>(null);
   const [request, setRequest]   = useState<RentalRequest | null>(null);
   const [property, setProperty] = useState<Property | null>(null);
@@ -184,17 +185,22 @@ const RentalDetail: React.FC = () => {
     state: "verifying" | "success" | "error"; text: string;
   } | null>(null);
   const autoVerifyAttempted = useRef(false);
-
-  const [expandedYears, setExpandedYears] = useState<Record<string, boolean>>({});
   const paymentSectionRef = useRef<HTMLDivElement>(null);
 
+  // ── Dropdown & Receipt States ──
+  const [expandedYears, setExpandedYears]         = useState<Record<string, boolean>>({});
+  const [historyExpanded, setHistoryExpanded]     = useState(false);
+  const [extensionExpanded, setExtensionExpanded] = useState(false);
+  const [viewingReceiptId, setViewingReceiptId]   = useState<number | null>(null);
+
+  // ── Review states ──
   const [existingReview, setExistingReview] = useState<Review | null>(null);
   const [reviewRating, setReviewRating]     = useState(0);
   const [reviewComment, setReviewComment]   = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewMsg, setReviewMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // ── Lease extension state ───────────────────────────────────────────────
+  // ── Lease extension states ──
   const [extensions, setExtensions]               = useState<LeaseExtension[]>([]);
   const [extMonths, setExtMonths]                 = useState(1);
   const [extReason, setExtReason]                 = useState("");
@@ -214,81 +220,102 @@ const RentalDetail: React.FC = () => {
     } catch { navigate("/"); }
   }, [navigate]);
 
-  // ── Fetch everything ──────────────────────────────────────────────────────
+  // ── Fetch everything (Optimized via Promise.all) ──────────────────────────
   const fetchAll = useCallback(async () => {
     if (!requestId) return;
     setLoading(true); setError(null);
     const token = localStorage.getItem("accessToken");
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
     try {
-      const reqRes  = await fetch(`${API_BASE}/api/rental-requests/my`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      // 1. Fetch Request to get base data
+      const reqRes  = await fetch(`${API_BASE}/api/rental-requests/my`, { headers });
       const reqData = await reqRes.json();
-      if (!reqData.success) { setError("Failed to load rental."); return; }
+      if (!reqData.success) throw new Error("Failed to load rental.");
 
       const found: RentalRequest = (reqData.data.requests ?? []).find(
         (r: RentalRequest) => r.id === parseInt(requestId)
       );
-      if (!found) { setError("Rental request not found."); return; }
+      if (!found) throw new Error("Rental request not found.");
       setRequest(found);
 
-      const propRes  = await fetch(`${API_BASE}/api/properties/${found.propertyId}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const propData = await propRes.json();
-      if (propData.success) setProperty(propData.data.property);
+      // 2. Fetch everything else concurrently
+      const promises: Promise<void>[] = [];
+
+      // -> Property Details
+      promises.push(
+        fetch(`${API_BASE}/api/properties/${found.propertyId}`, { headers })
+          .then((r) => r.json())
+          .then((d) => { if (d.success) setProperty(d.data.property); })
+          .catch(() => {}) // Fail silently for individual fetches
+      );
 
       if (found.status === "CONFIRMED" || found.status === "COMPLETED") {
-        const payRes  = await fetch(`${API_BASE}/api/payments/request/${found.id}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        const payData = await payRes.json();
-        if (payData.success) {
-          const fetched: Payment[] = payData.data.payments ?? [];
-          setPayments(fetched);
-          const years = new Set(fetched.map((p) => new Date(p.dueDate).getFullYear().toString()));
-          const initial: Record<string, boolean> = {};
-          years.forEach((y) => { initial[y] = true; });
-          setExpandedYears(initial);
+        // -> Payments
+        promises.push(
+          fetch(`${API_BASE}/api/payments/request/${found.id}`, { headers })
+            .then((r) => r.json())
+            .then((d) => {
+              if (d.success) {
+                const fetched: Payment[] = d.data.payments ?? [];
+                setPayments(fetched);
+                const years = new Set(fetched.map((p) => new Date(p.dueDate).getFullYear().toString()));
+                const initial: Record<string, boolean> = {};
+                years.forEach((y) => { initial[y] = false; }); // Init closed
+                setExpandedYears(initial);
 
-          const stale = fetched.find((p) => p.paymongoPaymentId !== null && p.status !== "PAID");
-          if (stale) {
-            fetch(`${API_BASE}/api/payments/${stale.id}/cancel`, {
-              method: "GET",
-              headers: token ? { Authorization: `Bearer ${token}` } : {},
-            }).then((r) => r.json()).then((data) => {
-              if (data.success) {
-                setPayments((prev) => prev.map((p) =>
-                  p.id === stale.id ? { ...p, checkoutUrl: null, paymongoPaymentId: null } : p
-                ));
+                // Cancel stale initiations asynchronously
+                const stale = fetched.find((p) => p.paymongoPaymentId !== null && p.status !== "PAID");
+                if (stale) {
+                  fetch(`${API_BASE}/api/payments/${stale.id}/cancel`, { method: "GET", headers })
+                    .then((r) => r.json())
+                    .then((cancelData) => {
+                      if (cancelData.success) {
+                        setPayments((prev) => prev.map((p) => p.id === stale.id ? { ...p, checkoutUrl: null, paymongoPaymentId: null } : p));
+                      }
+                    }).catch(() => {});
+                }
               }
-            }).catch(() => {});
-          }
-        }
+            })
+            .catch(() => {})
+        );
 
-        // Fetch extension requests
-        const extRes  = await fetch(`${API_BASE}/api/lease-extensions/rental/${found.id}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        const extData = await extRes.json();
-        if (extData.success) setExtensions(extData.data.extensionRequests ?? []);
+        // -> Extensions
+        promises.push(
+          fetch(`${API_BASE}/api/lease-extensions/rental/${found.id}`, { headers })
+            .then((r) => r.json())
+            .then((d) => { if (d.success) setExtensions(d.data.extensionRequests ?? []); })
+            .catch(() => {})
+        );
 
-        // Fetch reviews
-        const revRes  = await fetch(`${API_BASE}/api/property-reviews/property/${found.propertyId}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        const revData = await revRes.json();
-        if (revData.success) {
-          const storedUser: User = JSON.parse(localStorage.getItem("user") || "{}");
-          const mine = (revData.data.reviews ?? []).find(
-            (r: Review & { rentalRequestId: number }) =>
-              r.tenantId === storedUser.id && r.rentalRequestId === found.id
-          );
-          if (mine) { setExistingReview(mine); setReviewRating(mine.rating); setReviewComment(mine.comment ?? ""); }
-        }
+        // -> Reviews
+        promises.push(
+          fetch(`${API_BASE}/api/property-reviews/property/${found.propertyId}`, { headers })
+            .then((r) => r.json())
+            .then((d) => {
+              if (d.success) {
+                const storedUser: User = JSON.parse(localStorage.getItem("user") || "{}");
+                const mine = (d.data.reviews ?? []).find(
+                  (r: Review & { rentalRequestId: number }) => r.tenantId === storedUser.id && r.rentalRequestId === found.id
+                );
+                if (mine) {
+                  setExistingReview(mine);
+                  setReviewRating(mine.rating);
+                  setReviewComment(mine.comment ?? "");
+                }
+              }
+            })
+            .catch(() => {})
+        );
       }
-    } catch { setError("Unable to load rental details."); }
-    finally { setLoading(false); }
+
+      await Promise.all(promises);
+
+    } catch (err: any) { 
+      setError(err.message || "Unable to load rental details."); 
+    } finally { 
+      setLoading(false); 
+    }
   }, [requestId]);
 
   useEffect(() => { if (user) fetchAll(); }, [user, fetchAll]);
@@ -416,7 +443,6 @@ const RentalDetail: React.FC = () => {
     }
   };
 
-  // ── Year accordion ────────────────────────────────────────────────────────
   const toggleYear = (year: string) =>
     setExpandedYears((prev) => ({ ...prev, [year]: !prev[year] }));
 
@@ -443,6 +469,7 @@ const RentalDetail: React.FC = () => {
   const canReview    = request?.status === "CONFIRMED" || request?.status === "COMPLETED";
   const isConfirmed  = request?.status === "CONFIRMED";
   const hasPendingExt = extensions.some((e) => e.status === "PENDING");
+  const activeReceipt = viewingReceiptId ? payments.find((p) => p.id === viewingReceiptId) : null;
 
   if (!user) return null;
 
@@ -650,127 +677,12 @@ const RentalDetail: React.FC = () => {
                 )}
               </div>
             )}
-
-            {/* ── Lease Extension Section ── */}
-            {isConfirmed && (
-              <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: "1px solid #f0f4f5" }}>
-                <div style={{ fontSize: "13px", fontWeight: "700", color: "#1f5d71", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "12px" }}>
-                  📋 Lease Extension
-                </div>
-
-                {/* Past extension requests */}
-                {extensions.length > 0 && (
-                  <div style={{ marginBottom: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {extensions.map((ext) => (
-                      <div key={ext.id} style={{
-                        padding: "10px 12px", borderRadius: "10px", fontSize: "13px",
-                        background: ext.status === "APPROVED" ? "rgba(26,122,74,0.07)"
-                          : ext.status === "REJECTED" ? "rgba(192,57,43,0.07)"
-                          : "rgba(183,142,66,0.07)",
-                        border: `1px solid ${ext.status === "APPROVED" ? "rgba(26,122,74,0.2)"
-                          : ext.status === "REJECTED" ? "rgba(192,57,43,0.2)"
-                          : "rgba(183,142,66,0.2)"}`,
-                      }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontWeight: "600", color: "#1e293b" }}>
-                            {ext.requestedMonths} month{ext.requestedMonths !== 1 ? "s" : ""} requested
-                          </span>
-                          <span style={{
-                            fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "20px",
-                            color: ext.status === "APPROVED" ? "#1a7a4a" : ext.status === "REJECTED" ? "#c0392b" : "#b78e42",
-                            background: ext.status === "APPROVED" ? "rgba(26,122,74,0.12)" : ext.status === "REJECTED" ? "rgba(192,57,43,0.12)" : "rgba(183,142,66,0.12)",
-                          }}>
-                            {ext.status === "APPROVED" ? "✓ Approved" : ext.status === "REJECTED" ? "✕ Rejected" : "⏳ Pending"}
-                          </span>
-                        </div>
-                        {ext.reason && <div style={{ color: "#64748b", marginTop: "4px", fontSize: "12px" }}>"{ext.reason}"</div>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Extension message */}
-                {extMsg && (
-                  <div style={{
-                    padding: "10px 12px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", marginBottom: "10px",
-                    background: extMsg.type === "success" ? "rgba(45,140,106,0.08)" : "rgba(192,57,43,0.06)",
-                    border: `1px solid ${extMsg.type === "success" ? "rgba(45,140,106,0.2)" : "rgba(192,57,43,0.2)"}`,
-                    color: extMsg.type === "success" ? "#2d8c6a" : "#c0392b",
-                  }}>
-                    {extMsg.type === "success" ? "✓" : "⚠"} {extMsg.text}
-                  </div>
-                )}
-
-                {!hasPendingExt && !showExtForm && (
-                  <button
-                    type="button"
-                    onClick={() => { setShowExtForm(true); setExtMsg(null); }}
-                    style={{
-                      width: "100%", padding: "11px", borderRadius: "11px",
-                      background: "rgba(31,93,113,0.07)", border: "1.5px dashed rgba(31,93,113,0.25)",
-                      color: "#1f5d71", fontWeight: "600", fontSize: "14px", cursor: "pointer",
-                      transition: "background 0.2s, border-color 0.2s",
-                    }}
-                  >
-                    + Request Lease Extension
-                  </button>
-                )}
-
-                {hasPendingExt && !showExtForm && (
-                  <p style={{ fontSize: "12px", color: "#b78e42", fontWeight: "600", textAlign: "center" }}>
-                    ⏳ You have a pending extension request.
-                  </p>
-                )}
-
-                {showExtForm && (
-                  <form onSubmit={handleExtensionSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                    <div>
-                      <label style={{ fontSize: "11px", fontWeight: "700", color: "#1f5d71", textTransform: "uppercase", letterSpacing: "0.8px", display: "block", marginBottom: "6px" }}>
-                        Additional Months
-                      </label>
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", background: "#f8fbfb", borderRadius: "10px", border: "1.5px solid #e5eced" }}>
-                        <button type="button"
-                          style={{ width: 30, height: 30, borderRadius: "50%", border: "1.5px solid #e5eced", background: "#fff", fontSize: 18, cursor: "pointer", color: "#1f5d71", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}
-                          onClick={() => setExtMonths((m) => Math.max(1, m - 1))}>−</button>
-                        <span style={{ fontSize: 22, fontWeight: 800, color: "#1f5d71", minWidth: 36, textAlign: "center" }}>{extMonths}</span>
-                        <button type="button"
-                          style={{ width: 30, height: 30, borderRadius: "50%", border: "1.5px solid #e5eced", background: "#fff", fontSize: 18, cursor: "pointer", color: "#1f5d71", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}
-                          onClick={() => setExtMonths((m) => m + 1)}>+</button>
-                        <span style={{ fontSize: 13, color: "#6e7071" }}>month{extMonths !== 1 ? "s" : ""}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <label style={{ fontSize: "11px", fontWeight: "700", color: "#1f5d71", textTransform: "uppercase", letterSpacing: "0.8px", display: "block", marginBottom: "6px" }}>
-                        Reason <span style={{ fontWeight: 400, color: "#6e7071", textTransform: "none", letterSpacing: 0 }}>(optional)</span>
-                      </label>
-                      <textarea
-                        value={extReason}
-                        onChange={(e) => setExtReason(e.target.value)}
-                        placeholder="Why are you requesting an extension?"
-                        rows={3}
-                        maxLength={300}
-                        style={{ width: "100%", padding: "10px 12px", borderRadius: "10px", border: "1.5px solid #e5eced", fontFamily: "inherit", fontSize: "14px", resize: "vertical", outline: "none", boxSizing: "border-box" }}
-                      />
-                    </div>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      <button type="button" onClick={() => { setShowExtForm(false); setExtMsg(null); }}
-                        style={{ flex: 1, padding: "10px", borderRadius: "10px", border: "1.5px solid #e5eced", background: "#f8fbfb", color: "#6e7071", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}>
-                        Cancel
-                      </button>
-                      <button type="submit" disabled={extSubmitting}
-                        style={{ flex: 2, padding: "10px", borderRadius: "10px", border: "none", background: "#1f5d71", color: "#fff", fontWeight: "700", fontSize: "13px", cursor: extSubmitting ? "not-allowed" : "pointer", opacity: extSubmitting ? 0.6 : 1 }}>
-                        {extSubmitting ? "Sending…" : `Request +${extMonths} month${extMonths !== 1 ? "s" : ""}`}
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </div>
-            )}
           </div>
 
-          {/* Payment Schedule */}
-          {payments.length > 0 && (
-            <div className={styles.paymentsCard} ref={paymentSectionRef}>
+          {/* ── Action Dropdowns Container ── */}
+          {isConfirmed && payments.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }} ref={paymentSectionRef}>
+              
               {verifyBanner && (
                 <div className={`${styles.verifyBanner} ${styles[`verifyBanner_${verifyBanner.state}`]}`}>
                   <span className={styles.verifyBannerIcon}>
@@ -785,103 +697,300 @@ const RentalDetail: React.FC = () => {
                 </div>
               )}
 
-              <div className={styles.paymentsTitle}>Payment Schedule</div>
+              {/* 1. Payment Schedule Dropdown (Grouped by Year) */}
+              <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", background: "#fff" }}>
+                <div style={{ padding: "16px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", fontWeight: "700", color: "#1f5d71" }}>
+                  Payment Schedule
+                </div>
+                <div className={styles.yearAccordionList} style={{ padding: "8px 16px" }}>
+                  {Object.keys(paymentsByYear).sort().map((year) => {
+                    const isExpanded   = expandedYears[year] === true;
+                    const yearPayments = paymentsByYear[year];
+                    // Only show PENDING or OVERDUE in the schedule
+                    const schedulePayments = yearPayments.filter(p => p.status !== "PAID");
+                    const yearPaid     = yearPayments.filter((p) => p.status === "PAID").length;
+                    
+                    return (
+                      <div key={year} className={styles.yearAccordion}>
+                        <button type="button" className={styles.yearAccordionHeader}
+                          onClick={() => toggleYear(year)} aria-expanded={isExpanded}>
+                          <div className={styles.yearAccordionLeft}>
+                            <span className={styles.yearAccordionChevron} style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}>▼</span>
+                            <span className={styles.yearAccordionLabel}>{year}</span>
+                            <span className={styles.yearAccordionCount}>{yearPaid}/{yearPayments.length} paid</span>
+                          </div>
+                          <div className={styles.yearMiniProgress}>
+                            <div className={styles.yearMiniProgressFill} style={{ width: `${Math.round((yearPaid / yearPayments.length) * 100)}%` }} />
+                          </div>
+                        </button>
 
-              <div className={styles.yearAccordionList}>
-                {Object.keys(paymentsByYear).sort().map((year) => {
-                  const isExpanded   = expandedYears[year] !== false;
-                  const yearPayments = paymentsByYear[year];
-                  const yearPaid     = yearPayments.filter((p) => p.status === "PAID").length;
-                  return (
-                    <div key={year} className={styles.yearAccordion}>
-                      <button type="button" className={styles.yearAccordionHeader}
-                        onClick={() => toggleYear(year)} aria-expanded={isExpanded}>
-                        <div className={styles.yearAccordionLeft}>
-                          <span className={styles.yearAccordionChevron} style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}>▼</span>
-                          <span className={styles.yearAccordionLabel}>{year}</span>
-                          <span className={styles.yearAccordionCount}>{yearPaid}/{yearPayments.length} paid</span>
-                        </div>
-                        <div className={styles.yearMiniProgress}>
-                          <div className={styles.yearMiniProgressFill} style={{ width: `${Math.round((yearPaid / yearPayments.length) * 100)}%` }} />
-                        </div>
-                      </button>
-
-                      {isExpanded && (
-                        <div className={styles.yearAccordionBody}>
-                          {yearPayments.map((p) => {
-                            const isPaid          = p.status === "PAID";
-                            const isNext          = p.id === nextPayablePaymentId;
-                            const isLocked        = !isPaid && !isNext;
-                            const isActionLoading = initiating === p.id;
-                            return (
-                              <div key={p.id} className={[styles.paymentRow, isPaid ? styles.paymentRowPaid : "", isLocked ? styles.paymentRowLocked : "", isNext ? styles.paymentRowNext : "", p.status === "OVERDUE" ? styles.paymentRowOverdue : ""].filter(Boolean).join(" ")}>
-                                <div className={styles.paymentRowLeft}>
-                                  <div className={[styles.paymentMonthBadge, isPaid ? styles.paymentMonthBadgePaid : "", isNext ? styles.paymentMonthBadgeNext : ""].filter(Boolean).join(" ")}>
-                                    {isPaid ? "✓" : isLocked ? "🔒" : p.installmentNumber}
-                                  </div>
-                                  <div className={styles.paymentRowInfo}>
-                                    <span className={styles.paymentLabel}>Month {p.installmentNumber}</span>
-                                    <span className={styles.paymentDates}>
-                                      Due {formatDate(p.dueDate)}
-                                      {p.paidAt && <span className={styles.paymentPaidDate}> · Paid {formatDate(p.paidAt)}</span>}
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className={styles.paymentRowRight}>
-                                  <span className={styles.paymentAmount}>{formatPrice(p.amount)}</span>
-                                  {isPaid ? (
-                                    <span className={`${styles.payStatusBadge} ${styles.payStatusPaid}`}>Paid</span>
-                                  ) : p.status === "OVERDUE" ? (
-                                    <div className={styles.paymentRowActions}>
-                                      <span className={`${styles.payStatusBadge} ${styles.payStatusOverdue}`}>Overdue</span>
-                                      {isNext && (
-                                        <button type="button" className={`${styles.payNowBtn} ${styles.payNowBtnOverdue}`}
+                        {isExpanded && (
+                          <div className={styles.yearAccordionBody}>
+                            {schedulePayments.length === 0 ? (
+                              <div style={{ padding: "12px 0", color: "#64748b", fontSize: "13px", textAlign: "center" }}>All payments for this year are complete.</div>
+                            ) : (
+                              schedulePayments.map((p) => {
+                                const isNext          = p.id === nextPayablePaymentId;
+                                const isLocked        = !isNext;
+                                const isActionLoading = initiating === p.id;
+                                return (
+                                  <div key={p.id} className={[styles.paymentRow, isLocked ? styles.paymentRowLocked : "", isNext ? styles.paymentRowNext : "", p.status === "OVERDUE" ? styles.paymentRowOverdue : ""].filter(Boolean).join(" ")}>
+                                    <div className={styles.paymentRowLeft}>
+                                      <div className={[styles.paymentMonthBadge, isNext ? styles.paymentMonthBadgeNext : ""].filter(Boolean).join(" ")}>
+                                        {isLocked ? "🔒" : p.installmentNumber}
+                                      </div>
+                                      <div className={styles.paymentRowInfo}>
+                                        <span className={styles.paymentLabel}>Month {p.installmentNumber}</span>
+                                        <span className={styles.paymentDates}>Due {formatDate(p.dueDate)}</span>
+                                      </div>
+                                    </div>
+                                    <div className={styles.paymentRowRight}>
+                                      <span className={styles.paymentAmount}>{formatPrice(p.amount)}</span>
+                                      {p.status === "OVERDUE" ? (
+                                        <div className={styles.paymentRowActions}>
+                                          <span className={`${styles.payStatusBadge} ${styles.payStatusOverdue}`}>Overdue</span>
+                                          {isNext && (
+                                            <button type="button" className={`${styles.payNowBtn} ${styles.payNowBtnOverdue}`}
+                                              onClick={() => handlePay(p.id)} disabled={isActionLoading}>
+                                              {isActionLoading ? <span className={styles.payBtnSpinner} /> : "Pay Now"}
+                                            </button>
+                                          )}
+                                        </div>
+                                      ) : isLocked ? (
+                                        <span className={`${styles.payStatusBadge} ${styles.payStatusLocked}`}>Locked</span>
+                                      ) : (
+                                        <button type="button" className={styles.payNowBtn}
                                           onClick={() => handlePay(p.id)} disabled={isActionLoading}>
                                           {isActionLoading ? <span className={styles.payBtnSpinner} /> : "Pay Now"}
                                         </button>
                                       )}
                                     </div>
-                                  ) : isLocked ? (
-                                    <span className={`${styles.payStatusBadge} ${styles.payStatusLocked}`}>Locked</span>
-                                  ) : (
-                                    <button type="button" className={styles.payNowBtn}
-                                      onClick={() => handlePay(p.id)} disabled={isActionLoading}>
-                                      {isActionLoading ? <span className={styles.payBtnSpinner} /> : "Pay Now"}
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                                  </div>
+                                );
+                              })
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* Payment History */}
-          {payments.filter((p) => p.status === "PAID").length > 0 && (
-            <div className={styles.historyCard}>
-              <div className={styles.historyTitle}>Payment History</div>
-              <div className={styles.historyList}>
-                {payments.filter((p) => p.status === "PAID").map((p) => (
-                  <div key={p.id} className={styles.historyRow}>
-                    <div className={styles.historyIcon}>✓</div>
-                    <div className={styles.historyInfo}>
-                      <div className={styles.historyLabel}>Month {p.installmentNumber}</div>
-                      <div className={styles.historyDate}>Paid on {formatDate(p.paidAt!)}</div>
-                    </div>
-                    <div className={styles.historyAmount}>{formatPrice(p.amount)}</div>
+              {/* 2. Payment History Dropdown */}
+              <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", background: "#fff" }}>
+                <button
+                  type="button"
+                  onClick={() => setHistoryExpanded(!historyExpanded)}
+                  style={{ width: "100%", padding: "16px", display: "flex", justifyContent: "space-between", background: "#f8fafc", border: "none", cursor: "pointer", fontWeight: "700", color: "#1f5d71", fontSize: "15px" }}
+                >
+                  <span>Payment History</span>
+                  <span>{historyExpanded ? "▲" : "▼"}</span>
+                </button>
+                
+                {historyExpanded && (
+                  <div style={{ padding: "0 16px" }}>
+                    {payments.filter(p => p.status === "PAID").length === 0 ? (
+                      <div style={{ padding: "16px 0", color: "#64748b", fontSize: "14px", textAlign: "center" }}>No past payments found.</div>
+                    ) : (
+                      payments.filter(p => p.status === "PAID").map((payment) => (
+                        <div key={payment.id} style={{ padding: "16px 0", borderTop: "1px solid #f1f5f9" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                              <strong style={{ display: "block", color: "#1e293b", marginBottom: "4px" }}>
+                                Month {payment.installmentNumber}
+                              </strong>
+                              <div style={{ fontSize: "13px", color: "#10b981", fontWeight: "600" }}>✓ Paid on {formatDate(payment.paidAt || payment.dueDate)}</div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                              <span style={{ fontWeight: "600", color: "#1e293b" }}>{formatPrice(payment.amount)}</span>
+                              <button 
+                                onClick={() => setViewingReceiptId(payment.id)}
+                                className={styles.receiptBtn}
+                              >
+                                Receipt
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
-                ))}
+                )}
+              </div>
+
+              {/* 3. Lease Extension Dropdown */}
+              <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", background: "#fff" }}>
+                <button
+                  type="button"
+                  onClick={() => setExtensionExpanded(!extensionExpanded)}
+                  style={{ width: "100%", padding: "16px", display: "flex", justifyContent: "space-between", background: "#f8fafc", border: "none", cursor: "pointer", fontWeight: "700", color: "#1f5d71", fontSize: "15px" }}
+                >
+                  <span>Lease Extension Requests</span>
+                  <span>{extensionExpanded ? "▲" : "▼"}</span>
+                </button>
+                
+                {extensionExpanded && (
+                  <div style={{ padding: "16px", borderTop: "1px solid #e2e8f0" }}>
+                    {/* Past extension requests */}
+                    {extensions.length > 0 && (
+                      <div style={{ marginBottom: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {extensions.map((ext) => (
+                          <div key={ext.id} style={{
+                            padding: "10px 12px", borderRadius: "10px", fontSize: "13px",
+                            background: ext.status === "APPROVED" ? "rgba(26,122,74,0.07)"
+                              : ext.status === "REJECTED" ? "rgba(192,57,43,0.07)"
+                              : "rgba(183,142,66,0.07)",
+                            border: `1px solid ${ext.status === "APPROVED" ? "rgba(26,122,74,0.2)"
+                              : ext.status === "REJECTED" ? "rgba(192,57,43,0.2)"
+                              : "rgba(183,142,66,0.2)"}`,
+                          }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontWeight: "600", color: "#1e293b" }}>
+                                {ext.requestedMonths} month{ext.requestedMonths !== 1 ? "s" : ""} requested
+                              </span>
+                              <span style={{
+                                fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "20px",
+                                color: ext.status === "APPROVED" ? "#1a7a4a" : ext.status === "REJECTED" ? "#c0392b" : "#b78e42",
+                                background: ext.status === "APPROVED" ? "rgba(26,122,74,0.12)" : ext.status === "REJECTED" ? "rgba(192,57,43,0.12)" : "rgba(183,142,66,0.12)",
+                              }}>
+                                {ext.status === "APPROVED" ? "✓ Approved" : ext.status === "REJECTED" ? "✕ Rejected" : "⏳ Pending"}
+                              </span>
+                            </div>
+                            {ext.reason && <div style={{ color: "#64748b", marginTop: "4px", fontSize: "12px" }}>"{ext.reason}"</div>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Extension message */}
+                    {extMsg && (
+                      <div style={{
+                        padding: "10px 12px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", marginBottom: "10px",
+                        background: extMsg.type === "success" ? "rgba(45,140,106,0.08)" : "rgba(192,57,43,0.06)",
+                        border: `1px solid ${extMsg.type === "success" ? "rgba(45,140,106,0.2)" : "rgba(192,57,43,0.2)"}`,
+                        color: extMsg.type === "success" ? "#2d8c6a" : "#c0392b",
+                      }}>
+                        {extMsg.type === "success" ? "✓" : "⚠"} {extMsg.text}
+                      </div>
+                    )}
+
+                    {!hasPendingExt && !showExtForm && (
+                      <button
+                        type="button"
+                        onClick={() => { setShowExtForm(true); setExtMsg(null); }}
+                        style={{
+                          width: "100%", padding: "11px", borderRadius: "11px",
+                          background: "rgba(31,93,113,0.07)", border: "1.5px dashed rgba(31,93,113,0.25)",
+                          color: "#1f5d71", fontWeight: "600", fontSize: "14px", cursor: "pointer",
+                          transition: "background 0.2s, border-color 0.2s",
+                        }}
+                      >
+                        + Request New Extension
+                      </button>
+                    )}
+
+                    {hasPendingExt && !showExtForm && (
+                      <p style={{ fontSize: "12px", color: "#b78e42", fontWeight: "600", textAlign: "center", margin: 0 }}>
+                        ⏳ You have a pending extension request.
+                      </p>
+                    )}
+
+                    {showExtForm && (
+                      <form onSubmit={handleExtensionSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        <div>
+                          <label style={{ fontSize: "11px", fontWeight: "700", color: "#1f5d71", textTransform: "uppercase", letterSpacing: "0.8px", display: "block", marginBottom: "6px" }}>
+                            Additional Months
+                          </label>
+                          <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", background: "#f8fbfb", borderRadius: "10px", border: "1.5px solid #e5eced" }}>
+                            <button type="button"
+                              style={{ width: 30, height: 30, borderRadius: "50%", border: "1.5px solid #e5eced", background: "#fff", fontSize: 18, cursor: "pointer", color: "#1f5d71", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}
+                              onClick={() => setExtMonths((m) => Math.max(1, m - 1))}>−</button>
+                            <span style={{ fontSize: 22, fontWeight: 800, color: "#1f5d71", minWidth: 36, textAlign: "center" }}>{extMonths}</span>
+                            <button type="button"
+                              style={{ width: 30, height: 30, borderRadius: "50%", border: "1.5px solid #e5eced", background: "#fff", fontSize: 18, cursor: "pointer", color: "#1f5d71", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}
+                              onClick={() => setExtMonths((m) => m + 1)}>+</button>
+                            <span style={{ fontSize: 13, color: "#6e7071" }}>month{extMonths !== 1 ? "s" : ""}</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: "11px", fontWeight: "700", color: "#1f5d71", textTransform: "uppercase", letterSpacing: "0.8px", display: "block", marginBottom: "6px" }}>
+                            Reason <span style={{ fontWeight: 400, color: "#6e7071", textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+                          </label>
+                          <textarea
+                            value={extReason}
+                            onChange={(e) => setExtReason(e.target.value)}
+                            placeholder="Why are you requesting an extension?"
+                            rows={3}
+                            maxLength={300}
+                            style={{ width: "100%", padding: "10px 12px", borderRadius: "10px", border: "1.5px solid #e5eced", fontFamily: "inherit", fontSize: "14px", resize: "vertical", outline: "none", boxSizing: "border-box" }}
+                          />
+                        </div>
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <button type="button" onClick={() => { setShowExtForm(false); setExtMsg(null); }}
+                            style={{ flex: 1, padding: "10px", borderRadius: "10px", border: "1.5px solid #e5eced", background: "#f8fbfb", color: "#6e7071", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}>
+                            Cancel
+                          </button>
+                          <button type="submit" disabled={extSubmitting}
+                            style={{ flex: 2, padding: "10px", borderRadius: "10px", border: "none", background: "#1f5d71", color: "#fff", fontWeight: "700", fontSize: "13px", cursor: extSubmitting ? "not-allowed" : "pointer", opacity: extSubmitting ? 0.6 : 1 }}>
+                            {extSubmitting ? "Sending…" : `Request +${extMonths} month${extMonths !== 1 ? "s" : ""}`}
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
       </div>
+
+      {/* ── Receipt Modal Overlay ── */}
+      {viewingReceiptId && activeReceipt && (
+        <div className={styles.modalOverlay} onClick={() => setViewingReceiptId(null)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div className={styles.modalTitle}>Transaction Receipt</div>
+              <button className={styles.modalClose} onClick={() => setViewingReceiptId(null)}>✕</button>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.receiptRow}>
+                <span>Property:</span> 
+                <span style={{ fontWeight: "600" }}>{property?.title || request?.propertyTitle}</span>
+              </div>
+              <div className={styles.receiptRow}>
+                <span>Installment:</span> 
+                <span>Month {activeReceipt.installmentNumber}</span>
+              </div>
+              <div className={styles.receiptRow}>
+                <span>Amount Paid:</span> 
+                <span style={{ fontWeight: "700", color: "#1f5d71" }}>{formatPrice(activeReceipt.amount)}</span>
+              </div>
+              <div className={styles.receiptRow}>
+                <span>Date Paid:</span> 
+                <span>{formatDate(activeReceipt.paidAt || activeReceipt.dueDate)}</span>
+              </div>
+              <div className={styles.receiptRow}>
+                <span>Reference ID:</span> 
+                <span style={{ fontFamily: "monospace", fontSize: "12px", background: "#f0f4f5", padding: "2px 6px", borderRadius: "4px" }}>
+                  {activeReceipt.paymongoPaymentId || `MANUAL-${activeReceipt.id}`}
+                </span>
+              </div>
+              <div className={styles.receiptRow}>
+                <span>Status:</span> 
+                <span style={{ color: "#10b981", fontWeight: "bold", display: "flex", alignItems: "center", gap: "4px" }}>
+                  ✓ COMPLETED
+                </span>
+              </div>
+            </div>
+            <button className={styles.modalActionBtn} onClick={() => setViewingReceiptId(null)}>
+              Close Receipt
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
