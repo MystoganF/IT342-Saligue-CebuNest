@@ -153,6 +153,7 @@ const EditProperty: React.FC = () => {
   const [actionSubmitting, setActionSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [openRequestYears, setOpenRequestYears] = useState<Set<string>>(new Set());
+  const [showPastRequests, setShowPastRequests] = useState(false);
 
   // ── Active tenant ──────────────────────────────────────────────────────
   const [activeTenant, setActiveTenant] = useState<ActiveTenant | null>(null);
@@ -182,6 +183,10 @@ const EditProperty: React.FC = () => {
   const [reviews, setReviews] = useState<PropertyReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
+  
+  // ── Reviews Filtering Modal ──
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
+  const [modalRatingFilter, setModalRatingFilter] = useState<number>(0);
 
   // ── Submit ─────────────────────────────────────────────────────────────
   const [submitting, setSubmitting] = useState(false);
@@ -410,7 +415,15 @@ const EditProperty: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok || !data.success) { setActionError(data?.error?.message ?? "Action failed."); return; }
-      setRequests((prev) => prev.map((r) => r.id === actionTarget.id ? { ...r, status: actionType } : r));
+      
+      // Optimitistic Auto-Reject for UI
+      if (actionType === "APPROVED") {
+        setRequests((prev) => prev.map((r) => 
+          r.id === actionTarget.id ? { ...r, status: "APPROVED" } : (r.status === "PENDING" ? { ...r, status: "REJECTED" } : r)
+        ));
+      } else {
+        setRequests((prev) => prev.map((r) => r.id === actionTarget.id ? { ...r, status: actionType } : r));
+      }
       closeAction();
     } catch { setActionError("Network error. Please try again."); }
     finally { setActionSubmitting(false); }
@@ -510,16 +523,23 @@ const EditProperty: React.FC = () => {
   const visibleExisting = existingImages.filter((img) => !removedImageIds.includes(img.id));
   const totalPhotos = visibleExisting.length + newImageFiles.length;
   const existingSrcs = visibleExisting.map((img) => img.imageUrl);
-  const pendingCount = requests.filter((r) => r.status === "PENDING").length;
+  
+  const pendingRequests = requests.filter((r) => r.status === "PENDING");
+  const pastRequests = requests.filter((r) => r.status !== "PENDING");
+  const displayedRequests = showPastRequests ? requests : pendingRequests;
+  const pendingCount = pendingRequests.length;
   const pendingExtensions = leaseExtensions.filter((e) => e.status === "PENDING");
   const avgRating = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : null;
-  const requestsByYear = groupBy(requests, (r) => getYear(r.createdAt));
+  const requestsByYear = groupBy(displayedRequests, (r) => getYear(r.createdAt));
   const requestYears = Object.keys(requestsByYear).sort((a, b) => Number(b) - Number(a));
   const paymentsByYear = groupBy(payments, (p) => getYear(p.dueDate));
   const paymentYears = Object.keys(paymentsByYear).sort((a, b) => Number(b) - Number(a));
   const paidCount = payments.filter((p) => p.status === "PAID").length;
   const overdueCount = payments.filter((p) => p.status === "OVERDUE").length;
   const totalPaid = payments.filter((p) => p.status === "PAID").reduce((s, p) => s + p.amount, 0);
+
+  // Reviews Filtering for Modal
+  const filteredReviews = modalRatingFilter === 0 ? reviews : reviews.filter(r => r.rating === modalRatingFilter);
 
   if (pageLoading) return (
     <div className={styles.page}>
@@ -572,7 +592,7 @@ const EditProperty: React.FC = () => {
             </div>
             <div className={styles.reqModalBody}>
               <p className={styles.reqModalDesc}>
-                {actionType === "APPROVED" ? <><strong>{actionTarget.tenantName}</strong>'s request will be approved. They'll be notified by email.</> : <><strong>{actionTarget.tenantName}</strong>'s request will be rejected. They'll be notified by email.</>}
+                {actionType === "APPROVED" ? <><strong>{actionTarget.tenantName}</strong>'s request will be approved. They'll be notified by email. Other pending requests will automatically be rejected.</> : <><strong>{actionTarget.tenantName}</strong>'s request will be rejected. They'll be notified by email.</>}
               </p>
               <div className={styles.reqModalMeta}>
                 <span>👤 {actionTarget.tenantName}</span>
@@ -587,6 +607,54 @@ const EditProperty: React.FC = () => {
               <button className={actionType === "APPROVED" ? styles.modalApproveBtn : styles.modalRejectBtn} onClick={handleRequestAction} disabled={actionSubmitting} type="button">
                 {actionSubmitting ? <><span className={styles.spinner} /> Processing…</> : actionType === "APPROVED" ? "✓ Approve" : "✕ Reject"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reviews Filtering Modal ── */}
+      {showReviewsModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowReviewsModal(false)}>
+          <div className={styles.modal} style={{ maxWidth: '600px', width: '100%', padding: '24px', display: 'flex', flexDirection: 'column', maxHeight: '85vh' }} onClick={e => e.stopPropagation()}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 className={styles.modalTitle}>Tenant Reviews</h3>
+              <button onClick={() => setShowReviewsModal(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>✕</button>
+            </div>
+
+            <select
+              className={styles.fieldSelect}
+              value={modalRatingFilter}
+              onChange={(e) => setModalRatingFilter(Number(e.target.value))}
+              style={{ marginBottom: '16px' }}
+            >
+              <option value={0}>All Ratings</option>
+              <option value={5}>5 Stars</option>
+              <option value={4}>4 Stars</option>
+              <option value={3}>3 Stars</option>
+              <option value={2}>2 Stars</option>
+              <option value={1}>1 Star</option>
+            </select>
+
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '8px' }}>
+              {filteredReviews.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#6e7071', fontSize: '14px' }}>No reviews match this filter.</div>
+              ) : (
+                filteredReviews.map(rev => (
+                  <div key={rev.id} className={styles.reviewItem}>
+                    <div className={styles.reviewItemHeader}>
+                      <div className={styles.reviewItemAvatar}>{rev.tenantAvatarUrl ? <img src={rev.tenantAvatarUrl} alt={rev.tenantName} /> : <span>{rev.tenantName.charAt(0).toUpperCase()}</span>}</div>
+                      <div className={styles.reviewItemMeta}><span className={styles.reviewItemName}>{rev.tenantName}</span><span className={styles.reviewItemDate}>{formatDate(rev.createdAt)}</span></div>
+                      <div className={styles.reviewItemStars}>{[1, 2, 3, 4, 5].map((s) => (<span key={s} style={{ color: s <= rev.rating ? "#f59e0b" : "#e2e8f0", fontSize: "15px", }}>★</span>))}</div>
+                    </div>
+                    {rev.comment && (<p className={styles.reviewItemComment}>{rev.comment}</p>)}
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className={styles.modalCancelBtn} onClick={() => setShowReviewsModal(false)} style={{ padding: '10px 20px' }}>Close</button>
             </div>
           </div>
         </div>
@@ -738,7 +806,7 @@ const EditProperty: React.FC = () => {
                       color: isAdminDisabled ? "#c0392b" : "#444"
                     }}>
                       <div style={{ fontWeight: 800, textTransform: 'uppercase', fontSize: '10px', marginBottom: '4px', letterSpacing: '0.5px' }}>
-                         Deactivation Status
+                        Deactivation Status
                       </div>
                       {isAdminDisabled ? (
                         <div>
@@ -864,14 +932,66 @@ const EditProperty: React.FC = () => {
             {!leaseExtLoading && leaseExtensions.length > 0 && (<div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>{leaseExtensions.map((ext) => { const isPending = ext.status === "PENDING"; const isApproved = ext.status === "APPROVED"; const isLoading = extActionSubmitting && extActionId === ext.id; const color = isApproved ? "#1a7a4a" : ext.status === "REJECTED" ? "#c0392b" : "#b78e42"; const bg = isApproved ? "rgba(26,122,74,0.06)" : ext.status === "REJECTED" ? "rgba(192,57,43,0.06)" : "rgba(183,142,66,0.06)"; const border = isApproved ? "rgba(26,122,74,0.18)" : ext.status === "REJECTED" ? "rgba(192,57,43,0.18)" : "rgba(183,142,66,0.18)"; return (<div key={ext.id} style={{ padding: "14px 16px", borderRadius: "12px", background: bg, border: `1px solid ${border}`, transition: "box-shadow 0.15s", }}><div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}><div style={{ flex: 1 }}><div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}><span style={{ fontWeight: 700, fontSize: "15px", color: "#1e293b" }}>+{ext.requestedMonths} month{ext.requestedMonths !== 1 ? "s" : ""} requested</span><span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 10px", borderRadius: "20px", color, background: bg, border: `1px solid ${border}`, }}>{isPending ? "⏳ Pending" : isApproved ? "✓ Approved" : "✕ Rejected"}</span></div>{ext.reason && (<div style={{ marginTop: "6px", fontSize: "13px", color: "#64748b", fontStyle: "italic" }}>"{ext.reason}"</div>)}<div style={{ marginTop: "4px", fontSize: "11px", color: "#94a3b8" }}>Requested {formatDate(ext.createdAt)}</div></div>{isPending && (<div style={{ display: "flex", gap: "8px", flexShrink: 0 }}><button type="button" disabled={isLoading} onClick={() => handleExtensionRespond(ext.id, "REJECTED")} style={{ padding: "7px 14px", borderRadius: "9px", fontWeight: 700, fontSize: "13px", cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1, background: "rgba(192,57,43,0.07)", border: "1.5px solid rgba(192,57,43,0.22)", color: "#c0392b", transition: "background 0.15s", }}>{isLoading ? "…" : "✕ Reject"}</button><button type="button" disabled={isLoading} onClick={() => handleExtensionRespond(ext.id, "APPROVED")} style={{ padding: "7px 14px", borderRadius: "9px", fontWeight: 700, fontSize: "13px", cursor: isLoading ? "not-allowed" : "pointer", opacity: isLoading ? 0.6 : 1, background: "rgba(26,122,74,0.09)", border: "1.5px solid rgba(26,122,74,0.25)", color: "#1a7a4a", transition: "background 0.15s", }}>{isLoading ? "…" : "✓ Approve"}</button></div>)}</div></div>); })}</div>)}
           </div>
 
+          {/* ── Reviews Card ── */}
           <div className={styles.card}>
-            <div className={styles.cardTitle}>Tenant Reviews {avgRating && <span className={styles.reviewsAvgBadge}>★ {avgRating} · {reviews.length} review{reviews.length !== 1 ? "s" : ""}</span>}</div>
+            <div className={styles.cardTitle} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>Tenant Reviews {avgRating && <span className={styles.reviewsAvgBadge}>★ {avgRating} · {reviews.length} review{reviews.length !== 1 ? "s" : ""}</span>}</div>
+            </div>
+            
             {reviewsLoading && <div className={styles.requestsLoading}>Loading reviews…</div>}
             {!reviewsLoading && reviews.length === 0 && <div className={styles.requestsEmpty}><span className={styles.requestsEmptyIcon}>⭐</span><p>No reviews yet for this property.</p></div>}
+            
             {!reviewsLoading && reviews.length > 0 && (
               <>
-                <div className={styles.reviewRatingBreakdown}><div className={styles.reviewRatingBig}><span className={styles.reviewRatingNumber}>{avgRating}</span><div className={styles.reviewRatingStars}>{[1, 2, 3, 4, 5].map((s) => (<span key={s} style={{ color: s <= Math.round(parseFloat(avgRating!)) ? "#f59e0b" : "#e2e8f0", fontSize: "20px", }}>★</span>))}</div><span className={styles.reviewRatingCount}>{reviews.length} review{reviews.length !== 1 ? "s" : ""}</span></div><div className={styles.reviewRatingBars}>{[5, 4, 3, 2, 1].map((star) => { const count = reviews.filter((r) => r.rating === star).length; const pct = reviews.length > 0 ? Math.round((count / reviews.length) * 100) : 0; return (<div key={star} className={styles.reviewRatingBarRow}><span className={styles.reviewRatingBarLabel}>{star}★</span><div className={styles.reviewRatingBarTrack}><div className={styles.reviewRatingBarFill} style={{ width: `${pct}%` }} /></div><span className={styles.reviewRatingBarCount}>{count}</span></div>); })}</div></div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }}>{reviews.map((rev) => (<div key={rev.id} className={styles.reviewItem}><div className={styles.reviewItemHeader}><div className={styles.reviewItemAvatar}>{rev.tenantAvatarUrl ? <img src={rev.tenantAvatarUrl} alt={rev.tenantName} /> : <span>{rev.tenantName.charAt(0).toUpperCase()}</span>}</div><div className={styles.reviewItemMeta}><span className={styles.reviewItemName}>{rev.tenantName}</span><span className={styles.reviewItemDate}>{formatDate(rev.createdAt)}</span></div><div className={styles.reviewItemStars}>{[1, 2, 3, 4, 5].map((s) => (<span key={s} style={{ color: s <= rev.rating ? "#f59e0b" : "#e2e8f0", fontSize: "15px", }}>★</span>))}</div></div>{rev.comment && (<p className={styles.reviewItemComment}>{rev.comment}</p>)}</div>))}</div>
+                <div className={styles.reviewRatingBreakdown}>
+                  <div className={styles.reviewRatingBig}>
+                    <span className={styles.reviewRatingNumber}>{avgRating}</span>
+                    <div className={styles.reviewRatingStars}>{[1, 2, 3, 4, 5].map((s) => (<span key={s} style={{ color: s <= Math.round(parseFloat(avgRating!)) ? "#f59e0b" : "#e2e8f0", fontSize: "20px", }}>★</span>))}</div>
+                    <span className={styles.reviewRatingCount}>{reviews.length} review{reviews.length !== 1 ? "s" : ""}</span>
+                  </div>
+                  <div className={styles.reviewRatingBars}>
+                    {[5, 4, 3, 2, 1].map((star) => { 
+                      const count = reviews.filter((r) => r.rating === star).length; 
+                      const pct = reviews.length > 0 ? Math.round((count / reviews.length) * 100) : 0; 
+                      return (
+                        <div key={star} className={styles.reviewRatingBarRow}>
+                          <span className={styles.reviewRatingBarLabel}>{star}★</span>
+                          <div className={styles.reviewRatingBarTrack}><div className={styles.reviewRatingBarFill} style={{ width: `${pct}%` }} /></div>
+                          <span className={styles.reviewRatingBarCount}>{count}</span>
+                        </div>
+                      ); 
+                    })}
+                  </div>
+                </div>
+
+                {/* SHOW ONLY TOP 2 RECENT REVIEWS */}
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "16px" }}>
+                  {reviews.slice(0, 2).map((rev) => (
+                    <div key={rev.id} className={styles.reviewItem}>
+                      <div className={styles.reviewItemHeader}>
+                        <div className={styles.reviewItemAvatar}>{rev.tenantAvatarUrl ? <img src={rev.tenantAvatarUrl} alt={rev.tenantName} /> : <span>{rev.tenantName.charAt(0).toUpperCase()}</span>}</div>
+                        <div className={styles.reviewItemMeta}><span className={styles.reviewItemName}>{rev.tenantName}</span><span className={styles.reviewItemDate}>{formatDate(rev.createdAt)}</span></div>
+                        <div className={styles.reviewItemStars}>{[1, 2, 3, 4, 5].map((s) => (<span key={s} style={{ color: s <= rev.rating ? "#f59e0b" : "#e2e8f0", fontSize: "15px", }}>★</span>))}</div>
+                      </div>
+                      {rev.comment && (<p className={styles.reviewItemComment}>{rev.comment}</p>)}
+                    </div>
+                  ))}
+                </div>
+
+                {/* BUTTON TO OPEN FILTER/VIEW ALL MODAL */}
+                {reviews.length > 0 && (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setModalRatingFilter(0);
+                      setShowReviewsModal(true);
+                    }} 
+                    className={styles.contactBtn} 
+                    style={{ marginTop: "16px", width: "100%" }}
+                  >
+                    View & Filter All {reviews.length} Reviews
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -905,7 +1025,68 @@ const EditProperty: React.FC = () => {
             {requestsLoading && <div className={styles.requestsLoading}>Loading requests…</div>}
             {!requestsLoading && requestsError && <div className={styles.requestsError}>⚠ {requestsError}</div>}
             {!requestsLoading && !requestsError && requests.length === 0 && <div className={styles.requestsEmpty}><span className={styles.requestsEmptyIcon}>📭</span><p>No rental requests yet for this property.</p></div>}
-            {!requestsLoading && !requestsError && requests.length > 0 && (<div className={styles.yearAccordionList}>{requestYears.map((year) => { const yearReqs = requestsByYear[year]; const isOpen = openRequestYears.has(year); const yearPending = yearReqs.filter((r) => r.status === "PENDING").length; return (<div key={year} className={styles.yearAccordion}><button type="button" className={styles.yearAccordionHeader} onClick={() => toggleRequestYear(year)}><span className={styles.yearAccordionChevron}>{isOpen ? "▾" : "▸"}</span><span className={styles.yearAccordionLabel}>{year}</span><span className={styles.yearAccordionMeta}>{yearReqs.length} request{yearReqs.length !== 1 ? "s" : ""}{yearPending > 0 && (<span style={{ color: "#b78e42" }}> · {yearPending} pending</span>)}</span></button>{isOpen && (<div className={styles.yearAccordionBody}><div className={styles.requestsList}>{yearReqs.map((req) => { const isPending = req.status === "PENDING"; return (<div key={req.id} className={styles.requestRow}><div className={styles.requestAvatar}>{req.tenantName?.charAt(0).toUpperCase()}</div><div className={styles.requestInfo}><div className={styles.requestName}>{req.tenantName}</div><div className={styles.requestMeta}><span>✉️ {req.tenantEmail}</span><span>📅 Move in: {req.startDate}</span><span>🗓 {req.leaseDurationMonths} month{req.leaseDurationMonths !== 1 ? "s" : ""}</span><span>🕐 {timeAgo(req.createdAt)}</span></div></div><div className={styles.requestRight}><span className={styles.requestStatus} style={{ color: statusColor(req.status), borderColor: statusColor(req.status) }}>{req.status}</span>{isPending && (<div className={styles.requestActions}><button type="button" className={styles.requestRejectBtn} onClick={() => openAction(req, "REJECTED")}>✕ Reject</button><button type="button" className={styles.requestApproveBtn} onClick={() => openAction(req, "APPROVED")}>✓ Approve</button></div>)}</div></div>); })}</div></div>)}</div>); })}</div>)}
+            
+            {!requestsLoading && !requestsError && displayedRequests.length > 0 && (
+              <div className={styles.yearAccordionList}>
+                {requestYears.map((year) => { 
+                  const yearReqs = requestsByYear[year]; 
+                  const isOpen = openRequestYears.has(year); 
+                  const yearPending = yearReqs.filter((r) => r.status === "PENDING").length; 
+                  return (
+                    <div key={year} className={styles.yearAccordion}>
+                      <button type="button" className={styles.yearAccordionHeader} onClick={() => toggleRequestYear(year)}>
+                        <span className={styles.yearAccordionChevron}>{isOpen ? "▾" : "▸"}</span>
+                        <span className={styles.yearAccordionLabel}>{year}</span>
+                        <span className={styles.yearAccordionMeta}>{yearReqs.length} request{yearReqs.length !== 1 ? "s" : ""}{yearPending > 0 && (<span style={{ color: "#b78e42" }}> · {yearPending} pending</span>)}</span>
+                      </button>
+                      {isOpen && (
+                        <div className={styles.yearAccordionBody}>
+                          <div className={styles.requestsList}>
+                            {yearReqs.map((req) => { 
+                              const isPending = req.status === "PENDING"; 
+                              return (
+                                <div key={req.id} className={styles.requestRow}>
+                                  <div className={styles.requestAvatar}>{req.tenantName?.charAt(0).toUpperCase()}</div>
+                                  <div className={styles.requestInfo}>
+                                    <div className={styles.requestName}>{req.tenantName}</div>
+                                    <div className={styles.requestMeta}>
+                                      <span>✉️ {req.tenantEmail}</span>
+                                      <span>📅 Move in: {req.startDate}</span>
+                                      <span>🗓 {req.leaseDurationMonths} month{req.leaseDurationMonths !== 1 ? "s" : ""}</span>
+                                      <span>🕐 {timeAgo(req.createdAt)}</span>
+                                    </div>
+                                  </div>
+                                  <div className={styles.requestRight}>
+                                    <span className={styles.requestStatus} style={{ color: statusColor(req.status), borderColor: statusColor(req.status) }}>{req.status}</span>
+                                    {isPending && (
+                                      <div className={styles.requestActions}>
+                                        <button type="button" className={styles.requestRejectBtn} onClick={() => openAction(req, "REJECTED")}>✕ Reject</button>
+                                        <button type="button" className={styles.requestApproveBtn} onClick={() => openAction(req, "APPROVED")}>✓ Approve</button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ); 
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ); 
+                })}
+              </div>
+            )}
+
+            {!showPastRequests && pastRequests.length > 0 && (
+              <button 
+                type="button" 
+                onClick={() => setShowPastRequests(true)}
+                className={styles.contactBtn}
+                style={{ width: "100%", marginTop: "16px" }}
+              >
+                Load Past Requests ({pastRequests.length})
+              </button>
+            )}
           </div>
 
           <div className={styles.submitRow}>

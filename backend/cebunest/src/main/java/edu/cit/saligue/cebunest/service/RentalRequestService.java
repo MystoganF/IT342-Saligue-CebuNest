@@ -115,6 +115,7 @@ public class RentalRequestService {
     }
 
     // ── Owner: approve or reject a request ───────────────────────────────
+    // ── Owner: approve or reject a request ───────────────────────────────
     @Transactional
     public RentalRequestDTO updateRequestStatus(Long requestId, String newStatus, User owner) {
         RentalRequest request = rentalRequestRepository.findById(requestId)
@@ -135,13 +136,38 @@ public class RentalRequestService {
         String propTitle   = request.getProperty().getTitle();
 
         if (status == RentalRequest.RentalStatus.APPROVED) {
+
+            // ── NEW: Auto-reject all other pending requests for this property ──
+            List<RentalRequest> otherPending = rentalRequestRepository
+                    .findAllByPropertyIdAndStatus(request.getProperty().getId(), RentalRequest.RentalStatus.PENDING);
+
+            for (RentalRequest otherReq : otherPending) {
+                if (!otherReq.getId().equals(request.getId())) {
+                    otherReq.setStatus(RentalRequest.RentalStatus.REJECTED);
+                    rentalRequestRepository.save(otherReq);
+
+                    emailService.sendEmail(otherReq.getTenant().getEmail(),
+                            "CebuNest – Rental Request Update",
+                            "Hi " + otherReq.getTenant().getName() + ",\n\n" +
+                                    "Unfortunately, your rental request for \"" + propTitle + "\" was not approved as the property has been rented to someone else.\n" +
+                                    "You may browse other available properties on CebuNest.\n\n— CebuNest Team");
+
+                    notificationService.send(
+                            otherReq.getTenant(),
+                            "REQUEST_REJECTED",
+                            "Your request for \"" + propTitle + "\" was not approved. Browse other listings.",
+                            otherReq.getId()
+                    );
+                }
+            }
+            // ───────────────────────────────────────────────────────────────────
+
             emailService.sendEmail(tenantEmail,
                     "CebuNest – Rental Request Approved! 🎉",
                     "Hi " + tenantName + ",\n\n" +
                             "Great news! Your rental request for \"" + propTitle + "\" has been approved.\n" +
                             "The owner will contact you shortly to arrange next steps.\n\n— CebuNest Team");
 
-            // ── Notification to tenant ───────────────────────────────────
             notificationService.send(
                     request.getTenant(),
                     "REQUEST_APPROVED",
@@ -156,7 +182,6 @@ public class RentalRequestService {
                             "Unfortunately, your rental request for \"" + propTitle + "\" was not approved.\n" +
                             "You may browse other available properties on CebuNest.\n\n— CebuNest Team");
 
-            // ── Notification to tenant ───────────────────────────────────
             notificationService.send(
                     request.getTenant(),
                     "REQUEST_REJECTED",
@@ -300,4 +325,6 @@ public class RentalRequestService {
                 .map(RentalRequestDTO::from)
                 .orElse(null);
     }
+
+
 }

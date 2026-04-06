@@ -1794,3 +1794,78 @@
   margin: 8px 0 0 46px; font-size: 13px; color: #475569;
   line-height: 1.55; font-style: italic;
 }
+
+/* ── Reviews Filter & Load More ── */
+.reviewFilterBtn {
+  background: rgba(31, 93, 113, 0.08);
+  border: 1px solid rgba(31, 93, 113, 0.2);
+  color: var(--teal-deep);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.reviewFilterBtn:hover {
+  background: rgba(31, 93, 113, 0.15);
+}
+
+.ratingFilterList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ratingFilterBtn {
+  width: 100%;
+  padding: 12px;
+  background: #f8fafb;
+  border: 1.5px solid #e5eced;
+  border-radius: 10px;
+  color: #334155;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ratingFilterBtn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.ratingFilterBtnActive {
+  background: var(--teal-deep);
+  color: #fff;
+  border-color: var(--teal-deep);
+}
+
+.ratingFilterBtnActive:hover {
+  background: #174d5e;
+  border-color: #174d5e;
+}
+
+.loadMoreBtn {
+  width: 100%;
+  padding: 12px;
+  margin-top: 16px;
+  background: transparent;
+  border: 1.5px dashed rgba(31, 93, 113, 0.3);
+  border-radius: 10px;
+  color: var(--teal-deep);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.loadMoreBtn:hover {
+  background: rgba(31, 93, 113, 0.05);
+  border-color: rgba(31, 93, 113, 0.5);
+}

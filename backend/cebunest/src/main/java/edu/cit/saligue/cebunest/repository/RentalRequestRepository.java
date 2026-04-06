@@ -16,17 +16,17 @@ public interface RentalRequestRepository extends JpaRepository<RentalRequest, Lo
     boolean existsByTenantIdAndPropertyIdAndStatusIn(
             Long tenantId, Long propertyId, List<RentalRequest.RentalStatus> statuses);
 
-    // NEW: find active (CONFIRMED) tenant for a property
+    // Used to find the single active (CONFIRMED) tenant
     Optional<RentalRequest> findByPropertyIdAndStatus(
             Long propertyId, RentalRequest.RentalStatus status);
 
-    // NEW: find a specific tenant's latest request for a property
+    // ── NEW: Used to find a list of requests (e.g., all PENDING requests) ──
+    List<RentalRequest> findAllByPropertyIdAndStatus(
+            Long propertyId, RentalRequest.RentalStatus status);
+
     Optional<RentalRequest> findFirstByTenantIdAndPropertyIdOrderByCreatedAtDesc(
             Long tenantId, Long propertyId);
 
-
     List<RentalRequest> findByPropertyIdInOrderByCreatedAtDesc(List<Long> propertyIds);
-
-
 
 }
