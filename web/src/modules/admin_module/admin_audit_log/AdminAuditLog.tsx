@@ -85,6 +85,9 @@ const AdminAuditLog: React.FC = () => {
   const [propertyError, setPropertyError] = useState<string | null>(null);
   const [activeImg, setActiveImg]         = useState(0);
 
+  // 🌟 NEW: Lightbox State
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
   useEffect(() => {
     const stored = localStorage.getItem("user");
     const token  = localStorage.getItem("accessToken");
@@ -111,6 +114,19 @@ const AdminAuditLog: React.FC = () => {
   }, []);
 
   useEffect(() => { if (admin) fetchLogs(0); }, [admin, fetchLogs]);
+
+  // 🌟 NEW: Keyboard navigation for the lightbox
+  useEffect(() => {
+    if (!isLightboxOpen || !property) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsLightboxOpen(false);
+      if (e.key === "ArrowLeft") setActiveImg((i) => Math.max(0, i - 1));
+      if (e.key === "ArrowRight") setActiveImg((i) => Math.min(property.images.length - 1, i + 1));
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isLightboxOpen, property]);
+
 
   const openDetail = async (log: AuditEntry) => {
     if (!log.targetId) {
@@ -145,6 +161,7 @@ const AdminAuditLog: React.FC = () => {
     setProperty(null);
     setPropertyError(null);
     setActiveImg(0);
+    setIsLightboxOpen(false); // Also ensure lightbox closes if modal closes
   };
 
   const filtered = logs.filter((l) => {
@@ -165,7 +182,7 @@ const AdminAuditLog: React.FC = () => {
       <AdminSidebar user={admin} navItems={[
         { path: "/admin/rental-requests", icon: "📋", label: "Rental Requests" },
         { path: "/admin/properties",      icon: "🏘️", label: "All Properties"  },
-        { path: "/admin/users",           icon: "👥", label: "Users"           },
+        { path: "/admin/users",           icon: "👥", label: "Users"          },
         { path: "/admin/audit-log",       icon: "📜", label: "Audit Log"       },
         { path: "/admin/notifications",   icon: "🔔", label: "Create Notification"   },
       ]} />
@@ -339,6 +356,9 @@ const AdminAuditLog: React.FC = () => {
                           src={property.images[activeImg]?.imageUrl}
                           alt="Property"
                           className={styles.galleryMainImg}
+                          // 🌟 CHANGED: Added onClick to trigger lightbox
+                          onClick={() => setIsLightboxOpen(true)}
+                          style={{ cursor: "pointer" }}
                         />
                         {property.images.length > 1 && (
                           <>
@@ -465,6 +485,64 @@ const AdminAuditLog: React.FC = () => {
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Lightbox Modal ── */}
+      {/* 🌟 NEW: Placed at bottom with high z-index (99999) to sit above the detail modal */}
+      {isLightboxOpen && property && (
+        <div 
+          onClick={() => setIsLightboxOpen(false)}
+          style={{
+            position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
+            backgroundColor: "rgba(18, 18, 18, 0.95)", zIndex: 99999, // Super high z-index
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
+          }}
+        >
+          {/* Header Area */}
+          <div style={{ position: "absolute", top: 0, width: "100%", padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", color: "white", boxSizing: "border-box" }}>
+            <span style={{ fontSize: "14px", fontWeight: "bold", letterSpacing: "1px" }}>
+              {activeImg + 1} / {property.images.length}
+            </span>
+            <button 
+              onClick={() => setIsLightboxOpen(false)}
+              style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "white", width: "40px", height: "40px", borderRadius: "50%", cursor: "pointer", fontSize: "18px", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Main Content Area */}
+          <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            
+            {/* Prev Arrow */}
+            {property.images.length > 1 && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); setActiveImg((i) => Math.max(0, i - 1)); }}
+                style={{ position: "absolute", left: "20px", background: "rgba(255,255,255,0.1)", border: "none", color: "white", width: "50px", height: "50px", borderRadius: "50%", cursor: "pointer", fontSize: "24px", display: "flex", alignItems: "center", justifyContent: "center", opacity: activeImg === 0 ? 0.3 : 1, pointerEvents: activeImg === 0 ? "none" : "auto" }}
+              >
+                ‹
+              </button>
+            )}
+
+            {/* The Image */}
+            <img 
+              src={property.images[activeImg]?.imageUrl} 
+              alt="Fullscreen property" 
+              onClick={(e) => e.stopPropagation()} 
+              style={{ maxWidth: "85%", maxHeight: "85vh", objectFit: "contain", borderRadius: "8px", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }} 
+            />
+
+            {/* Next Arrow */}
+            {property.images.length > 1 && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); setActiveImg((i) => Math.min(property.images.length - 1, i + 1)); }}
+                style={{ position: "absolute", right: "20px", background: "rgba(255,255,255,0.1)", border: "none", color: "white", width: "50px", height: "50px", borderRadius: "50%", cursor: "pointer", fontSize: "24px", display: "flex", alignItems: "center", justifyContent: "center", opacity: activeImg === property.images.length - 1 ? 0.3 : 1, pointerEvents: activeImg === property.images.length - 1 ? "none" : "auto" }}
+              >
+                ›
+              </button>
+            )}
           </div>
         </div>
       )}

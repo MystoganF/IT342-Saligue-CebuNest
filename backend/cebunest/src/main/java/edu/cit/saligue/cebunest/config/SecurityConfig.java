@@ -45,7 +45,8 @@ public class SecurityConfig {
 
                         // ── Admin ──────────────────────────────────────────
                         // Explicitly check for ROLE_ADMIN
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
+
 
                         // ── Others ─────────────────────────────────────────
                         .anyRequest().authenticated()

@@ -43,7 +43,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         userRepository.findByEmail(email).ifPresent(user -> {
             if (user.isActive()) {
                 // Ensure the role is uppercase for Spring Security comparison
-                String roleName = "ROLE_" + user.getRole().getName().toUpperCase();
+                String roleName = user.getRole().getName().toUpperCase();
 
                 // DEBUG: Check your IDE console to see this output!
                 System.out.println("User: " + email + " logged in with role: " + roleName);
