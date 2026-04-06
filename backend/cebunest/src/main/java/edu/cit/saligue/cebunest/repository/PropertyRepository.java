@@ -9,10 +9,8 @@ import java.util.List;
 
 public interface PropertyRepository extends JpaRepository<Property, Long> {
 
-    // ── Find by status (used by admin) ────────────────────────────────────
     List<Property> findByStatus(Property.PropertyStatus status);
 
-    // ── Public listing — available only, filter by type name via JOIN ─────
     @Query(value = """
         SELECT p.* FROM properties p
         JOIN property_types pt ON p.type_id = pt.id
@@ -31,7 +29,7 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
             @Param("maxPrice") Double maxPrice
     );
 
-    // ── Owner's own properties (all statuses) ─────────────────────────────
+    // ── UPDATED: Added status filter ──────────────────────────────────────
     @Query(value = """
         SELECT p.* FROM properties p
         WHERE p.owner_id = :ownerId
@@ -39,13 +37,15 @@ public interface PropertyRepository extends JpaRepository<Property, Long> {
                                OR LOWER(p.location::text) LIKE LOWER(CONCAT('%', :search, '%')))
         AND (:minPrice IS NULL OR p.price >= :minPrice)
         AND (:maxPrice IS NULL OR p.price <= :maxPrice)
+        AND (:status   IS NULL OR p.status = :status)
         ORDER BY p.created_at DESC
     """, nativeQuery = true)
     List<Property> findByOwnerFiltered(
             @Param("ownerId")   Long ownerId,
             @Param("search")    String search,
             @Param("minPrice")  Double minPrice,
-            @Param("maxPrice")  Double maxPrice
+            @Param("maxPrice")  Double maxPrice,
+            @Param("status")    String status
     );
 
     List<Property> findByOwnerId(Long ownerId);

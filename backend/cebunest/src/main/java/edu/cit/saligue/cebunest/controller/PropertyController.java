@@ -61,17 +61,20 @@ public class PropertyController {
         }
     }
 
+    // ... inside PropertyController.java ...
+
     // ── GET /api/properties/my ────────────────────────────────────────────
     @GetMapping("/my")
     public ResponseEntity<?> getMyProperties(
             @AuthenticationPrincipal User currentUser,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String status, // <--- Added status
             @RequestParam(required = false) Double minPrice,
             @RequestParam(required = false) Double maxPrice
     ) {
         try {
             List<PropertyDTO> properties = propertyService.getMyProperties(
-                    currentUser, search, minPrice, maxPrice);
+                    currentUser, search, minPrice, maxPrice, status);
             return buildSuccess(Map.of("properties", properties));
         } catch (Exception e) {
             return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);

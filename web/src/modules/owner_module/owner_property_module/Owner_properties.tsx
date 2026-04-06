@@ -66,10 +66,11 @@ const OwnerProperties: React.FC = () => {
   const [error, setError]           = useState<string | null>(null);
 
   // Filters
-  const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [minPrice, setMinPrice]       = useState("");
-  const [maxPrice, setMaxPrice]       = useState("");
+  const [searchInput, setSearchInput]   = useState("");
+  const [searchQuery, setSearchQuery]   = useState("");
+  const [statusFilter, setStatusFilter] = useState(""); // NEW: Status filter
+  const [minPrice, setMinPrice]         = useState("");
+  const [maxPrice, setMaxPrice]         = useState("");
 
   // Delete modal
   const [deleteTarget, setDeleteTarget] = useState<Property | null>(null);
@@ -94,9 +95,10 @@ const OwnerProperties: React.FC = () => {
     setError(null);
     try {
       const params = new URLSearchParams();
-      if (searchQuery) params.set("search",   searchQuery);
-      if (minPrice)    params.set("minPrice", minPrice);
-      if (maxPrice)    params.set("maxPrice", maxPrice);
+      if (searchQuery)  params.set("search",   searchQuery);
+      if (statusFilter) params.set("status",   statusFilter); // NEW
+      if (minPrice)     params.set("minPrice", minPrice);
+      if (maxPrice)     params.set("maxPrice", maxPrice);
 
       const token = localStorage.getItem("accessToken");
       const res   = await fetch(`${API_BASE}/api/properties/my?${params.toString()}`, {
@@ -110,7 +112,7 @@ const OwnerProperties: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, minPrice, maxPrice]);
+  }, [searchQuery, statusFilter, minPrice, maxPrice]); // Added statusFilter to dependencies
 
   useEffect(() => { if (user) fetchProperties(); }, [user, fetchProperties]);
 
@@ -230,6 +232,20 @@ const OwnerProperties: React.FC = () => {
               onChange={(e) => setSearchInput(e.target.value)}
             />
           </div>
+          
+          {/* NEW: Status Dropdown */}
+          <select 
+            className={styles.filterSelect}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">All Status</option>
+            <option value="AVAILABLE">Available</option>
+            <option value="UNAVAILABLE">Unavailable / Occupied</option>
+            <option value="PENDING_REVIEW">Pending Review</option>
+            <option value="REJECTED">Rejected</option>
+          </select>
+
           <div className={styles.filterPrice}>
             <input
               type="number"
@@ -282,7 +298,7 @@ const OwnerProperties: React.FC = () => {
               <span className={styles.stateIcon}>🏘️</span>
               <h3 className={styles.stateTitle}>No properties found</h3>
               <p className={styles.stateBody}>
-                {searchQuery || minPrice || maxPrice
+                {searchQuery || statusFilter || minPrice || maxPrice
                   ? "Try adjusting your search or filters."
                   : "You haven't added any properties yet."}
               </p>

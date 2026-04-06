@@ -39,12 +39,14 @@ public class PropertyService {
                 .map(PropertyDTO::from).toList();
     }
 
-    // ── Owner's own properties ───────────────────────────────────────────
     @Transactional(readOnly = true)
     public List<PropertyDTO> getMyProperties(
-            User owner, String search, Double minPrice, Double maxPrice) {
+            User owner, String search, Double minPrice, Double maxPrice, String status) { // <--- Added status
+
         String cleanSearch = blank(search) ? null : search.trim();
-        return propertyRepository.findByOwnerFiltered(owner.getId(), cleanSearch, minPrice, maxPrice)
+        String cleanStatus = blank(status) || status.equalsIgnoreCase("ALL") ? null : status.trim().toUpperCase();
+
+        return propertyRepository.findByOwnerFiltered(owner.getId(), cleanSearch, minPrice, maxPrice, cleanStatus)
                 .stream().map(p -> {
                     PropertyDTO dto = PropertyDTO.from(p);
                     boolean hasActiveTenant = rentalRequestRepository

@@ -528,3 +528,23 @@
   cursor: not-allowed;
   pointer-events: none;
 }
+
+/* ── Dropdown Filter ── */
+.filterSelect {
+  padding: 11px 14px;
+  border: 1.5px solid #e5eced;
+  border-radius: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a2a2e;
+  background: #fff;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.filterSelect:focus { 
+  border-color: var(--teal-aero); 
+  box-shadow: 0 0 0 4px rgba(83, 164, 163, 0.1);
+}

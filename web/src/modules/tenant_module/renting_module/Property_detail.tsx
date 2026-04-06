@@ -248,7 +248,6 @@ const PropertyDetail: React.FC = () => {
   const [expandedYears, setExpandedYears]               = useState<Record<string, boolean>>({});
   const [paymentActionLoading, setPaymentActionLoading] = useState<number | null>(null);
 
-  // ── Confirm state ──────────────────────────────────────────────────────
   const [confirming, setConfirming]   = useState(false);
   const [confirmMsg, setConfirmMsg]   = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -274,13 +273,17 @@ const PropertyDetail: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
+  // ── FIX: Added the token headers to this fetch request ──
   useEffect(() => {
     if (!id) return;
     setReviewsLoading(true);
-    fetch(`${API_BASE}/api/property-reviews/property/${id}`)
+    const token = localStorage.getItem("accessToken");
+    fetch(`${API_BASE}/api/property-reviews/property/${id}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
       .then(r => r.json())
       .then(data => { if (data.success) setReviews(data.data.reviews ?? []); })
-      .catch(() => {})
+      .catch(console.error)
       .finally(() => setReviewsLoading(false));
   }, [id]);
 
@@ -349,7 +352,6 @@ const PropertyDetail: React.FC = () => {
     }
   };
 
-  // ── Confirm rental (always MONTHLY) ───────────────────────────────────
   const handleConfirm = async () => {
     if (!existingRequest) return;
     setConfirming(true);
