@@ -24,6 +24,7 @@ public class AuthService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final EmailService emailService;
 
     public AuthResponse register(RegisterRequest request) {
         if (!request.getPassword().equals(request.getConfirmPassword())) {
@@ -50,7 +51,24 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+
+        // 2. Send the Welcome Email
+        sendWelcomeEmail(user, roleName);
+
         return buildAuthResponse(user, roleName);
+    }
+
+    // Helper method to keep the register method clean
+    private void sendWelcomeEmail(User user, String roleName) {
+        String subject = "Welcome to CebuNest, " + user.getName() + "! 🎉";
+        String body = "Hi " + user.getName() + ",\n\n" +
+                "Welcome to CebuNest! Your account has been successfully created as a " + roleName + ".\n\n" +
+                "You can now log in to browse listings, submit rental requests, and manage your properties " +
+                "all in one place.\n\n" +
+                "We're excited to have you with us!\n\n" +
+                "— The CebuNest Team";
+
+        emailService.sendEmail(user.getEmail(), subject, body);
     }
 
     public AuthResponse login(LoginRequest request) {
