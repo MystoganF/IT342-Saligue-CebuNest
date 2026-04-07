@@ -22,8 +22,19 @@ public class NotificationService {
     private final NotificationRepository  notificationRepository;
     private final AdminBroadcastRepository broadcastRepository;
     private final UserRepository           userRepository;
+    private final EmailService             emailService; // <-- Injected!
 
-    // ── Primary send — with propertyId ──────────────────────────────────
+    // Helper to format the email body nicely
+    private void dispatchEmail(User user, String type, String message) {
+        String subject = "CebuNest Update: " + type.replace("_", " ");
+        String body = "Hi " + user.getName() + ",\n\n" +
+                message +
+                "\n\nLog in to your CebuNest dashboard for more details.\n\n— CebuNest Team";
+
+        emailService.sendEmail(user.getEmail(), subject, body);
+    }
+
+    // ── Primary send ──────────────────────────────────
     @Transactional
     public void send(User user, String type, String message,
                      Long rentalRequestId, Long propertyId) {
@@ -31,23 +42,22 @@ public class NotificationService {
                 .user(user).type(type).message(message)
                 .rentalRequestId(rentalRequestId).propertyId(propertyId)
                 .build());
+
+        // Automatically send email!
+        dispatchEmail(user, type, message);
     }
 
-    // ── Legacy overload ──────────────────────────────────────────────────
     @Transactional
     public void send(User user, String type, String message, Long rentalRequestId) {
         send(user, type, message, rentalRequestId, null);
     }
 
-    // ── Admin broadcast — persists history + fans out to recipients ──────
-    // Returns recipient count so the controller can include it in the response
+    // ── Admin broadcast ──────
     @Transactional
     public long sendBroadcast(String type, String message,
                               List<String> targetRoles, User sentBy) {
-        // 1. Find all active users with the target roles
         List<User> targets = userRepository.findByRoleNameInAndActiveTrue(targetRoles);
 
-        // 2. Fan out individual notifications
         List<Notification> notifications = targets.stream()
                 .map(u -> Notification.builder()
                         .user(u).type(type).message(message)
@@ -56,24 +66,24 @@ public class NotificationService {
                 .collect(Collectors.toList());
         notificationRepository.saveAll(notifications);
 
-        // 3. Persist one broadcast record for the admin history panel
         broadcastRepository.save(AdminBroadcast.builder()
-                .sentBy(sentBy)
-                .type(type)
-                .message(message)
+                .sentBy(sentBy).type(type).message(message)
                 .targetRoles(String.join(",", targetRoles))
                 .recipientCount(targets.size())
                 .build());
 
+        // Automatically email all targets!
+        for(User target : targets) {
+            dispatchEmail(target, type, message);
+        }
+
         return targets.size();
     }
 
-    // ── Backward-compat overload (UserRepository param ignored) ─────────
     @Transactional
     public void sendBroadcast(String type, String message,
                               List<String> targetRoles,
                               UserRepository ignoredRepo) {
-        // sentBy is unknown in this path — use a minimal call
         sendBroadcastAnonymous(type, message, targetRoles);
     }
 
@@ -87,40 +97,32 @@ public class NotificationService {
                         .build())
                 .collect(Collectors.toList());
         notificationRepository.saveAll(notifications);
+
         broadcastRepository.save(AdminBroadcast.builder()
-                .sentBy(null)
-                .type(type)
-                .message(message)
+                .sentBy(null).type(type).message(message)
                 .targetRoles(String.join(",", targetRoles))
                 .recipientCount(targets.size())
                 .build());
+
+        for(User target : targets) {
+            dispatchEmail(target, type, message);
+        }
     }
 
-    // ── Admin history ────────────────────────────────────────────────────
     @Transactional(readOnly = true)
     public List<AdminBroadcastDTO> getBroadcastHistory() {
-        return broadcastRepository.findAllByOrderBySentAtDesc()
-                .stream()
-                .map(AdminBroadcastDTO::from)
-                .collect(Collectors.toList());
+        return broadcastRepository.findAllByOrderBySentAtDesc().stream().map(AdminBroadcastDTO::from).collect(Collectors.toList());
     }
 
-    // ── Per-user notifications ───────────────────────────────────────────
     @Transactional(readOnly = true)
     public List<NotificationDTO> getForUser(User user) {
-        return notificationRepository
-                .findByUserIdOrderByCreatedAtDesc(user.getId())
-                .stream()
-                .map(NotificationDTO::from)
-                .collect(Collectors.toList());
+        return notificationRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream().map(NotificationDTO::from).collect(Collectors.toList());
     }
 
     @Transactional
     public NotificationDTO markRead(Long notificationId, User user) {
-        Notification n = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new IllegalArgumentException("Notification not found."));
-        if (!n.getUser().getId().equals(user.getId()))
-            throw new IllegalArgumentException("Not your notification.");
+        Notification n = notificationRepository.findById(notificationId).orElseThrow(() -> new IllegalArgumentException("Notification not found."));
+        if (!n.getUser().getId().equals(user.getId())) throw new IllegalArgumentException("Not your notification.");
         n.setRead(true);
         return NotificationDTO.from(notificationRepository.save(n));
     }

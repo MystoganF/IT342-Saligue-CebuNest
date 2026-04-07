@@ -23,11 +23,9 @@ public class RentalRequestService {
 
     private final RentalRequestRepository rentalRequestRepository;
     private final PropertyRepository      propertyRepository;
-    private final EmailService            emailService;
     private final RentalPaymentRepository rentalPaymentRepository;
-    private final NotificationService     notificationService;   // ← ADDED
+    private final NotificationService     notificationService;
 
-    // ── Tenant: submit a request ─────────────────────────────────────────
     @Transactional
     public RentalRequestDTO createRequest(CreateRentalRequestDTO dto, User tenant) {
         Property property = propertyRepository.findById(dto.getPropertyId())
@@ -39,11 +37,9 @@ public class RentalRequestService {
         boolean alreadyRequested = rentalRequestRepository
                 .existsByTenantIdAndPropertyIdAndStatusIn(
                         tenant.getId(), property.getId(),
-                        List.of(RentalRequest.RentalStatus.PENDING,
-                                RentalRequest.RentalStatus.APPROVED)
+                        List.of(RentalRequest.RentalStatus.PENDING, RentalRequest.RentalStatus.APPROVED)
                 );
-        if (alreadyRequested)
-            throw new IllegalArgumentException("You already have an active request for this property.");
+        if (alreadyRequested) throw new IllegalArgumentException("You already have an active request for this property.");
 
         RentalRequest request = RentalRequest.builder()
                 .property(property)
@@ -56,241 +52,99 @@ public class RentalRequestService {
 
         RentalRequest saved = rentalRequestRepository.save(request);
 
-        // ── Emails ──────────────────────────────────────────────────────
-        emailService.sendEmail(tenant.getEmail(),
-                "CebuNest – Rental Request Received",
-                "Hi " + tenant.getName() + ",\n\n" +
-                        "Your rental request for \"" + property.getTitle() + "\" has been submitted.\n" +
-                        "Status: PENDING\n\nYou will be notified once the owner reviews your request.\n\n" +
-                        "— CebuNest Team");
-
-        emailService.sendEmail(property.getOwner().getEmail(),
-                "CebuNest – New Rental Request",
-                "Hi " + property.getOwner().getName() + ",\n\n" +
-                        "A new rental request has been submitted for \"" + property.getTitle() + "\".\n" +
-                        "Tenant: " + tenant.getName() + " (" + tenant.getEmail() + ")\n" +
-                        "Start Date: " + dto.getStartDate() + "\n" +
-                        "Lease Duration: " + dto.getLeaseDurationMonths() + " month(s)\n\n" +
-                        "Log in to your dashboard to approve or reject.\n\n— CebuNest Team");
-
-        // ── Notification: confirm to tenant that their request was sent ──
-        notificationService.send(
-                tenant,
-                "REQUEST_PENDING",
-                "Your rental request for \"" + property.getTitle() + "\" has been submitted. Waiting for owner review.",
-                property.getId()
-        );
-        // 🚨 ADD THIS NEW BLOCK: Notify the Owner! 🚨
-        notificationService.send(
-                property.getOwner(), // <--- Target the Owner!
-                "NEW_RENTAL_REQUEST",
-                "You have a new rental request from " + tenant.getName() + " for \"" + property.getTitle() + "\".",
-                null,
-                property.getId()
-        );
+        notificationService.send(tenant, "REQUEST_PENDING", "Your rental request for \"" + property.getTitle() + "\" has been submitted. Waiting for owner review.", property.getId());
+        notificationService.send(property.getOwner(), "NEW_RENTAL_REQUEST", "You have a new rental request from " + tenant.getName() + " for \"" + property.getTitle() + "\".", null, property.getId());
 
         return RentalRequestDTO.from(saved);
     }
 
-    // ── Tenant: view own requests ─────────────────────────────────────────
     @Transactional(readOnly = true)
     public List<RentalRequestDTO> getMyRequests(User tenant) {
-        return rentalRequestRepository
-                .findByTenantIdOrderByCreatedAtDesc(tenant.getId())
-                .stream().map(RentalRequestDTO::from).toList();
+        return rentalRequestRepository.findByTenantIdOrderByCreatedAtDesc(tenant.getId()).stream().map(RentalRequestDTO::from).toList();
     }
 
-    // ── Owner: view requests for a property ──────────────────────────────
     @Transactional(readOnly = true)
     public List<RentalRequestDTO> getRequestsForProperty(Long propertyId, User owner) {
-        Property property = propertyRepository.findById(propertyId)
-                .orElseThrow(() -> new IllegalArgumentException("Property not found."));
-
-        if (!property.getOwner().getId().equals(owner.getId()))
-            throw new IllegalArgumentException("You do not own this property.");
-
-        return rentalRequestRepository
-                .findByPropertyIdOrderByCreatedAtDesc(propertyId)
-                .stream().map(RentalRequestDTO::from).toList();
+        Property property = propertyRepository.findById(propertyId).orElseThrow(() -> new IllegalArgumentException("Property not found."));
+        if (!property.getOwner().getId().equals(owner.getId())) throw new IllegalArgumentException("You do not own this property.");
+        return rentalRequestRepository.findByPropertyIdOrderByCreatedAtDesc(propertyId).stream().map(RentalRequestDTO::from).toList();
     }
 
-    // ── Owner: approve or reject a request ───────────────────────────────
-    // ── Owner: approve or reject a request ───────────────────────────────
     @Transactional
     public RentalRequestDTO updateRequestStatus(Long requestId, String newStatus, User owner) {
-        RentalRequest request = rentalRequestRepository.findById(requestId)
-                .orElseThrow(() -> new IllegalArgumentException("Request not found."));
-
-        if (!request.getProperty().getOwner().getId().equals(owner.getId()))
-            throw new IllegalArgumentException("You do not own this property.");
-
-        if (request.getStatus() != RentalRequest.RentalStatus.PENDING)
-            throw new IllegalArgumentException("Only pending requests can be updated.");
+        RentalRequest request = rentalRequestRepository.findById(requestId).orElseThrow(() -> new IllegalArgumentException("Request not found."));
+        if (!request.getProperty().getOwner().getId().equals(owner.getId())) throw new IllegalArgumentException("You do not own this property.");
+        if (request.getStatus() != RentalRequest.RentalStatus.PENDING) throw new IllegalArgumentException("Only pending requests can be updated.");
 
         RentalRequest.RentalStatus status = RentalRequest.RentalStatus.valueOf(newStatus);
         request.setStatus(status);
         rentalRequestRepository.save(request);
 
-        String tenantEmail = request.getTenant().getEmail();
-        String tenantName  = request.getTenant().getName();
-        String propTitle   = request.getProperty().getTitle();
+        String propTitle = request.getProperty().getTitle();
 
         if (status == RentalRequest.RentalStatus.APPROVED) {
-
-            // ── NEW: Auto-reject all other pending requests for this property ──
-            List<RentalRequest> otherPending = rentalRequestRepository
-                    .findAllByPropertyIdAndStatus(request.getProperty().getId(), RentalRequest.RentalStatus.PENDING);
-
+            List<RentalRequest> otherPending = rentalRequestRepository.findAllByPropertyIdAndStatus(request.getProperty().getId(), RentalRequest.RentalStatus.PENDING);
             for (RentalRequest otherReq : otherPending) {
                 if (!otherReq.getId().equals(request.getId())) {
                     otherReq.setStatus(RentalRequest.RentalStatus.REJECTED);
                     rentalRequestRepository.save(otherReq);
-
-                    emailService.sendEmail(otherReq.getTenant().getEmail(),
-                            "CebuNest – Rental Request Update",
-                            "Hi " + otherReq.getTenant().getName() + ",\n\n" +
-                                    "Unfortunately, your rental request for \"" + propTitle + "\" was not approved as the property has been rented to someone else.\n" +
-                                    "You may browse other available properties on CebuNest.\n\n— CebuNest Team");
-
-                    notificationService.send(
-                            otherReq.getTenant(),
-                            "REQUEST_REJECTED",
-                            "Your request for \"" + propTitle + "\" was not approved. Browse other listings.",
-                            otherReq.getId()
-                    );
+                    notificationService.send(otherReq.getTenant(), "REQUEST_REJECTED", "Your request for \"" + propTitle + "\" was not approved. Browse other listings.", otherReq.getId());
                 }
             }
-            // ───────────────────────────────────────────────────────────────────
-
-            emailService.sendEmail(tenantEmail,
-                    "CebuNest – Rental Request Approved! 🎉",
-                    "Hi " + tenantName + ",\n\n" +
-                            "Great news! Your rental request for \"" + propTitle + "\" has been approved.\n" +
-                            "The owner will contact you shortly to arrange next steps.\n\n— CebuNest Team");
-
-            notificationService.send(
-                    request.getTenant(),
-                    "REQUEST_APPROVED",
-                    "🎉 Your request for \"" + propTitle + "\" was approved! Tap to confirm your rental.",
-                    request.getId()
-            );
-
+            notificationService.send(request.getTenant(), "REQUEST_APPROVED", "🎉 Your request for \"" + propTitle + "\" was approved! Tap to confirm your rental.", request.getId());
         } else if (status == RentalRequest.RentalStatus.REJECTED) {
-            emailService.sendEmail(tenantEmail,
-                    "CebuNest – Rental Request Update",
-                    "Hi " + tenantName + ",\n\n" +
-                            "Unfortunately, your rental request for \"" + propTitle + "\" was not approved.\n" +
-                            "You may browse other available properties on CebuNest.\n\n— CebuNest Team");
-
-            notificationService.send(
-                    request.getTenant(),
-                    "REQUEST_REJECTED",
-                    "Your request for \"" + propTitle + "\" was not approved. Browse other listings.",
-                    request.getId()
-            );
+            notificationService.send(request.getTenant(), "REQUEST_REJECTED", "Your request for \"" + propTitle + "\" was not approved. Browse other listings.", request.getId());
         }
 
         return RentalRequestDTO.from(request);
     }
 
-    // ── Owner: get active (CONFIRMED) tenant for a property ──────────────
     @Transactional(readOnly = true)
     public RentalRequestDTO getActiveTenant(Long propertyId, User owner) {
-        Property property = propertyRepository.findById(propertyId)
-                .orElseThrow(() -> new IllegalArgumentException("Property not found."));
-
-        if (!property.getOwner().getId().equals(owner.getId()))
-            throw new IllegalArgumentException("You do not own this property.");
-
-        return rentalRequestRepository
-                .findByPropertyIdAndStatus(propertyId, RentalRequest.RentalStatus.CONFIRMED)
-                .map(RentalRequestDTO::from)
-                .orElse(null);
+        Property property = propertyRepository.findById(propertyId).orElseThrow(() -> new IllegalArgumentException("Property not found."));
+        if (!property.getOwner().getId().equals(owner.getId())) throw new IllegalArgumentException("You do not own this property.");
+        return rentalRequestRepository.findByPropertyIdAndStatus(propertyId, RentalRequest.RentalStatus.CONFIRMED).map(RentalRequestDTO::from).orElse(null);
     }
 
-    // ── Owner: extend or reduce lease ────────────────────────────────────
     @Transactional
     public RentalRequestDTO updateLease(Long requestId, int adjustMonths, User owner) {
-        RentalRequest request = rentalRequestRepository.findById(requestId)
-                .orElseThrow(() -> new IllegalArgumentException("Request not found."));
-
-        if (!request.getProperty().getOwner().getId().equals(owner.getId()))
-            throw new IllegalArgumentException("You do not own this property.");
-
-        if (request.getStatus() != RentalRequest.RentalStatus.CONFIRMED)
-            throw new IllegalArgumentException("Lease can only be modified for active (CONFIRMED) tenants.");
+        RentalRequest request = rentalRequestRepository.findById(requestId).orElseThrow(() -> new IllegalArgumentException("Request not found."));
+        if (!request.getProperty().getOwner().getId().equals(owner.getId())) throw new IllegalArgumentException("You do not own this property.");
+        if (request.getStatus() != RentalRequest.RentalStatus.CONFIRMED) throw new IllegalArgumentException("Lease can only be modified for active (CONFIRMED) tenants.");
 
         int oldDuration = request.getLeaseDurationMonths();
         int newDuration = oldDuration + adjustMonths;
-        if (newDuration < 1)
-            throw new IllegalArgumentException("Lease duration cannot be less than 1 month.");
+        if (newDuration < 1) throw new IllegalArgumentException("Lease duration cannot be less than 1 month.");
 
         request.setLeaseDurationMonths(newDuration);
         rentalRequestRepository.save(request);
 
-        // ── Sync payment schedule ─────────────────────────────────────────
-        List<RentalPayment> allPayments = rentalPaymentRepository
-                .findByRentalRequestIdOrderByInstallmentNumberAsc(requestId);
-
+        List<RentalPayment> allPayments = rentalPaymentRepository.findByRentalRequestIdOrderByInstallmentNumberAsc(requestId);
         if (!allPayments.isEmpty()) {
             if (adjustMonths < 0) {
-                allPayments.stream()
-                        .filter(p -> p.getInstallmentNumber() > newDuration
-                                && p.getStatus() != RentalPayment.PaymentStatus.PAID)
-                        .forEach(rentalPaymentRepository::delete);
+                allPayments.stream().filter(p -> p.getInstallmentNumber() > newDuration && p.getStatus() != RentalPayment.PaymentStatus.PAID).forEach(rentalPaymentRepository::delete);
             } else {
                 double monthlyAmount = request.getProperty().getPrice();
                 LocalDate startDate  = request.getStartDate();
-                int lastInstallment  = allPayments.stream()
-                        .mapToInt(RentalPayment::getInstallmentNumber)
-                        .max().orElse(0);
+                int lastInstallment  = allPayments.stream().mapToInt(RentalPayment::getInstallmentNumber).max().orElse(0);
                 for (int i = lastInstallment + 1; i <= newDuration; i++) {
-                    RentalPayment p = RentalPayment.builder()
-                            .rentalRequest(request)
-                            .installmentNumber(i)
-                            .amount(monthlyAmount)
-                            .dueDate(startDate.plusMonths(i - 1))
-                            .status(RentalPayment.PaymentStatus.PENDING)
-                            .build();
+                    RentalPayment p = RentalPayment.builder().rentalRequest(request).installmentNumber(i).amount(monthlyAmount).dueDate(startDate.plusMonths(i - 1)).status(RentalPayment.PaymentStatus.PENDING).build();
                     rentalPaymentRepository.save(p);
                 }
             }
         }
 
-        String action = adjustMonths > 0
-                ? "extended by " + adjustMonths
-                : "reduced by " + Math.abs(adjustMonths);
-
-        emailService.sendEmail(
-                request.getTenant().getEmail(),
-                "CebuNest – Lease Duration Updated",
-                "Hi " + request.getTenant().getName() + ",\n\n" +
-                        "Your lease for \"" + request.getProperty().getTitle() + "\" has been " + action + " month(s).\n" +
-                        "New total duration: " + newDuration + " month(s).\n\n— CebuNest Team");
-
-        // ── Notification to tenant ────────────────────────────────────────
-        String propTitle = request.getProperty().getTitle();
-        notificationService.send(
-                request.getTenant(),
-                "LEASE_EXTENDED",
-                "Your lease for \"" + propTitle + "\" has been " + action + " month(s). New total: " + newDuration + " month(s).",
-                request.getId()
-        );
+        String action = adjustMonths > 0 ? "extended by " + adjustMonths : "reduced by " + Math.abs(adjustMonths);
+        notificationService.send(request.getTenant(), "LEASE_EXTENDED", "Your lease for \"" + request.getProperty().getTitle() + "\" has been " + action + " month(s). New total: " + newDuration + " month(s).", request.getId());
 
         return RentalRequestDTO.from(request);
     }
 
-    // ── Owner: terminate lease ────────────────────────────────────────────
     @Transactional
     public RentalRequestDTO terminateLease(Long requestId, User owner) {
-        RentalRequest request = rentalRequestRepository.findById(requestId)
-                .orElseThrow(() -> new IllegalArgumentException("Request not found."));
-
-        if (!request.getProperty().getOwner().getId().equals(owner.getId()))
-            throw new IllegalArgumentException("You do not own this property.");
-
-        if (request.getStatus() != RentalRequest.RentalStatus.CONFIRMED)
-            throw new IllegalArgumentException("Only active (CONFIRMED) leases can be terminated.");
+        RentalRequest request = rentalRequestRepository.findById(requestId).orElseThrow(() -> new IllegalArgumentException("Request not found."));
+        if (!request.getProperty().getOwner().getId().equals(owner.getId())) throw new IllegalArgumentException("You do not own this property.");
+        if (request.getStatus() != RentalRequest.RentalStatus.CONFIRMED) throw new IllegalArgumentException("Only active (CONFIRMED) leases can be terminated.");
 
         request.setStatus(RentalRequest.RentalStatus.TERMINATED);
         rentalRequestRepository.save(request);
@@ -299,32 +153,13 @@ public class RentalRequestService {
         property.setStatus(Property.PropertyStatus.AVAILABLE);
         propertyRepository.save(property);
 
-        emailService.sendEmail(
-                request.getTenant().getEmail(),
-                "CebuNest – Lease Terminated",
-                "Hi " + request.getTenant().getName() + ",\n\n" +
-                        "Your lease for \"" + property.getTitle() + "\" has been terminated by the owner.\n" +
-                        "Please make arrangements to vacate the property.\n\n— CebuNest Team");
-
-        // ── Notification to tenant ────────────────────────────────────────
-        notificationService.send(
-                request.getTenant(),
-                "LEASE_TERMINATED",
-                "Your lease for \"" + property.getTitle() + "\" has been terminated by the owner.",
-                request.getId()
-        );
+        notificationService.send(request.getTenant(), "LEASE_TERMINATED", "Your lease for \"" + property.getTitle() + "\" has been terminated by the owner.", request.getId());
 
         return RentalRequestDTO.from(request);
     }
 
-    // ── Tenant: get their own request for a specific property ─────────────
     @Transactional(readOnly = true)
     public RentalRequestDTO getMyRequestForProperty(Long propertyId, User tenant) {
-        return rentalRequestRepository
-                .findFirstByTenantIdAndPropertyIdOrderByCreatedAtDesc(tenant.getId(), propertyId)
-                .map(RentalRequestDTO::from)
-                .orElse(null);
+        return rentalRequestRepository.findFirstByTenantIdAndPropertyIdOrderByCreatedAtDesc(tenant.getId(), propertyId).map(RentalRequestDTO::from).orElse(null);
     }
-
-
 }
