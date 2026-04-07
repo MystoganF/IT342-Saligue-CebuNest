@@ -1,12 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import OwnerNavbar from "../../../components/OwnerNavbar/OwnerNavbar";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate, useParams, useOutletContext } from "react-router-dom";
+import { ownerApi } from "../ownerApi";
 import styles from "./owner_add_property.module.css";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-
 // ─── types ─────────────────────────────────────────────────────────────────
-
 interface User { id: number; name: string; email: string; role: string; avatarUrl?: string | null; }
 interface PropertyType { id: number; name: string; }
 interface ExistingImage { id: number; imageUrl: string; }
@@ -18,7 +15,6 @@ interface LeaseExtension { id: number; requestedMonths: number; reason: string |
 interface PropertyReview { id: number; tenantId: number; tenantName: string; tenantAvatarUrl: string | null; rating: number; comment: string | null; createdAt: string; }
 
 // ─── helpers ───────────────────────────────────────────────────────────────
-
 async function geocode(query: string): Promise<MapCoords | null> {
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`, { headers: { "Accept-Language": "en" } });
@@ -98,14 +94,15 @@ function formatDate(d: string) {
 }
 
 // ─── component ─────────────────────────────────────────────────────────────
-
 const EditProperty: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Grab user from OwnerLayout context
+  const { user } = useOutletContext<{ user: User }>();
+
   // ── Auth & metadata ────────────────────────────────────────────────────
-  const [user, setUser] = useState<User | null>(null);
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
@@ -192,172 +189,109 @@ const EditProperty: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitMsg, setSubmitMsg] = useState<{ type: "success" | "error" | "warning"; text: string; } | null>(null);
 
-  // ── Auth guard ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-    const token = localStorage.getItem("accessToken");
-    if (!stored || !token) { navigate("/"); return; }
-    try {
-      const parsed: User = JSON.parse(stored);
-      if (parsed.role?.toUpperCase() !== "OWNER") { navigate("/home"); return; }
-      setUser(parsed);
-    } catch { navigate("/"); }
-  }, [navigate]);
-
   // ── Property types ─────────────────────────────────────────────────────
   useEffect(() => {
-    fetch(`${API_BASE}/api/properties/types`)
-      .then((r) => r.json())
+    ownerApi.getPropertyTypes()
       .then((data) => { if (data.success) setPropertyTypes(data.data.types ?? []); })
       .catch(() => { });
   }, []);
 
-  // ── Load property ──────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!user || !id) return;
-    const token = localStorage.getItem("accessToken");
-    setPageLoading(true);
-    fetch(`${API_BASE}/api/properties/${id}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (!data.success) { setPageError("Property not found."); return; }
-        const p = data.data.property;
-        setTitle(p.title ?? "");
-        setDescription(p.description ?? "");
-        setPrice(String(p.price ?? ""));
-        setLocation(p.location ?? "");
-        setTypeId(String(p.typeId ?? ""));
-        setBeds(p.beds != null ? String(p.beds) : "");
-        setBaths(p.baths != null ? String(p.baths) : "");
-        setSqm(p.sqm != null ? String(p.sqm) : "");
-        setCurrentStatus(p.status ?? "");
-        setRejectionReason(p.rejectionReason ?? null);
-
-        // Map Admin Lockout fields from Backend
-        setIsAdminDisabled(p.adminDisabled ?? p.isAdminDisabled ?? false);
-        setAdminNote(p.adminNote ?? null);
-
-        if (p.status === "AVAILABLE" || p.status === "UNAVAILABLE") setStatus(p.status);
-        setExistingImages(
-          (p.images ?? []).map((img: any, idx: number) => ({
-            id: img.id ?? idx,
-            imageUrl: img.imageUrl,
-          }))
-        );
-        geocode(p.location).then((coords) => { if (coords) setMapCoords(coords); });
-      })
-      .catch(() => setPageError("Failed to load property."))
-      .finally(() => setPageLoading(false));
-  }, [user, id]);
-
-  // ── Load rental requests ───────────────────────────────────────────────
-  useEffect(() => {
-    if (!user || !id) return;
-    const token = localStorage.getItem("accessToken");
-    setRequestsLoading(true);
-    fetch(`${API_BASE}/api/rental-requests/property/${id}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.success) {
-          const reqs: RentalRequest[] = data.data.requests ?? [];
-          setRequests(reqs);
-          if (reqs.length > 0) {
-            const latestYear = getYear(reqs[0].createdAt);
-            setOpenRequestYears(new Set([latestYear]));
-          }
-        } else {
-          setRequestsError("Failed to load requests.");
-        }
-      })
-      .catch(() => setRequestsError("Unable to load rental requests."))
-      .finally(() => setRequestsLoading(false));
-  }, [user, id]);
-
-  // ── Load active tenant ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (!user || !id) return;
-    const token = localStorage.getItem("accessToken");
-    setActiveTenantLoading(true);
-    fetch(`${API_BASE}/api/rental-requests/property/${id}/active`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.success && data.data.activeTenant && data.data.activeTenant.tenantId) {
-          const t = data.data.activeTenant;
-          setActiveTenant({
-            id: t.id,
-            tenantId: t.tenantId,
-            tenantName: t.tenantName,
-            tenantEmail: t.tenantEmail,
-            startDate: t.startDate,
-            leaseDurationMonths: t.leaseDurationMonths,
-            status: t.status,
-          });
-        } else {
-          setActiveTenant(null);
-        }
-      })
-      .catch(() => { })
-      .finally(() => setActiveTenantLoading(false));
-  }, [user, id]);
-
-  // ── Load payment history when active tenant is known ──────────────────
-  useEffect(() => {
-    if (!activeTenant) { setPayments([]); return; }
-    const token = localStorage.getItem("accessToken");
-    setPaymentsLoading(true);
-    setPaymentsError(null);
-    fetch(`${API_BASE}/api/payments/request/${activeTenant.id}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.success) {
-          const pmts: RentalPayment[] = data.data.payments ?? [];
-          setPayments(pmts);
-          const firstUnpaid = pmts.find((p) => p.status === "PENDING" || p.status === "OVERDUE");
-          const autoYear = firstUnpaid ? getYear(firstUnpaid.dueDate) : pmts.length > 0 ? getYear(pmts[pmts.length - 1].dueDate) : null;
-          if (autoYear) setOpenPaymentYears(new Set([autoYear]));
-        } else {
-          setPaymentsError("Failed to load payment history.");
-        }
-      })
-      .catch(() => setPaymentsError("Unable to load payment history."))
-      .finally(() => setPaymentsLoading(false));
-  }, [activeTenant]);
-
-  // ── Load lease extension requests ─────────────────────────────────────
-  useEffect(() => {
-    if (!activeTenant) { setLeaseExtensions([]); return; }
-    const token = localStorage.getItem("accessToken");
-    setLeaseExtLoading(true);
-    fetch(`${API_BASE}/api/lease-extensions/rental/${activeTenant.id}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then((r) => r.json())
-      .then((data) => { if (data.success) setLeaseExtensions(data.data.extensionRequests ?? []); })
-      .catch(() => { })
-      .finally(() => setLeaseExtLoading(false));
-  }, [activeTenant]);
-
-  // ── Load property reviews ──────────────────────────────────────────────
-  useEffect(() => {
+  // ── Load Property Data (All API calls consolidated) ─────────────────────
+  const fetchAllPropertyData = useCallback(async () => {
     if (!id) return;
-    const token = localStorage.getItem("accessToken");
-    setReviewsLoading(true);
-    fetch(`${API_BASE}/api/property-reviews/property/${id}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then((r) => r.json())
-      .then((data) => { if (data.success) setReviews(data.data.reviews ?? []); })
-      .catch(() => { })
-      .finally(() => setReviewsLoading(false));
+    setPageLoading(true);
+
+    try {
+      // 1. Get Property
+      const propData = await ownerApi.getPropertyById(id);
+      if (!propData.success) throw new Error("Property not found.");
+      const p = propData.data.property;
+      
+      setTitle(p.title ?? "");
+      setDescription(p.description ?? "");
+      setPrice(String(p.price ?? ""));
+      setLocation(p.location ?? "");
+      setTypeId(String(p.typeId ?? ""));
+      setBeds(p.beds != null ? String(p.beds) : "");
+      setBaths(p.baths != null ? String(p.baths) : "");
+      setSqm(p.sqm != null ? String(p.sqm) : "");
+      setCurrentStatus(p.status ?? "");
+      setRejectionReason(p.rejectionReason ?? null);
+      setIsAdminDisabled(p.adminDisabled ?? p.isAdminDisabled ?? false);
+      setAdminNote(p.adminNote ?? null);
+
+      if (p.status === "AVAILABLE" || p.status === "UNAVAILABLE") setStatus(p.status);
+      setExistingImages((p.images ?? []).map((img: any, idx: number) => ({ id: img.id ?? idx, imageUrl: img.imageUrl })));
+      
+      geocode(p.location).then((coords) => { if (coords) setMapCoords(coords); });
+
+      // 2. Load Requests
+      setRequestsLoading(true);
+      ownerApi.getPropertyRentalRequests(id)
+        .then((data) => {
+          if (data.success) {
+            const reqs = data.data.requests ?? [];
+            setRequests(reqs);
+            if (reqs.length > 0) setOpenRequestYears(new Set([getYear(reqs[0].createdAt)]));
+          } else setRequestsError("Failed to load requests.");
+        })
+        .catch(() => setRequestsError("Unable to load rental requests."))
+        .finally(() => setRequestsLoading(false));
+
+      // 3. Load Active Tenant
+      setActiveTenantLoading(true);
+      const activeTenantData = await ownerApi.getActiveTenant(id).catch(() => ({ success: false }));
+      
+      if (activeTenantData.success && activeTenantData.data?.activeTenant?.tenantId) {
+        const t = activeTenantData.data.activeTenant;
+        const tenant = {
+          id: t.id, tenantId: t.tenantId, tenantName: t.tenantName,
+          tenantEmail: t.tenantEmail, startDate: t.startDate,
+          leaseDurationMonths: t.leaseDurationMonths, status: t.status,
+        };
+        setActiveTenant(tenant);
+
+        // 4. Load Payment History
+        setPaymentsLoading(true);
+        ownerApi.getPaymentsForRequest(tenant.id)
+          .then((data) => {
+            if (data.success) {
+              const pmts = data.data.payments ?? [];
+              setPayments(pmts);
+              const firstUnpaid = pmts.find((p: any) => p.status === "PENDING" || p.status === "OVERDUE");
+              const autoYear = firstUnpaid ? getYear(firstUnpaid.dueDate) : pmts.length > 0 ? getYear(pmts[pmts.length - 1].dueDate) : null;
+              if (autoYear) setOpenPaymentYears(new Set([autoYear]));
+            } else setPaymentsError("Failed to load payment history.");
+          })
+          .catch(() => setPaymentsError("Unable to load payment history."))
+          .finally(() => setPaymentsLoading(false));
+
+        // 5. Load Lease Extensions
+        setLeaseExtLoading(true);
+        ownerApi.getLeaseExtensions(tenant.id)
+          .then((data) => { if (data.success) setLeaseExtensions(data.data.extensionRequests ?? []); })
+          .catch(() => {})
+          .finally(() => setLeaseExtLoading(false));
+      } else {
+        setActiveTenant(null);
+        setActiveTenantLoading(false);
+      }
+
+      // 6. Load Reviews
+      setReviewsLoading(true);
+      ownerApi.getPropertyReviews(id)
+        .then((data) => { if (data.success) setReviews(data.data.reviews ?? []); })
+        .catch(() => {})
+        .finally(() => setReviewsLoading(false));
+
+    } catch (err: any) {
+      setPageError(err.message);
+    } finally {
+      setPageLoading(false);
+    }
   }, [id]);
+
+  useEffect(() => { fetchAllPropertyData(); }, [fetchAllPropertyData]);
 
   // ── Keyboard lightbox nav ──────────────────────────────────────────────
   useEffect(() => {
@@ -407,16 +341,9 @@ const EditProperty: React.FC = () => {
     if (!actionTarget || !actionType) return;
     setActionSubmitting(true); setActionError(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`${API_BASE}/api/rental-requests/${actionTarget.id}/status`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), },
-        body: JSON.stringify({ status: actionType }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) { setActionError(data?.error?.message ?? "Action failed."); return; }
+      const data = await ownerApi.updateRentalRequestStatus(actionTarget.id, actionType);
+      if (!data.success) { setActionError(data?.error?.message ?? "Action failed."); return; }
       
-      // Optimitistic Auto-Reject for UI
       if (actionType === "APPROVED") {
         setRequests((prev) => prev.map((r) => 
           r.id === actionTarget.id ? { ...r, status: "APPROVED" } : (r.status === "PENDING" ? { ...r, status: "REJECTED" } : r)
@@ -439,19 +366,16 @@ const EditProperty: React.FC = () => {
   const handleLeaseAction = async () => {
     if (!activeTenant) return;
     setLeaseSubmitting(true); setLeaseError(null);
-    const token = localStorage.getItem("accessToken");
     try {
       if (leaseModal === "terminate") {
-        const res = await fetch(`${API_BASE}/api/rental-requests/${activeTenant.id}/terminate`, { method: "PUT", headers: token ? { Authorization: `Bearer ${token}` } : {}, });
-        const data = await res.json();
-        if (!res.ok || !data.success) { setLeaseError(data?.error?.message ?? "Failed to terminate lease."); return; }
+        const data = await ownerApi.terminateLease(activeTenant.id);
+        if (!data.success) { setLeaseError(data?.error?.message ?? "Failed to terminate lease."); return; }
         setActiveTenant(null); setPayments([]); setLeaseExtensions([]); setStatus("AVAILABLE"); setCurrentStatus("AVAILABLE"); setLeaseSuccess("Lease terminated. Property is now available.");
         setTimeout(closeLeaseModal, 1800);
       } else {
         const adjust = leaseModal === "extend" ? leaseMonths : -leaseMonths;
-        const res = await fetch(`${API_BASE}/api/rental-requests/${activeTenant.id}/lease`, { method: "PUT", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), }, body: JSON.stringify({ adjustMonths: adjust }), });
-        const data = await res.json();
-        if (!res.ok || !data.success) { setLeaseError(data?.error?.message ?? "Failed to update lease."); return; }
+        const data = await ownerApi.adjustLease(activeTenant.id, adjust);
+        if (!data.success) { setLeaseError(data?.error?.message ?? "Failed to update lease."); return; }
         setActiveTenant((prev) => prev ? { ...prev, leaseDurationMonths: data.data.request.leaseDurationMonths } : prev);
         setLeaseSuccess(leaseModal === "extend" ? `Lease extended by ${leaseMonths} month(s).` : `Lease reduced by ${leaseMonths} month(s).`);
         setTimeout(closeLeaseModal, 1800);
@@ -463,11 +387,9 @@ const EditProperty: React.FC = () => {
   // ── Respond to lease extension request ────────────────────────────────
   const handleExtensionRespond = async (extensionId: number, decision: "APPROVED" | "REJECTED") => {
     setExtActionId(extensionId); setExtActionSubmitting(true); setExtActionError(null);
-    const token = localStorage.getItem("accessToken");
     try {
-      const res = await fetch(`${API_BASE}/api/lease-extensions/${extensionId}/respond`, { method: "PUT", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), }, body: JSON.stringify({ decision }), });
-      const data = await res.json();
-      if (!res.ok || !data.success) { setExtActionError(data?.error?.message ?? "Action failed."); return; }
+      const data = await ownerApi.respondToLeaseExtension(extensionId, decision);
+      if (!data.success) { setExtActionError(data?.error?.message ?? "Action failed."); return; }
       const approved = leaseExtensions.find((e) => e.id === extensionId);
       setLeaseExtensions((prev) => prev.map((e) => e.id === extensionId ? { ...e, status: decision } : e));
       if (decision === "APPROVED" && approved) { setActiveTenant((prev) => prev ? { ...prev, leaseDurationMonths: prev.leaseDurationMonths + approved.requestedMonths } : prev); }
@@ -478,34 +400,33 @@ const EditProperty: React.FC = () => {
   // ── Form submit ────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !id) return;
+    if (!id) return;
     setSubmitting(true); setSubmitMsg(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const updateRes = await fetch(`${API_BASE}/api/properties/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), },
-        body: JSON.stringify({
-          title: title.trim(),
-          description: description.trim(),
-          price: parseFloat(price),
-          location: location.trim(),
-          typeId: parseInt(typeId),
-          beds: beds ? parseInt(beds) : null,
-          baths: baths ? parseInt(baths) : null,
-          sqm: sqm ? parseInt(sqm) : null,
-          status: (currentStatus === "AVAILABLE" || currentStatus === "UNAVAILABLE") ? status : undefined,
-          removedImageIds: removedImageIds.length > 0 ? removedImageIds : undefined,
-        }),
+      const updateData = await ownerApi.updateProperty(id, {
+        title: title.trim(),
+        description: description.trim(),
+        price: parseFloat(price),
+        location: location.trim(),
+        typeId: parseInt(typeId),
+        beds: beds ? parseInt(beds) : null,
+        baths: baths ? parseInt(baths) : null,
+        sqm: sqm ? parseInt(sqm) : null,
+        status: (currentStatus === "AVAILABLE" || currentStatus === "UNAVAILABLE") ? status : undefined,
+        removedImageIds: removedImageIds.length > 0 ? removedImageIds : undefined,
       });
-      const updateData = await updateRes.json();
-      if (!updateRes.ok || !updateData.success) { setSubmitMsg({ type: "error", text: updateData?.error?.message ?? "Failed to update property." }); return; }
+
+      if (!updateData.success) { setSubmitMsg({ type: "error", text: updateData?.error?.message ?? "Failed to update property." }); return; }
+      
       if (newImageFiles.length > 0) {
         const formData = new FormData();
         newImageFiles.forEach((f) => formData.append("files", f));
-        const imgRes = await fetch(`${API_BASE}/api/properties/${id}/images`, { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: formData, });
-        const imgData = await imgRes.json();
-        if (!imgRes.ok || !imgData.success) { setSubmitMsg({ type: "warning", text: "Property updated! Some images failed to upload." }); setTimeout(() => navigate("/owner/properties"), 2000); return; }
+        const imgData = await ownerApi.uploadPropertyImages(id, formData);
+        if (!imgData.success) { 
+          setSubmitMsg({ type: "warning", text: "Property updated! Some images failed to upload." }); 
+          setTimeout(() => navigate("/owner/properties"), 2000); 
+          return; 
+        }
       }
       setSubmitMsg({ type: "success", text: "Property updated successfully! Redirecting…" });
       setTimeout(() => navigate("/owner/properties"), 1500);
@@ -538,25 +459,22 @@ const EditProperty: React.FC = () => {
   const overdueCount = payments.filter((p) => p.status === "OVERDUE").length;
   const totalPaid = payments.filter((p) => p.status === "PAID").reduce((s, p) => s + p.amount, 0);
 
-  // Reviews Filtering for Modal
   const filteredReviews = modalRatingFilter === 0 ? reviews : reviews.filter(r => r.rating === modalRatingFilter);
 
   if (pageLoading) return (
     <div className={styles.page}>
-      <OwnerNavbar user={user} onAddProperty={() => { }} />
       <div style={{ padding: "60px 40px", textAlign: "center", color: "#6e7071" }}>Loading property…</div>
     </div>
   );
   if (pageError) return (
     <div className={styles.page}>
-      <OwnerNavbar user={user} onAddProperty={() => { }} />
       <div style={{ padding: "60px 40px", textAlign: "center", color: "#c0392b" }}>{pageError}</div>
     </div>
   );
 
   return (
     <div className={styles.page}>
-      <OwnerNavbar user={user} onAddProperty={() => { }} />
+      {/* ── Navbar removed (Handled by OwnerLayout) ── */}
 
       {/* ── Lightbox ── */}
       {lightboxSrc && (

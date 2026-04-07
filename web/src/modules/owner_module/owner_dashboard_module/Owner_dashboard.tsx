@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import OwnerNavbar from "../../../components/OwnerNavbar/OwnerNavbar";
+import { useNavigate, useOutletContext } from "react-router-dom";
+import { ownerApi } from "../ownerApi";
 import styles from "./Owner_dashboard.module.css";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 const PAGE_SIZE = 8;
 
@@ -337,7 +335,9 @@ function PaymentDrawer({
 const OwnerDashboard: React.FC = () => {
   const navigate = useNavigate();
 
-  const [user, setUser]                         = useState<User | null>(null);
+  // Grab user from OwnerLayout context instead of localStorage
+  const { user } = useOutletContext<{ user: User }>();
+
   const [analytics, setAnalytics]               = useState<Analytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [drawerStatus, setDrawerStatus]         = useState<DrawerStatus | null>(null);
@@ -345,33 +345,16 @@ const OwnerDashboard: React.FC = () => {
   const openDrawer  = useCallback((s: DrawerStatus) => setDrawerStatus(s), []);
   const closeDrawer = useCallback(() => setDrawerStatus(null), []);
 
+  // Fetch Analytics using our new ownerApi
   useEffect(() => {
-    const stored = localStorage.getItem("user");
-    const token  = localStorage.getItem("accessToken");
-    if (!stored || !token) { navigate("/"); return; }
-    try {
-      const parsed: User = JSON.parse(stored);
-      if (parsed.role?.toUpperCase() !== "OWNER") { navigate("/home"); return; }
-      setUser(parsed);
-    } catch { navigate("/"); }
-  }, [navigate]);
-
-  useEffect(() => {
-    if (!user) return;
-    const token = localStorage.getItem("accessToken");
-    fetch(`${API_BASE}/api/analytics/owner`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then((r) => r.json())
+    ownerApi.getOwnerAnalytics()
       .then((data) => { if (data.success) setAnalytics(data.data); })
       .catch(() => {})
       .finally(() => setAnalyticsLoading(false));
-  }, [user]);
+  }, []);
 
   const al = analyticsLoading;
   const a  = analytics;
-
-  if (!user) return null;
 
   const drawerEntries = drawerStatus
     ? ((a?.[DRAWER_META[drawerStatus].entriesKey] ?? []) as PaymentEntry[])
@@ -383,7 +366,7 @@ const OwnerDashboard: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      <OwnerNavbar user={user} onAddProperty={() => navigate("/owner/properties/new")} />
+      {/* ── OwnerNavbar removed (Handled by OwnerLayout) ── */}
 
       {/* ── Hero ── */}
       <section className={styles.hero}>

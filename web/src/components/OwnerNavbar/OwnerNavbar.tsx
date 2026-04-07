@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom"; // <-- Added Link
 import styles from "./OwnerNavbar.module.css";
 import logo from "../../assets/images/cebunest-logo.png";
 
@@ -162,19 +162,21 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
       <nav className={styles.navbar}>
         <div className={styles.inner}>
 
-          <a href="/owner/dashboard" className={styles.brand}>
+          {/* CHANGED FROM <a> TO <Link> */}
+          <Link to="/owner/dashboard" className={styles.brand}>
             <img src={logo} alt="CebuNest" className={styles.brandLogo} />
             <span className={styles.brandName}>CebuNest</span>
             <span className={styles.brandPill}>Owner</span>
-          </a>
+          </Link>
 
+          {/* CHANGED FROM <a> TO <Link> */}
           <div className={styles.navLinks}>
-            <a href="/owner/dashboard"   className={`${styles.navLink} ${isActive("/owner/dashboard")}`}>
+            <Link to="/owner/dashboard" className={`${styles.navLink} ${isActive("/owner/dashboard")}`}>
               <span className={styles.navLinkIcon}>📊</span>Dashboard
-            </a>
-            <a href="/owner/properties"  className={`${styles.navLink} ${isActive("/owner/properties")}`}>
+            </Link>
+            <Link to="/owner/properties" className={`${styles.navLink} ${isActive("/owner/properties")}`}>
               <span className={styles.navLinkIcon}>🏠</span>My Properties
-            </a>
+            </Link>
           </div>
 
           <div className={styles.actions}>
@@ -232,7 +234,6 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
                           onClick={() => markRead(notif)}
                           type="button"
                         >
-                          {/* ── Type-colored icon bubble ── */}
                           <span
                             className={styles.notifItemIcon}
                             style={{ background: notifIconBg(notif.type) }}
@@ -241,7 +242,6 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
                           </span>
 
                           <div className={styles.notifItemBody}>
-                            {/* ── Type label badge ── */}
                             <span
                               className={styles.notifTypeBadge}
                               style={{
@@ -291,10 +291,11 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
                     <span className={styles.dropdownRole}>🔑 Owner</span>
                   </div>
                   <div className={styles.dropdownItems}>
-                    <a href="/profile" className={styles.dropdownItem} role="menuitem"
+                    {/* CHANGED FROM <a> TO <Link> */}
+                    <Link to="/profile" className={styles.dropdownItem} role="menuitem"
                       onClick={() => setMenuOpen(false)}>
                       <span className={styles.dropdownItemIcon}>👤</span>Profile
-                    </a>
+                    </Link>
                     <div className={styles.dropdownDivider} />
                     <button className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`} role="menuitem"
                       onClick={() => { setMenuOpen(false); setShowLogoutModal(true); }}>

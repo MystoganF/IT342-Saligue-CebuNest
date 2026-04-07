@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import OwnerNavbar from "../../../components/OwnerNavbar/OwnerNavbar";
+import { useNavigate, useOutletContext, Link } from "react-router-dom";
+import { ownerApi } from "../ownerApi";
 import styles from "./Owner_properties.module.css";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 // ─── types ─────────────────────────────────────────────────────────────────
 interface User {
@@ -31,7 +30,6 @@ interface Property {
 }
 
 // ─── helpers ───────────────────────────────────────────────────────────────
-
 function formatPrice(price: number): string {
   return new Intl.NumberFormat("en-PH", {
     style: "currency", currency: "PHP",
@@ -56,11 +54,12 @@ function getStatusLabel(status: string, hasActiveTenant: boolean): string {
 }
 
 // ─── component ─────────────────────────────────────────────────────────────
-
 const OwnerProperties: React.FC = () => {
   const navigate = useNavigate();
+  
+  // Grab user from OwnerLayout context
+  const { user } = useOutletContext<{ user: User }>();
 
-  const [user, setUser]             = useState<User | null>(null);
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState<string | null>(null);
@@ -68,7 +67,7 @@ const OwnerProperties: React.FC = () => {
   // Filters
   const [searchInput, setSearchInput]   = useState("");
   const [searchQuery, setSearchQuery]   = useState("");
-  const [statusFilter, setStatusFilter] = useState(""); // NEW: Status filter
+  const [statusFilter, setStatusFilter] = useState("");
   const [minPrice, setMinPrice]         = useState("");
   const [maxPrice, setMaxPrice]         = useState("");
 
@@ -77,44 +76,28 @@ const OwnerProperties: React.FC = () => {
   const [deleting, setDeleting]         = useState(false);
   const [deleteError, setDeleteError]   = useState<string | null>(null);
 
-  // ── Auth guard ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-    const token  = localStorage.getItem("accessToken");
-    if (!stored || !token) { navigate("/"); return; }
-    try {
-      const parsed: User = JSON.parse(stored);
-      if (parsed.role?.toUpperCase() !== "OWNER") { navigate("/home"); return; }
-      setUser(parsed);
-    } catch { navigate("/"); }
-  }, [navigate]);
-
   // ── Fetch properties ───────────────────────────────────────────────────
   const fetchProperties = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      if (searchQuery)  params.set("search",   searchQuery);
-      if (statusFilter) params.set("status",   statusFilter); // NEW
-      if (minPrice)     params.set("minPrice", minPrice);
-      if (maxPrice)     params.set("maxPrice", maxPrice);
+      const params: Record<string, string> = {};
+      if (searchQuery)  params.search   = searchQuery;
+      if (statusFilter) params.status   = statusFilter;
+      if (minPrice)     params.minPrice = minPrice;
+      if (maxPrice)     params.maxPrice = maxPrice;
 
-      const token = localStorage.getItem("accessToken");
-      const res   = await fetch(`${API_BASE}/api/properties/my?${params.toString()}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) { setError("Failed to load properties."); return; }
+      const data = await ownerApi.getMyProperties(params);
+      if (!data.success) { setError("Failed to load properties."); return; }
       setProperties(data.data.properties ?? []);
     } catch {
       setError("Unable to connect to server.");
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, statusFilter, minPrice, maxPrice]); // Added statusFilter to dependencies
+  }, [searchQuery, statusFilter, minPrice, maxPrice]);
 
-  useEffect(() => { if (user) fetchProperties(); }, [user, fetchProperties]);
+  useEffect(() => { fetchProperties(); }, [fetchProperties]);
 
   // ── Delete ─────────────────────────────────────────────────────────────
   const handleDelete = async () => {
@@ -122,13 +105,8 @@ const OwnerProperties: React.FC = () => {
     setDeleting(true);
     setDeleteError(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res   = await fetch(`${API_BASE}/api/properties/${deleteTarget.id}`, {
-        method: "DELETE",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      const data = await ownerApi.deleteProperty(deleteTarget.id);
+      if (!data.success) {
         setDeleteError(data?.error?.message ?? "Delete failed.");
         return;
       }
@@ -150,10 +128,7 @@ const OwnerProperties: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      <OwnerNavbar
-        user={user}
-        onAddProperty={() => navigate("/owner/properties/new")}
-      />
+      {/* ── Navbar removed (Handled by OwnerLayout) ── */}
 
       {/* ── Delete Confirmation Modal ── */}
       {deleteTarget && (
@@ -233,7 +208,6 @@ const OwnerProperties: React.FC = () => {
             />
           </div>
           
-          {/* NEW: Status Dropdown */}
           <select 
             className={styles.filterSelect}
             value={statusFilter}
@@ -367,12 +341,12 @@ const OwnerProperties: React.FC = () => {
                       <div className={styles.cardPriceLabel}>/ month</div>
                     </div>
                     <div className={styles.cardActions}>
-                      <a
-                        href={`/owner/properties/${p.id}/edit`}
-                        className={styles.cardEditBtn}
-                      >
-                        {isRejected ? "👁 View" : "✏️ View"}
-                      </a>
+                      <Link
+                          to={`/owner/properties/${p.id}/edit`}
+                          className={styles.cardEditBtn}
+                        >
+                          {isRejected ? "👁 View" : "✏️ View"}
+                        </Link>
                       <button
                         className={styles.cardDeleteBtn}
                         onClick={() => { setDeleteTarget(p); setDeleteError(null); }}

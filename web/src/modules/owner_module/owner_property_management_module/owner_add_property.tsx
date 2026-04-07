@@ -1,12 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import OwnerNavbar from "../../../components/OwnerNavbar/OwnerNavbar";
+import { useNavigate, useOutletContext } from "react-router-dom";
+import { ownerApi } from "../ownerApi";
 import styles from "./owner_add_property.module.css";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-
 // ─── types ─────────────────────────────────────────────────────────────────
-
 interface User {
   id: number;
   name: string;
@@ -26,7 +23,6 @@ interface MapCoords {
 }
 
 // ─── helpers ───────────────────────────────────────────────────────────────
-
 async function geocode(query: string): Promise<MapCoords | null> {
   try {
     const res = await fetch(
@@ -51,15 +47,13 @@ function buildMapSrc(coords: MapCoords): string {
 }
 
 // ─── component ─────────────────────────────────────────────────────────────
-
 const AddProperty: React.FC = () => {
   const navigate     = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auth
-  const [user, setUser] = useState<User | null>(null);
+  // Grab user from OwnerLayout context
+  const { user } = useOutletContext<{ user: User }>();
 
-  // Property types
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
 
   // Form fields
@@ -83,29 +77,13 @@ const AddProperty: React.FC = () => {
   const [imagePreviews, setImagePreviews]   = useState<string[]>([]);
   const [dragOver, setDragOver]             = useState(false);
 
-  // Submit — added "warning" as a third type
+  // Submit
   const [submitting, setSubmitting] = useState(false);
-  const [submitMsg, setSubmitMsg]   = useState<{
-    type: "success" | "error" | "warning";
-    text: string;
-  } | null>(null);
-
-  // ── Auth guard ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-    const token  = localStorage.getItem("accessToken");
-    if (!stored || !token) { navigate("/"); return; }
-    try {
-      const parsed: User = JSON.parse(stored);
-      if (parsed.role?.toUpperCase() !== "OWNER") { navigate("/home"); return; }
-      setUser(parsed);
-    } catch { navigate("/"); }
-  }, [navigate]);
+  const [submitMsg, setSubmitMsg]   = useState<{ type: "success" | "error" | "warning"; text: string; } | null>(null);
 
   // ── Fetch property types ───────────────────────────────────────────────
   useEffect(() => {
-    fetch(`${API_BASE}/api/properties/types`)
-      .then((r) => r.json())
+    ownerApi.getPropertyTypes()
       .then((data) => {
         if (data.success) setPropertyTypes(data.data.types ?? []);
       })
@@ -153,47 +131,27 @@ const AddProperty: React.FC = () => {
     setSubmitMsg(null);
 
     try {
-      const token = localStorage.getItem("accessToken");
-
       // Step 1 — Create property
-      const createRes = await fetch(`${API_BASE}/api/properties`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          title:       title.trim(),
-          description: description.trim(),
-          price:       parseFloat(price),
-          location:    location.trim(),
-          typeId:      parseInt(typeId),
-          beds:        beds  ? parseInt(beds)  : null,
-          baths:       baths ? parseInt(baths) : null,
-          sqm:         sqm   ? parseInt(sqm)   : null,
-        }),
+      const createData = await ownerApi.createProperty({
+        title:       title.trim(),
+        description: description.trim(),
+        price:       parseFloat(price),
+        location:    location.trim(),
+        typeId:      parseInt(typeId),
+        beds:        beds  ? parseInt(beds)  : null,
+        baths:       baths ? parseInt(baths) : null,
+        sqm:         sqm   ? parseInt(sqm)   : null,
       });
-      const createData = await createRes.json();
 
-      // Hard failure — property was NOT created
-      if (!createRes.ok || !createData.success) {
-        setSubmitMsg({
-          type: "error",
-          text: createData?.error?.message ?? "Failed to create property.",
-        });
+      if (!createData.success) {
+        setSubmitMsg({ type: "error", text: createData?.error?.message ?? "Failed to create property." });
         return;
       }
 
-      // Controller returns: { success, data: { property: {...} } }
       const propertyId: number = createData.data?.property?.id;
 
-      // Property was created but we can't get the ID to upload images
-      // Use "warning" — it's not a failure
       if (!propertyId) {
-        setSubmitMsg({
-          type: "warning",
-          text: "Property created but ID not returned. Check your listings.",
-        });
+        setSubmitMsg({ type: "warning", text: "Property created but ID not returned. Check your listings." });
         setTimeout(() => navigate("/owner/properties"), 2000);
         return;
       }
@@ -203,19 +161,10 @@ const AddProperty: React.FC = () => {
         const formData = new FormData();
         imageFiles.forEach((f) => formData.append("files", f));
 
-        const imgRes = await fetch(`${API_BASE}/api/properties/${propertyId}/images`, {
-          method: "POST",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          body: formData,
-        });
-        const imgData = await imgRes.json();
+        const imgData = await ownerApi.uploadPropertyImages(propertyId, formData);
 
-        // Property was created; only images failed — use "warning"
-        if (!imgRes.ok || !imgData.success) {
-          setSubmitMsg({
-            type: "warning",
-            text: "Property created! Some images failed to upload — you can add them later.",
-          });
+        if (!imgData.success) {
+          setSubmitMsg({ type: "warning", text: "Property created! Some images failed to upload — you can add them later." });
           setTimeout(() => navigate("/owner/properties"), 2000);
           return;
         }
@@ -225,7 +174,6 @@ const AddProperty: React.FC = () => {
       setSubmitMsg({ type: "success", text: "Property listed successfully! Redirecting…" });
       setTimeout(() => navigate("/owner/properties"), 1500);
     } catch {
-      // True network / unexpected failure
       setSubmitMsg({ type: "error", text: "Network error. Please try again." });
     } finally {
       setSubmitting(false);
@@ -234,20 +182,12 @@ const AddProperty: React.FC = () => {
 
   if (!user) return null;
 
-  // ── Resolve submit message icon ────────────────────────────────────────
-  const submitIcon =
-    submitMsg?.type === "success" ? "✓"
-    : submitMsg?.type === "warning" ? "⚠"
-    : "✕";
-
-  const submitMsgClass =
-    submitMsg?.type === "success" ? styles.submitMsgSuccess
-    : submitMsg?.type === "warning" ? styles.submitMsgWarning
-    : styles.submitMsgError;
+  const submitIcon = submitMsg?.type === "success" ? "✓" : submitMsg?.type === "warning" ? "⚠" : "✕";
+  const submitMsgClass = submitMsg?.type === "success" ? styles.submitMsgSuccess : submitMsg?.type === "warning" ? styles.submitMsgWarning : styles.submitMsgError;
 
   return (
     <div className={styles.page}>
-      <OwnerNavbar user={user} onAddProperty={() => {}} />
+      {/* ── Navbar removed (Handled by OwnerLayout) ── */}
 
       {/* ── Page Header ── */}
       <div className={styles.pageBar}>
@@ -264,7 +204,6 @@ const AddProperty: React.FC = () => {
 
       <form onSubmit={handleSubmit}>
         <main className={styles.main}>
-
           {/* ── Basic Info ── */}
           <div className={styles.card}>
             <div className={styles.cardTitle}>Basic Information</div>
@@ -405,9 +344,7 @@ const AddProperty: React.FC = () => {
             </div>
 
             {mapError && (
-              <p style={{ color: "#c0392b", fontSize: "13px", marginBottom: "10px" }}>
-                ⚠ {mapError}
-              </p>
+              <p style={{ color: "#c0392b", fontSize: "13px", marginBottom: "10px" }}>⚠ {mapError}</p>
             )}
 
             <div className={styles.mapFrame}>

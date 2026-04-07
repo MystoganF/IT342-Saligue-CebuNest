@@ -20,6 +20,7 @@ import AdminProperties from "./modules/admin_module/admin_property_management/Ad
 import AdminPropertyEdit from "./modules/admin_module/admin_property_management/AdminEditProperty";
 import AdminNotifications from "./modules/admin_module/admin_notification_module/Admin_Notification";
 import TenantLayout from "./modules/tenant_module/TenantLayout";
+import OwnerLayout from "./modules/owner_module/OwnerLayout";
 
 
 function App() {
@@ -30,7 +31,7 @@ function App() {
         <Route path="/"           element={<Login />}           />
         <Route path="/register"   element={<Register />}        />
  
-        {/* 🟢 NEW: Nested Tenant Routes using the Base Layout 🟢 */}
+     
         <Route element={<ProtectedRoute allowedRoles={["TENANT"]}><TenantLayout /></ProtectedRoute>}>
           <Route path="/home" element={<Home />} />
           <Route path="/properties/:id" element={<PropertyDetail />} />
@@ -38,27 +39,12 @@ function App() {
           <Route path="/my-rentals/:requestId" element={<RentalDetail />} />
         </Route>
  
-        {/* Owner Routes */}
-        <Route path="/owner/dashboard" element={
-          <ProtectedRoute allowedRoles={["OWNER"]}>
-            <OwnerDashboard />
-          </ProtectedRoute>
-        } />
-        <Route path="/owner/properties" element={
-          <ProtectedRoute allowedRoles={["OWNER"]}>
-            <OwnerProperties />
-          </ProtectedRoute>
-        } />
-        <Route path="/owner/properties/new" element={
-          <ProtectedRoute allowedRoles={["OWNER"]}>
-            <AddProperty />
-          </ProtectedRoute>
-        } />
-        <Route path="/owner/properties/:id/edit" element={
-          <ProtectedRoute allowedRoles={["OWNER"]}>
-            <EditProperty />
-          </ProtectedRoute>
-        } />
+        <Route element={<ProtectedRoute allowedRoles={["OWNER"]}><OwnerLayout /></ProtectedRoute>}>
+          <Route path="/owner/dashboard" element={<OwnerDashboard />} />
+          <Route path="/owner/properties" element={<OwnerProperties />} />
+          <Route path="/owner/properties/new" element={<AddProperty />} />
+          <Route path="/owner/properties/:id/edit" element={<EditProperty />} />
+        </Route>
 
         {/* Admin Routes */}
         <Route path="/admin/rental-requests" element={
