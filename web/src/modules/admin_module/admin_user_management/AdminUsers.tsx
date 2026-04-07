@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import AdminSidebar from "../../../components/AdminSidebar/AdminSidebar";
+import { useOutletContext } from "react-router-dom";
+import { adminApi } from "../adminApi";
 import styles from "./AdminUsers.module.css";
 
-const API_BASE  = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 const PAGE_SIZE = 20;
 
 interface AdminUser { id: number; name: string; email: string; role: string; avatarUrl?: string | null; }
@@ -12,33 +11,17 @@ interface UserEntry {
   phoneNumber?: string | null; role: string;
   avatarUrl?: string | null; active: boolean; createdAt?: string;
 }
+
 type ModalMode = "detail" | "create" | "edit-role" | "edit-email" | "deactivate" | null;
+
 const ROLES = ["TENANT", "OWNER", "ADMIN"];
 const roleBg:    Record<string, string> = { ADMIN: "rgba(31,93,113,0.12)",  OWNER: "rgba(183,142,66,0.12)", TENANT: "rgba(45,140,106,0.12)" };
 const roleColor: Record<string, string> = { ADMIN: "#1f5d71", OWNER: "#b78e42", TENANT: "#2d8c6a" };
 
-// ── Global fetch wrapper — auto-logout on 401 ──────────────────────────────
-const apiFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
-  const token = localStorage.getItem("accessToken");
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers as Record<string, string> ?? {}),
-    },
-  });
-  if (res.status === 401) {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("user");
-    window.location.href = "/";
-  }
-  return res;
-};
-
 const AdminUsers: React.FC = () => {
-  const navigate = useNavigate();
-  const [admin, setAdmin]         = useState<AdminUser | null>(null);
+  // Grab admin user from Layout context
+  const { user: admin } = useOutletContext<{ user: AdminUser }>();
+
   const [allUsers, setAllUsers]   = useState<UserEntry[]>([]);
   const [visible, setVisible]     = useState<UserEntry[]>([]);
   const [loading, setLoading]     = useState(true);
@@ -55,27 +38,18 @@ const AdminUsers: React.FC = () => {
   const [newRole, setNewRole]     = useState("");
   const [newEmail, setNewEmail]   = useState("");
 
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-    const token  = localStorage.getItem("accessToken");
-    if (!stored || !token) { navigate("/"); return; }
-    try {
-      const parsed: AdminUser = JSON.parse(stored);
-      if (parsed.role?.toUpperCase() !== "ADMIN") { navigate("/home"); return; }
-      setAdmin(parsed);
-    } catch { navigate("/"); }
-  }, [navigate]);
-
   const fetchUsers = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const res  = await apiFetch(`${API_BASE}/api/admin/users`);
-      const data = await res.json();
-      if (!res.ok || !data.success) { setError(data?.error?.message ?? "Failed."); return; }
+      const data = await adminApi.getAllUsers();
+      if (!data.success) { setError(data?.error?.message ?? "Failed."); return; }
       setAllUsers(data.data.users ?? []);
       setPage(1);
-    } catch { setError("Unable to connect."); }
-    finally { setLoading(false); }
+    } catch { 
+      setError("Unable to connect."); 
+    } finally { 
+      setLoading(false); 
+    }
   }, []);
 
   useEffect(() => { if (admin) fetchUsers(); }, [admin, fetchUsers]);
@@ -112,32 +86,33 @@ const AdminUsers: React.FC = () => {
     if (!form.name.trim())     { setModalError("Name is required.");     return; }
     if (!form.email.trim())    { setModalError("Email is required.");    return; }
     if (!form.password.trim()) { setModalError("Password is required."); return; }
+    
     setSubmitting(true); setModalError(null);
     try {
-      const res  = await apiFetch(`${API_BASE}/api/admin/users`, {
-        method: "POST",
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
-      await fetchUsers(); closeModal();
-    } catch { setModalError("Network error."); }
-    finally { setSubmitting(false); }
+      const data = await adminApi.createUser(form);
+      if (!data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
+      await fetchUsers(); 
+      closeModal();
+    } catch (err: any) { 
+      setModalError(err.response?.data?.error?.message || "Network error."); 
+    } finally { 
+      setSubmitting(false); 
+    }
   };
 
   const handleEditRole = async () => {
     if (!target) return;
     setSubmitting(true); setModalError(null);
     try {
-      const res  = await apiFetch(`${API_BASE}/api/admin/users/${target.id}/role`, {
-        method: "PUT",
-        body: JSON.stringify({ role: newRole }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
-      await fetchUsers(); closeModal();
-    } catch { setModalError("Network error."); }
-    finally { setSubmitting(false); }
+      const data = await adminApi.updateUserRole(target.id, { role: newRole });
+      if (!data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
+      await fetchUsers(); 
+      closeModal();
+    } catch (err: any) { 
+      setModalError(err.response?.data?.error?.message || "Network error."); 
+    } finally { 
+      setSubmitting(false); 
+    }
   };
 
   const handleEditEmail = async () => {
@@ -145,43 +120,37 @@ const AdminUsers: React.FC = () => {
     if (!newEmail.trim()) { setModalError("Email is required."); return; }
     setSubmitting(true); setModalError(null);
     try {
-      const res  = await apiFetch(`${API_BASE}/api/admin/users/${target.id}/email`, {
-        method: "PUT",
-        body: JSON.stringify({ email: newEmail }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
-      await fetchUsers(); closeModal();
-    } catch { setModalError("Network error."); }
-    finally { setSubmitting(false); }
+      const data = await adminApi.updateUserEmail(target.id, { email: newEmail });
+      if (!data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
+      await fetchUsers(); 
+      closeModal();
+    } catch (err: any) { 
+      setModalError(err.response?.data?.error?.message || "Network error."); 
+    } finally { 
+      setSubmitting(false); 
+    }
   };
 
   const handleToggleActive = async () => {
     if (!target) return;
     setSubmitting(true); setModalError(null);
     try {
-      const res  = await apiFetch(`${API_BASE}/api/admin/users/${target.id}/active`, {
-        method: "PUT",
-        body: JSON.stringify({ active: !target.active }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
-      await fetchUsers(); closeModal();
-    } catch { setModalError("Network error."); }
-    finally { setSubmitting(false); }
+      const data = await adminApi.toggleUserActiveStatus(target.id, { active: !target.active });
+      if (!data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
+      await fetchUsers(); 
+      closeModal();
+    } catch (err: any) { 
+      setModalError(err.response?.data?.error?.message || "Network error."); 
+    } finally { 
+      setSubmitting(false); 
+    }
   };
 
   if (!admin) return null;
 
   return (
     <div className={styles.page}>
-      <AdminSidebar user={admin} navItems={[
-        { path: "/admin/rental-requests", icon: "📋", label: "Rental Requests" },
-        { path: "/admin/properties",      icon: "🏘️", label: "All Properties"  },
-        { path: "/admin/users",           icon: "👥", label: "Users"           },
-        { path: "/admin/audit-log",       icon: "📜", label: "Audit Log"       },
-        { path: "/admin/notifications",   icon: "🔔", label: "Create Notification"   },
-      ]} />
+      {/* ── AdminSidebar removed (Handled by AdminLayout) ── */}
 
       <div className={styles.main}>
         <div className={styles.pageHeader}>

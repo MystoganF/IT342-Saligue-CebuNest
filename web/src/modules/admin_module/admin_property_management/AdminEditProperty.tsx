@@ -1,20 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import AdminSidebar from "../../../components/AdminSidebar/AdminSidebar";
+import { useNavigate, useParams, useOutletContext } from "react-router-dom";
+import { adminApi } from "../adminApi";
 import styles from "./admin_edit_property.module.css";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 // ─── types ──────────────────────────────────────────────────────────────────
 
 interface AdminUser { id: number; name: string; email: string; role: string; }
-
 interface PropertyType { id: number; name: string; }
-
 interface ExistingImage { id: number; imageUrl: string; }
-
 interface MapCoords { lat: number; lon: number; }
-
 interface ActiveTenantInfo {
   tenantId: number;
   tenantName: string;
@@ -59,8 +53,10 @@ const AdminEditProperty: React.FC = () => {
   const { id }       = useParams<{ id: string }>();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Grab admin user from Layout context
+  const { user: admin } = useOutletContext<{ user: AdminUser }>();
+
   // ── Auth & metadata ─────────────────────────────────────────────────────
-  const [admin, setAdmin]                 = useState<AdminUser | null>(null);
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
   const [pageLoading, setPageLoading]     = useState(true);
   const [pageError, setPageError]         = useState<string | null>(null);
@@ -108,26 +104,11 @@ const AdminEditProperty: React.FC = () => {
 
   // ── Submit ──────────────────────────────────────────────────────────────
   const [submitting, setSubmitting] = useState(false);
-  const [submitMsg, setSubmitMsg]   = useState<{
-    type: "success" | "error" | "warning";
-    text: string;
-  } | null>(null);
-
-  // ── Auth guard ───────────────────────────────────────────────────────────
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-    const token  = localStorage.getItem("accessToken");
-    if (!stored || !token) { navigate("/"); return; }
-    try {
-      const parsed = JSON.parse(stored);
-      if (parsed.role?.toUpperCase() !== "ADMIN") { navigate("/home"); return; }
-      setAdmin(parsed);
-    } catch { navigate("/"); }
-  }, [navigate]);
+  const [submitMsg, setSubmitMsg]   = useState<{ type: "success" | "error" | "warning"; text: string; } | null>(null);
 
   // ── Property types ───────────────────────────────────────────────────────
   useEffect(() => {
-    fetch(`${API_BASE}/api/properties/types`)
+    fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"}/api/properties/types`)
       .then((r) => r.json())
       .then((data) => { if (data.success) setPropertyTypes(data.data.types ?? []); })
       .catch(() => {});
@@ -136,12 +117,8 @@ const AdminEditProperty: React.FC = () => {
   // ── Load property ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!admin || !id) return;
-    const token = localStorage.getItem("accessToken");
     setPageLoading(true);
-    fetch(`${API_BASE}/api/admin/properties/${id}`, {
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    })
-      .then((r) => r.json())
+    adminApi.getAdminPropertyById(id)
       .then((data) => {
         if (!data.success) { setPageError("Property not found."); return; }
         const p = data.data.property;
@@ -235,27 +212,19 @@ const AdminEditProperty: React.FC = () => {
     setSubmitMsg(null);
 
     try {
-      const token = localStorage.getItem("accessToken");
-
-      const updateRes = await fetch(`${API_BASE}/api/admin/properties/${id}`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title:           title.trim(),
-          description:     description.trim(),
-          price:           parseFloat(price),
-          location:        location.trim(),
-          typeId:          parseInt(typeId),
-          beds:            beds  ? parseInt(beds)  : null,
-          baths:           baths ? parseInt(baths) : null,
-          sqm:             sqm   ? parseInt(sqm)   : null,
-          removedImageIds: removedImageIds.length > 0 ? removedImageIds : undefined,
-        }),
+      const updateData = await adminApi.updateAdminProperty(id, {
+        title:           title.trim(),
+        description:     description.trim(),
+        price:           parseFloat(price),
+        location:        location.trim(),
+        typeId:          parseInt(typeId),
+        beds:            beds  ? parseInt(beds)  : null,
+        baths:           baths ? parseInt(baths) : null,
+        sqm:             sqm   ? parseInt(sqm)   : null,
+        removedImageIds: removedImageIds.length > 0 ? removedImageIds : undefined,
       });
-      const updateData = await updateRes.json();
-      console.log("BACKEND ERROR EXPOSED:", updateData);
       
-      if (!updateRes.ok || !updateData.success) {
+      if (!updateData.success) {
         setSubmitMsg({ type: "error", text: updateData?.error?.message ?? "Failed to update property." });
         return;
       }
@@ -263,17 +232,10 @@ const AdminEditProperty: React.FC = () => {
       if (newImageFiles.length > 0) {
         const formData = new FormData();
         newImageFiles.forEach((f) => formData.append("files", f));
-        const imgRes = await fetch(`${API_BASE}/api/admin/properties/${id}/images`, {
-          method: "POST",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-          body: formData,
-        });
-        const imgData = await imgRes.json();
 
-        // 🚨 ADD THIS LINE 🚨
-        console.log("IMAGE UPLOAD ERROR:", imgData);
+        const imgData = await adminApi.uploadAdminPropertyImages(id, formData);
 
-        if (!imgRes.ok || !imgData.success) {
+        if (!imgData.success) {
           setSubmitMsg({ type: "warning", text: "Property updated! Some images failed to upload." });
           setTimeout(() => navigate("/admin/properties"), 2000);
           return;
@@ -307,17 +269,8 @@ const AdminEditProperty: React.FC = () => {
     ? new Date(createdAt).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })
     : "—";
 
-  const navItems = [
-    { path: "/admin/rental-requests", icon: "📋", label: "Rental Requests" },
-    { path: "/admin/properties",      icon: "🏘️", label: "All Properties"  },
-    { path: "/admin/users",           icon: "👥", label: "Users"           },
-    { path: "/admin/audit-log",       icon: "📜", label: "Audit Log"       },
-    { path: "/admin/notifications",   icon: "🔔", label: "Create Notification"   },
-  ];
-
   if (pageLoading) return (
     <div className={styles.page}>
-      <AdminSidebar user={admin} navItems={navItems} />
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#6e7071", fontSize: 15 }}>
         Loading property…
       </div>
@@ -326,14 +279,13 @@ const AdminEditProperty: React.FC = () => {
 
   if (pageError) return (
     <div className={styles.page}>
-      <AdminSidebar user={admin} navItems={navItems} />
       <div style={{ flex: 1, padding: "60px 40px", textAlign: "center", color: "#c0392b" }}>{pageError}</div>
     </div>
   );
 
   return (
     <div className={styles.page}>
-      <AdminSidebar user={admin} navItems={navItems} />
+      {/* ── AdminSidebar removed (Handled by AdminLayout) ── */}
 
       {/* ── Lightbox ── */}
       {lightboxSrc && (
@@ -583,8 +535,6 @@ const AdminEditProperty: React.FC = () => {
               </div>
             </div>
           </div>
-
-         
 
           {/* ── Location ── */}
           <div className={styles.card}>

@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import AdminSidebar from "../../../components/AdminSidebar/AdminSidebar";
+import { useOutletContext } from "react-router-dom";
+import { adminApi } from "../adminApi";
 import styles from "./AdminAuditLog.module.css";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 const PAGE_SIZE = 20;
 
 interface AdminUser { id: number; name: string; email: string; role: string; }
@@ -47,27 +46,10 @@ function formatPrice(price: number): string {
   }).format(price);
 }
 
-const apiFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
-  const token = localStorage.getItem("accessToken");
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers as Record<string, string> ?? {}),
-    },
-  });
-  if (res.status === 401) {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("user");
-    window.location.href = "/";
-  }
-  return res;
-};
-
 const AdminAuditLog: React.FC = () => {
-  const navigate = useNavigate();
-  const [admin, setAdmin]             = useState<AdminUser | null>(null);
+  // Grab admin user from the Layout context
+  const { user: admin } = useOutletContext<{ user: AdminUser }>();
+
   const [logs, setLogs]               = useState<AuditEntry[]>([]);
   const [loading, setLoading]         = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -85,37 +67,28 @@ const AdminAuditLog: React.FC = () => {
   const [propertyError, setPropertyError] = useState<string | null>(null);
   const [activeImg, setActiveImg]         = useState(0);
 
-  // 🌟 NEW: Lightbox State
+  // Lightbox State
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-    const token  = localStorage.getItem("accessToken");
-    if (!stored || !token) { navigate("/"); return; }
-    try {
-      const parsed: AdminUser = JSON.parse(stored);
-      if (parsed.role?.toUpperCase() !== "ADMIN") { navigate("/home"); return; }
-      setAdmin(parsed);
-    } catch { navigate("/"); }
-  }, [navigate]);
 
   const fetchLogs = useCallback(async (pageNum: number, append = false) => {
     append ? setLoadingMore(true) : setLoading(true);
     setError(null);
     try {
-      const res  = await apiFetch(`${API_BASE}/api/admin/audit-logs?page=${pageNum}&size=${PAGE_SIZE}`);
-      const data = await res.json();
-      if (!res.ok || !data.success) { setError(data?.error?.message ?? "Failed to load."); return; }
+      const data = await adminApi.getAuditLogs(pageNum, PAGE_SIZE);
+      if (!data.success) { setError(data?.error?.message ?? "Failed to load."); return; }
       setLogs((prev) => append ? [...prev, ...data.data.logs] : data.data.logs);
       setTotalPages(data.data.totalPages);
       setPage(pageNum);
-    } catch { setError("Unable to connect to server."); }
-    finally { append ? setLoadingMore(false) : setLoading(false); }
+    } catch { 
+      setError("Unable to connect to server."); 
+    } finally { 
+      append ? setLoadingMore(false) : setLoading(false); 
+    }
   }, []);
 
   useEffect(() => { if (admin) fetchLogs(0); }, [admin, fetchLogs]);
 
-  // 🌟 NEW: Keyboard navigation for the lightbox
+  // Keyboard navigation for the lightbox
   useEffect(() => {
     if (!isLightboxOpen || !property) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -142,9 +115,8 @@ const AdminAuditLog: React.FC = () => {
     setPropertyLoading(true);
     
     try {
-      const res  = await apiFetch(`${API_BASE}/api/admin/rental-requests/${log.targetId}`);
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      const data = await adminApi.getRentalRequestById(log.targetId);
+      if (!data.success) {
         setPropertyError(data?.error?.message ?? "Failed to load property.");
         return;
       }
@@ -161,7 +133,7 @@ const AdminAuditLog: React.FC = () => {
     setProperty(null);
     setPropertyError(null);
     setActiveImg(0);
-    setIsLightboxOpen(false); // Also ensure lightbox closes if modal closes
+    setIsLightboxOpen(false);
   };
 
   const filtered = logs.filter((l) => {
@@ -179,13 +151,7 @@ const AdminAuditLog: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      <AdminSidebar user={admin} navItems={[
-        { path: "/admin/rental-requests", icon: "📋", label: "Rental Requests" },
-        { path: "/admin/properties",      icon: "🏘️", label: "All Properties"  },
-        { path: "/admin/users",           icon: "👥", label: "Users"          },
-        { path: "/admin/audit-log",       icon: "📜", label: "Audit Log"       },
-        { path: "/admin/notifications",   icon: "🔔", label: "Create Notification"   },
-      ]} />
+      {/* ── AdminSidebar removed (Handled by AdminLayout) ── */}
 
       <div className={styles.main}>
         <div className={styles.pageHeader}>
@@ -259,24 +225,18 @@ const AdminAuditLog: React.FC = () => {
                         </div>
                         <div className={styles.logRight}>
                           <div className={styles.logDate}>
-                            {new Date(log.createdAt).toLocaleDateString("en-PH", {
-                              year: "numeric", month: "short", day: "numeric",
-                            })}
+                            {new Date(log.createdAt).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })}
                           </div>
                           <div className={styles.logTime}>
-                            {new Date(log.createdAt).toLocaleTimeString("en-PH", {
-                              hour: "2-digit", minute: "2-digit",
-                            })}
+                            {new Date(log.createdAt).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
                           </div>
                           <div className={styles.logActions}>
                             {log.reason && (
-                              <button type="button" className={styles.expandBtn}
-                                onClick={() => setExpanded(isExpanded ? null : log.id)}>
+                              <button type="button" className={styles.expandBtn} onClick={() => setExpanded(isExpanded ? null : log.id)}>
                                 {isExpanded ? "▲ Hide" : (isApproved ? "▼ Note" : "▼ Reason")}
                               </button>
                             )}
-                            <button type="button" className={styles.viewDetailBtn}
-                              onClick={() => openDetail(log)}>
+                            <button type="button" className={styles.viewDetailBtn} onClick={() => openDetail(log)}>
                               🏠 View Property
                             </button>
                           </div>
@@ -297,8 +257,7 @@ const AdminAuditLog: React.FC = () => {
 
             {page + 1 < totalPages && (
               <div className={styles.loadMoreWrap}>
-                <button type="button" className={styles.loadMoreBtn} onClick={() => fetchLogs(page + 1, true)}
-                  disabled={loadingMore}>
+                <button type="button" className={styles.loadMoreBtn} onClick={() => fetchLogs(page + 1, true)} disabled={loadingMore}>
                   {loadingMore ? "Loading…" : "Load More"}
                 </button>
               </div>
@@ -312,7 +271,6 @@ const AdminAuditLog: React.FC = () => {
         <div className={styles.overlay} onClick={closeDetail}>
           <div className={styles.detailModal} onClick={(e) => e.stopPropagation()}>
 
-            {/* Modal Header */}
             <div className={`${styles.detailModalHeader} ${detailLog.action === "PROPERTY_APPROVED" ? styles.detailModalHeaderApprove : styles.detailModalHeaderReject}`}>
               <div className={styles.detailModalHeaderLeft}>
                 <span className={`${styles.logBadge} ${detailLog.action === "PROPERTY_APPROVED" ? styles.logBadgeApprove : styles.logBadgeReject}`}>
@@ -321,9 +279,7 @@ const AdminAuditLog: React.FC = () => {
                 <h3 className={styles.detailModalTitle}>{detailLog.targetTitle}</h3>
                 <p className={styles.detailModalSub}>
                   Reviewed by <strong>{detailLog.adminName}</strong> on{" "}
-                  {new Date(detailLog.createdAt).toLocaleDateString("en-PH", {
-                    year: "numeric", month: "long", day: "numeric",
-                  })}
+                  {new Date(detailLog.createdAt).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}
                 </p>
               </div>
               <button type="button" className={styles.detailModalClose} onClick={closeDetail}>✕</button>
@@ -348,7 +304,6 @@ const AdminAuditLog: React.FC = () => {
 
               {property && !propertyLoading && (
                 <>
-                  {/* Gallery */}
                   {property.images.length > 0 && (
                     <div className={styles.gallery}>
                       <div className={styles.galleryMain}>
@@ -356,7 +311,6 @@ const AdminAuditLog: React.FC = () => {
                           src={property.images[activeImg]?.imageUrl}
                           alt="Property"
                           className={styles.galleryMainImg}
-                          // 🌟 CHANGED: Added onClick to trigger lightbox
                           onClick={() => setIsLightboxOpen(true)}
                           style={{ cursor: "pointer" }}
                         />
@@ -386,9 +340,7 @@ const AdminAuditLog: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Info grid */}
                   <div className={styles.propGrid}>
-                    {/* Left: main info */}
                     <div className={styles.propMain}>
                       <div className={styles.propTitleRow}>
                         <div>
@@ -397,9 +349,7 @@ const AdminAuditLog: React.FC = () => {
                             <span>📍 {property.location}</span>
                             <span>🏷️ {property.type}</span>
                             {property.createdAt && (
-                              <span>🕐 Submitted {new Date(property.createdAt).toLocaleDateString("en-PH", {
-                                year: "numeric", month: "long", day: "numeric",
-                              })}</span>
+                              <span>🕐 Submitted {new Date(property.createdAt).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}</span>
                             )}
                           </div>
                         </div>
@@ -408,7 +358,6 @@ const AdminAuditLog: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Specs */}
                       <div className={styles.specRow}>
                         {property.beds  != null && <div className={styles.specCard}><span className={styles.specIcon}>🛏</span><span className={styles.specVal}>{property.beds}</span><span className={styles.specLbl}>Beds</span></div>}
                         {property.baths != null && <div className={styles.specCard}><span className={styles.specIcon}>🚿</span><span className={styles.specVal}>{property.baths}</span><span className={styles.specLbl}>Baths</span></div>}
@@ -416,7 +365,6 @@ const AdminAuditLog: React.FC = () => {
                         <div className={styles.specCard}><span className={styles.specIcon}>📸</span><span className={styles.specVal}>{property.images.length}</span><span className={styles.specLbl}>Photos</span></div>
                       </div>
 
-                      {/* Description */}
                       {property.description && (
                         <div className={styles.propSection}>
                           <div className={styles.propSectionLabel}>Description</div>
@@ -425,9 +373,7 @@ const AdminAuditLog: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Right: owner + audit info */}
                     <div className={styles.propSide}>
-                      {/* Owner card */}
                       <div className={styles.ownerCard}>
                         <div className={styles.ownerCardLabel}>Property Owner</div>
                         <div className={styles.ownerCardName}>{property.ownerName}</div>
@@ -440,7 +386,6 @@ const AdminAuditLog: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Audit info */}
                       <div className={styles.auditInfoCard}>
                         <div className={styles.auditInfoLabel}>Audit Details</div>
                         <div className={styles.auditInfoRow}>
@@ -456,17 +401,13 @@ const AdminAuditLog: React.FC = () => {
                         <div className={styles.auditInfoRow}>
                           <span className={styles.auditInfoKey}>Date</span>
                           <span className={styles.auditInfoVal}>
-                            {new Date(detailLog.createdAt).toLocaleDateString("en-PH", {
-                              year: "numeric", month: "long", day: "numeric",
-                            })}
+                            {new Date(detailLog.createdAt).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" })}
                           </span>
                         </div>
                         <div className={styles.auditInfoRow}>
                           <span className={styles.auditInfoKey}>Time</span>
                           <span className={styles.auditInfoVal}>
-                            {new Date(detailLog.createdAt).toLocaleTimeString("en-PH", {
-                              hour: "2-digit", minute: "2-digit",
-                            })}
+                            {new Date(detailLog.createdAt).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
                           </span>
                         </div>
                         {detailLog.reason && (
@@ -490,17 +431,15 @@ const AdminAuditLog: React.FC = () => {
       )}
 
       {/* ── Lightbox Modal ── */}
-      {/* 🌟 NEW: Placed at bottom with high z-index (99999) to sit above the detail modal */}
       {isLightboxOpen && property && (
         <div 
           onClick={() => setIsLightboxOpen(false)}
           style={{
             position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
-            backgroundColor: "rgba(18, 18, 18, 0.95)", zIndex: 99999, // Super high z-index
+            backgroundColor: "rgba(18, 18, 18, 0.95)", zIndex: 99999,
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
           }}
         >
-          {/* Header Area */}
           <div style={{ position: "absolute", top: 0, width: "100%", padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", color: "white", boxSizing: "border-box" }}>
             <span style={{ fontSize: "14px", fontWeight: "bold", letterSpacing: "1px" }}>
               {activeImg + 1} / {property.images.length}
@@ -513,10 +452,7 @@ const AdminAuditLog: React.FC = () => {
             </button>
           </div>
 
-          {/* Main Content Area */}
           <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            
-            {/* Prev Arrow */}
             {property.images.length > 1 && (
               <button 
                 onClick={(e) => { e.stopPropagation(); setActiveImg((i) => Math.max(0, i - 1)); }}
@@ -526,7 +462,6 @@ const AdminAuditLog: React.FC = () => {
               </button>
             )}
 
-            {/* The Image */}
             <img 
               src={property.images[activeImg]?.imageUrl} 
               alt="Fullscreen property" 
@@ -534,7 +469,6 @@ const AdminAuditLog: React.FC = () => {
               style={{ maxWidth: "85%", maxHeight: "85vh", objectFit: "contain", borderRadius: "8px", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }} 
             />
 
-            {/* Next Arrow */}
             {property.images.length > 1 && (
               <button 
                 onClick={(e) => { e.stopPropagation(); setActiveImg((i) => Math.min(property.images.length - 1, i + 1)); }}

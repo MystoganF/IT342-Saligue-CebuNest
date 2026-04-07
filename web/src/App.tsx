@@ -21,7 +21,7 @@ import AdminPropertyEdit from "./modules/admin_module/admin_property_management/
 import AdminNotifications from "./modules/admin_module/admin_notification_module/Admin_Notification";
 import TenantLayout from "./modules/tenant_module/TenantLayout";
 import OwnerLayout from "./modules/owner_module/OwnerLayout";
-
+import AdminLayout from "./modules/admin_module/AdminLayout";
 
 function App() {
   return (
@@ -53,42 +53,15 @@ function App() {
         </Route>
 
         {/* Admin Routes */}
-        <Route path="/admin/rental-requests" element={
-          <ProtectedRoute allowedRoles={["ADMIN"]}>
-            <AdminRentalRequests />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/users" element={
-          <ProtectedRoute allowedRoles={["ADMIN"]}>
-            <AdminUsers />
-          </ProtectedRoute>
-        } />
-
-        <Route path="/admin/rental-requests/:id" element={
-          <ProtectedRoute allowedRoles={["ADMIN"]}>
-            <AdminPropertyDetail />
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/audit-log" element={
-          <ProtectedRoute allowedRoles={["ADMIN"]}>
-            <AdminAuditLog />
-          </ProtectedRoute>
-        } />
-
-        <Route path="/admin/properties" element={
-          <ProtectedRoute allowedRoles={["ADMIN"]}>
-            <AdminProperties />
-          </ProtectedRoute>
-        } />
-        
-       <Route path="/admin/properties/:id/edit" element={
-          <ProtectedRoute allowedRoles={["ADMIN"]}>
-            <AdminPropertyEdit /> 
-          </ProtectedRoute>
-        } />
-        <Route path="/admin/notifications" element={<AdminNotifications />} />
-
-        
+        <Route element={<ProtectedRoute allowedRoles={["ADMIN"]}><AdminLayout /></ProtectedRoute>}>
+          <Route path="/admin/rental-requests" element={<AdminRentalRequests />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/rental-requests/:id" element={<AdminPropertyDetail />} />
+          <Route path="/admin/audit-log" element={<AdminAuditLog />} />
+          <Route path="/admin/properties" element={<AdminProperties />} />
+          <Route path="/admin/properties/:id/edit" element={<AdminPropertyEdit />} />
+          <Route path="/admin/notifications" element={<AdminNotifications />} />
+        </Route>
         
       </Routes>
     </BrowserRouter>

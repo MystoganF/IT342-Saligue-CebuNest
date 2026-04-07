@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import AdminSidebar from "../../../components/AdminSidebar/AdminSidebar";
+import { useNavigate, useOutletContext } from "react-router-dom";
+import { adminApi } from "../adminApi";
 import styles from "./admin_properties.module.css";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 const PAGE_SIZE = 12;
 
 interface AdminUser { id: number; name: string; email: string; role: string; }
@@ -28,7 +27,6 @@ interface PropertyEntry {
   hasActiveTenant: boolean;
   activeTenant?: ActiveTenant;
   images: { id: number; imageUrl: string }[];
-  // NEW FIELDS added for Admin deactivation tracking
   adminDisabled?: boolean;
   isAdminDisabled?: boolean;
   adminNote?: string;
@@ -58,7 +56,8 @@ const statusColor: Record<string, string> = {
 
 const AdminProperties: React.FC = () => {
   const navigate = useNavigate();
-  const [admin, setAdmin] = useState<AdminUser | null>(null);
+  const { user: admin } = useOutletContext<{ user: AdminUser }>();
+
   const [allProps, setAllProps] = useState<PropertyEntry[]>([]);
   const [visible, setVisible] = useState<PropertyEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,34 +71,20 @@ const AdminProperties: React.FC = () => {
   const [target, setTarget] = useState<PropertyEntry | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
-
-  // NEW: State for deactivation reason
   const [deactivateReason, setDeactivateReason] = useState("");
-
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-    const token = localStorage.getItem("accessToken");
-    if (!stored || !token) { navigate("/"); return; }
-    try {
-      const parsed = JSON.parse(stored);
-      if (parsed.role?.toUpperCase() !== "ADMIN") { navigate("/home"); return; }
-      setAdmin(parsed);
-    } catch { navigate("/"); }
-  }, [navigate]);
 
   const fetchProperties = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`${API_BASE}/api/admin/properties`, {
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) { setError(data?.error?.message ?? "Failed to fetch."); return; }
+      const data = await adminApi.getAllAdminProperties();
+      if (!data.success) { setError(data?.error?.message ?? "Failed to fetch."); return; }
       setAllProps(data.data.properties ?? []);
       setPage(1);
-    } catch { setError("Connection error."); }
-    finally { setLoading(false); }
+    } catch { 
+      setError("Connection error."); 
+    } finally { 
+      setLoading(false); 
+    }
   }, []);
 
   useEffect(() => { if (admin) fetchProperties(); }, [admin, fetchProperties]);
@@ -127,7 +112,7 @@ const AdminProperties: React.FC = () => {
     if (!submitting) {
       setModal(null);
       setTarget(null);
-      setDeactivateReason(""); // Clear reason state
+      setDeactivateReason("");
       setModalError(null);
     }
   };
@@ -135,7 +120,6 @@ const AdminProperties: React.FC = () => {
   const handleToggleVisibility = async () => {
     if (!target) return;
 
-    // Validate: If deactivating (moving from AVAILABLE), reason is required
     if (target.status === "AVAILABLE" && !deactivateReason.trim()) {
       setModalError("Please provide a reason for deactivation.");
       return;
@@ -143,25 +127,16 @@ const AdminProperties: React.FC = () => {
 
     setSubmitting(true); setModalError(null);
     try {
-      const token = localStorage.getItem("accessToken");
-      const res = await fetch(`${API_BASE}/api/admin/properties/${target.id}/visibility`, { 
-        method: "PUT",
-        headers: { 
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ reason: deactivateReason })
-      });
+      const data = await adminApi.togglePropertyVisibility(target.id, { reason: deactivateReason });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error?.message || "Failed update");
+      if (!data.success) throw new Error(data?.error?.message || "Failed update");
 
       await fetchProperties(); 
       closeModal();
     } catch (err: any) { 
-        setModalError(err.message || "Network error."); 
+      setModalError(err.message || "Network error."); 
     } finally { 
-        setSubmitting(false); 
+      setSubmitting(false); 
     }
   };
 
@@ -169,13 +144,7 @@ const AdminProperties: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      <AdminSidebar user={admin} navItems={[
-        { path: "/admin/rental-requests", icon: "📋", label: "Rental Requests" },
-        { path: "/admin/properties",      icon: "🏘️", label: "All Properties"  },
-        { path: "/admin/users",           icon: "👥", label: "Users"           },
-        { path: "/admin/audit-log",       icon: "📜", label: "Audit Log"       },
-        { path: "/admin/notifications",   icon: "🔔", label: "Create Notification"   },
-      ]} />
+      {/* ── AdminSidebar removed (Handled by AdminLayout) ── */}
 
       <div className={styles.main}>
         <div className={styles.pageHeader}>
@@ -269,10 +238,9 @@ const AdminProperties: React.FC = () => {
                     </span>
                 </div>
 
-                {/* --- NEW: REASON ROW --- */}
                 {target.status === "UNAVAILABLE" && !target.hasActiveTenant && (
                   <div className={styles.detailRow} style={{ borderTop: "none", paddingTop: 0, marginTop: "-5px" }}>
-                    <span className={styles.detailRowLabel}></span> {/* Empty to align with value */}
+                    <span className={styles.detailRowLabel}></span> 
                     <div className={styles.detailRowValue} style={{ 
                       fontSize: "13px", 
                       lineHeight: "1.4",
@@ -292,7 +260,6 @@ const AdminProperties: React.FC = () => {
                     </div>
                   </div>
                 )}
-                {/* ----------------------- */}
               </div>
 
               {target.hasActiveTenant && target.activeTenant && (
@@ -307,7 +274,6 @@ const AdminProperties: React.FC = () => {
                 </div>
               )}
 
-              {/* --- NEW: PROTECTED DETAIL ACTIONS --- */}
               <div className={styles.detailActions} style={{ marginTop: "24px" }}>
                 <button type="button" className={styles.detailActionBtn} onClick={() => navigate(`/admin/properties/${target.id}/edit`)}>✏️ Edit Property</button>
                 
@@ -329,7 +295,6 @@ const AdminProperties: React.FC = () => {
                   </button>
                 )}
               </div>
-              {/* -------------------------------------- */}
             </div>
           </div>
         </div>
@@ -353,30 +318,16 @@ const AdminProperties: React.FC = () => {
                 Are you sure you want to change the visibility for <strong>{target.title}</strong>?
               </p>
 
-              {/* Show Reason field ONLY when deactivating an AVAILABLE listing */}
               {target.status === "AVAILABLE" && (
                 <div style={{ marginTop: "15px" }}>
-                    <label style={{ 
-                        display: "block", 
-                        fontSize: "12px", 
-                        fontWeight: 700, 
-                        marginBottom: "5px", 
-                        color: "#c0392b" 
-                    }}>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "5px", color: "#c0392b" }}>
                         REASON FOR DEACTIVATION (Visible to Owner)
                     </label>
                     <textarea
                         style={{
-                            width: "100%",
-                            padding: "12px",
-                            borderRadius: "10px",
-                            border: "1.5px solid #eee",
-                            fontSize: "14px",
-                            minHeight: "100px",
-                            fontFamily: "inherit",
-                            resize: "none",
-                            outline: 'none',
-                            backgroundColor: '#fafafa'
+                            width: "100%", padding: "12px", borderRadius: "10px", border: "1.5px solid #eee",
+                            fontSize: "14px", minHeight: "100px", fontFamily: "inherit", resize: "none",
+                            outline: 'none', backgroundColor: '#fafafa'
                         }}
                         placeholder="Provide a specific reason (e.g., policy violation, duplicate listing, reported address issues)..."
                         value={deactivateReason}

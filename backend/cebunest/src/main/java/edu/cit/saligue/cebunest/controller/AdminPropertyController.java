@@ -25,7 +25,7 @@ public class AdminPropertyController {
     private final AdminPropertyService adminPropertyService;
 
     // ── GET /api/admin/rental-requests/pending ────────────────────────────
-    @GetMapping("/api/admin/rental-requests/pending")
+    @GetMapping("/api/admin/rental-requests")
     public ResponseEntity<?> getPendingRequests(@AuthenticationPrincipal User currentUser) {
         if (!isAdmin(currentUser)) return forbidden();
         try {

@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import AdminSidebar from "../../../components/AdminSidebar/AdminSidebar";
+import { useOutletContext } from "react-router-dom";
+import { adminApi } from "../adminApi";
 import styles from "./admin_notification.module.css";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 interface AdminUser { id: number; name: string; email: string; role: string; avatarUrl?: string | null; }
 
@@ -60,27 +58,9 @@ function timeAgo(isoStr: string): string {
   return new Date(isoStr).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" });
 }
 
-const apiFetch = async (url: string, options: RequestInit = {}): Promise<Response> => {
-  const token = localStorage.getItem("accessToken");
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers as Record<string, string> ?? {}),
-    },
-  });
-  if (res.status === 401) {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("user");
-    window.location.href = "/";
-  }
-  return res;
-};
-
 const AdminNotifications: React.FC = () => {
-  const navigate = useNavigate();
-  const [admin, setAdmin] = useState<AdminUser | null>(null);
+  // Grab admin user from Layout context
+  const { user: admin } = useOutletContext<{ user: AdminUser }>();
 
   // Compose state
   const [type, setType]             = useState("ADMIN_BROADCAST");
@@ -96,26 +76,17 @@ const AdminNotifications: React.FC = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-    const token  = localStorage.getItem("accessToken");
-    if (!stored || !token) { navigate("/"); return; }
-    try {
-      const parsed: AdminUser = JSON.parse(stored);
-      if (parsed.role?.toUpperCase() !== "ADMIN") { navigate("/home"); return; }
-      setAdmin(parsed);
-    } catch { navigate("/"); }
-  }, [navigate]);
-
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true); setHistoryError(null);
     try {
-      const res  = await apiFetch(`${API_BASE}/api/admin/notifications/history`);
-      const data = await res.json();
-      if (!res.ok || !data.success) { setHistoryError(data?.error?.message ?? "Failed to load history."); return; }
+      const data = await adminApi.getBroadcastHistory();
+      if (!data.success) { setHistoryError(data?.error?.message ?? "Failed to load history."); return; }
       setHistory(data.data.history ?? []);
-    } catch { setHistoryError("Unable to connect."); }
-    finally { setHistoryLoading(false); }
+    } catch { 
+      setHistoryError("Unable to connect."); 
+    } finally { 
+      setHistoryLoading(false); 
+    }
   }, []);
 
   useEffect(() => { if (admin) fetchHistory(); }, [admin, fetchHistory]);
@@ -130,12 +101,13 @@ const AdminNotifications: React.FC = () => {
 
     setSubmitting(true); setFormError(null); setSuccessMsg(null);
     try {
-      const res  = await apiFetch(`${API_BASE}/api/admin/notifications/broadcast`, {
-        method: "POST",
-        body: JSON.stringify({ type, message: message.trim(), targetRoles: roles }),
+      const data = await adminApi.sendBroadcast({
+        type,
+        message: message.trim(),
+        targetRoles: roles
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) { setFormError(data?.error?.message ?? "Failed to send."); return; }
+
+      if (!data.success) { setFormError(data?.error?.message ?? "Failed to send."); return; }
 
       const count: number = data.data?.recipientCount ?? 0;
       setSuccessMsg(`Sent to ${roles.join(" & ")} — ${count} recipient${count !== 1 ? "s" : ""} notified.`);
@@ -144,8 +116,11 @@ const AdminNotifications: React.FC = () => {
 
       // Refresh history from server
       await fetchHistory();
-    } catch { setFormError("Network error. Please try again."); }
-    finally { setSubmitting(false); }
+    } catch (err: any) { 
+      setFormError(err.response?.data?.error?.message || "Network error. Please try again."); 
+    } finally { 
+      setSubmitting(false); 
+    }
   };
 
   const charCount = message.length;
@@ -155,14 +130,7 @@ const AdminNotifications: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      <AdminSidebar user={admin} navItems={[
-        { path: "/admin/rental-requests", icon: "📋", label: "Rental Requests" },
-        { path: "/admin/properties",      icon: "🏘️", label: "All Properties"  },
-        { path: "/admin/users",           icon: "👥", label: "Users"           },
-        
-        { path: "/admin/audit-log",       icon: "📜", label: "Audit Log"       },
-        { path: "/admin/notifications",   icon: "🔔", label: "Create Notifications"   },
-      ]} />
+      {/* ── AdminSidebar removed (Handled by AdminLayout) ── */}
 
       <div className={styles.main}>
         <div className={styles.pageHeader}>
@@ -176,7 +144,6 @@ const AdminNotifications: React.FC = () => {
         </div>
 
         <div className={styles.layout}>
-
           {/* ── Compose Panel ── */}
           <div className={styles.composeCard}>
             <div className={styles.composeHeader}>
@@ -187,7 +154,6 @@ const AdminNotifications: React.FC = () => {
               </div>
             </div>
 
-            {/* Type picker */}
             <div className={styles.field}>
               <label className={styles.fieldLabel}>Notification Type</label>
               <div className={styles.typeGrid}>
@@ -202,7 +168,6 @@ const AdminNotifications: React.FC = () => {
               </div>
             </div>
 
-            {/* Recipients */}
             <div className={styles.field}>
               <label className={styles.fieldLabel}>Recipients</label>
               <div className={styles.recipientRow}>
@@ -219,7 +184,6 @@ const AdminNotifications: React.FC = () => {
               </div>
             </div>
 
-            {/* Message */}
             <div className={styles.field}>
               <label className={styles.fieldLabel}>Message</label>
               <textarea className={styles.textarea}
@@ -272,7 +236,6 @@ const AdminNotifications: React.FC = () => {
                 {history.map((item) => (
                   <div key={item.id} className={styles.historyItem}>
 
-                    {/* Type icon + label */}
                     <div className={styles.historyItemHeader}>
                       <span
                         className={styles.historyTypeIcon}
