@@ -319,7 +319,7 @@ const Navbar: React.FC<NavbarProps> = ({ user }) => {
                   <div className={styles.dropdownItems}>
                     {/* ── Profile Link (CHANGED FROM <a> TO <Link>) ── */}
                     <Link
-                      to="/profile"
+                      to="/tenant/profile"
                       className={styles.dropdownItem}
                       role="menuitem"
                       onClick={() => setMenuOpen(false)}

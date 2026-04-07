@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import Navbar from "../../components/Navbar/Navbar";
+import { useNavigate, useOutletContext } from "react-router-dom";
+import { sharedApi } from "../../api/sharedApi";
 import styles from "./Profile.module.css";
-import OwnerNavbar from "../../components/OwnerNavbar/OwnerNavbar";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
 
 interface User {
   id: number;
@@ -19,12 +16,7 @@ interface User {
 }
 
 function getInitials(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 }
 
 function getRoleMeta(role: string): { label: string; icon: string; className: string } {
@@ -39,7 +31,11 @@ const Profile: React.FC = () => {
   const navigate     = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [user, setUser] = useState<User | null>(null);
+  // ── Grab user from Context (Provided by TenantLayout or OwnerLayout) ──
+  const { user } = useOutletContext<{ user: User }>();
+
+  // State to hold the actively edited user (we initialize it with the context user)
+  const [activeUser, setActiveUser] = useState<User>(user);
 
   const [name, setName]               = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -56,27 +52,21 @@ const Profile: React.FC = () => {
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
+  // Initialize form fields when the component mounts or user context changes
   useEffect(() => {
-    const stored = localStorage.getItem("user");
-    const token  = localStorage.getItem("accessToken");
-    if (!stored || !token) { navigate("/"); return; }
-    try {
-      const parsed: User = JSON.parse(stored);
-      setUser(parsed);
-      setName(parsed.name ?? "");
-      setPhoneNumber(parsed.phoneNumber ?? "");
-      setFacebookUrl(parsed.facebookUrl ?? "");
-      setInstagramUrl(parsed.instagramUrl ?? "");
-      setTwitterUrl(parsed.twitterUrl ?? "");
-      setAvatarPreview(parsed.avatarUrl ?? null);
-    } catch {
-      navigate("/");
+    if (activeUser) {
+      setName(activeUser.name ?? "");
+      setPhoneNumber(activeUser.phoneNumber ?? "");
+      setFacebookUrl(activeUser.facebookUrl ?? "");
+      setInstagramUrl(activeUser.instagramUrl ?? "");
+      setTwitterUrl(activeUser.twitterUrl ?? "");
+      setAvatarPreview(activeUser.avatarUrl ?? null);
     }
-  }, [navigate]);
+  }, [activeUser]);
 
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user) return;
+    if (!file || !activeUser) return;
 
     if (!file.type.startsWith("image/")) {
       setAvatarMsg({ type: "error", text: "Only image files are allowed." });
@@ -92,30 +82,21 @@ const Profile: React.FC = () => {
     setAvatarMsg(null);
 
     try {
-      const token    = localStorage.getItem("accessToken");
-      const formData = new FormData();
-      formData.append("file", file);
+      const data = await sharedApi.updateAvatar(activeUser.id, file);
 
-      const res  = await fetch(`${API_BASE}/api/users/${user.id}/avatar`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         setAvatarMsg({ type: "error", text: data?.error?.message ?? "Upload failed." });
-        setAvatarPreview(user.avatarUrl ?? null);
+        setAvatarPreview(activeUser.avatarUrl ?? null);
         return;
       }
 
-      const updatedUser: User = { ...user, avatarUrl: data.data.avatarUrl };
-      setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
+      const updatedUser: User = { ...activeUser, avatarUrl: data.data.avatarUrl };
+      setActiveUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser)); // Keep local storage in sync
       setAvatarMsg({ type: "success", text: "Profile picture updated!" });
     } catch {
       setAvatarMsg({ type: "error", text: "Upload failed. Please try again." });
-      setAvatarPreview(user.avatarUrl ?? null);
+      setAvatarPreview(activeUser.avatarUrl ?? null);
     } finally {
       setAvatarUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -124,7 +105,7 @@ const Profile: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!activeUser) return;
 
     if (!name.trim()) {
       setSaveMsg({ type: "error", text: "Full name cannot be empty." });
@@ -135,39 +116,31 @@ const Profile: React.FC = () => {
     setSaveMsg(null);
 
     try {
-      const token = localStorage.getItem("accessToken");
-      const res   = await fetch(`${API_BASE}/api/users/${user.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          name:         name.trim(),
-          phoneNumber:  phoneNumber.trim() || null,
-          avatarUrl:    null,
-          facebookUrl:  facebookUrl.trim() || null,
-          instagramUrl: instagramUrl.trim() || null,
-          twitterUrl:   twitterUrl.trim() || null,
-        }),
+      const data = await sharedApi.updateProfile(activeUser.id, {
+        name:         name.trim(),
+        phoneNumber:  phoneNumber.trim() || null,
+        avatarUrl:    null, 
+        facebookUrl:  facebookUrl.trim() || null,
+        instagramUrl: instagramUrl.trim() || null,
+        twitterUrl:   twitterUrl.trim() || null,
       });
-      const data = await res.json();
 
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         setSaveMsg({ type: "error", text: data?.error?.message ?? "Save failed." });
         return;
       }
 
       const updatedUser: User = {
-        ...user,
+        ...activeUser,
         name:         name.trim(),
         phoneNumber:  phoneNumber.trim() || null,
         facebookUrl:  facebookUrl.trim() || null,
         instagramUrl: instagramUrl.trim() || null,
         twitterUrl:   twitterUrl.trim() || null,
       };
-      setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
+      
+      setActiveUser(updatedUser);
+      localStorage.setItem("user", JSON.stringify(updatedUser)); // Keep local storage in sync
       setSaveMsg({ type: "success", text: "Changes saved successfully." });
     } catch {
       setSaveMsg({ type: "error", text: "Network error. Please try again." });
@@ -183,17 +156,14 @@ const Profile: React.FC = () => {
     navigate("/");
   };
 
-  if (!user) return null;
+  if (!activeUser) return null;
 
-  const roleMeta = getRoleMeta(user.role);
+  const roleMeta = getRoleMeta(activeUser.role);
 
   return (
     <div className={styles.page}>
       
-      {user.role?.toUpperCase() === "OWNER"
-        ? <OwnerNavbar user={user} />
-        : <Navbar user={user} />
-      }
+      {/* ── Navbars Removed! The Layout component renders them automatically. ── */}
 
       {showLogoutModal && (
         <div className={styles.modalOverlay} onClick={() => setShowLogoutModal(false)}>
@@ -223,9 +193,9 @@ const Profile: React.FC = () => {
         <div className={styles.heroInner}>
           <div className={styles.heroAvatarWrap}>
             {avatarPreview ? (
-              <img src={avatarPreview} alt={user.name} className={styles.heroAvatar} />
+              <img src={avatarPreview} alt={activeUser.name} className={styles.heroAvatar} />
             ) : (
-              <div className={styles.heroAvatarPlaceholder}>{getInitials(user.name)}</div>
+              <div className={styles.heroAvatarPlaceholder}>{getInitials(activeUser.name)}</div>
             )}
 
             {avatarUploading ? (
@@ -254,30 +224,30 @@ const Profile: React.FC = () => {
           </div>
 
           <div className={styles.heroText}>
-            <h1 className={styles.heroName}>{user.name}</h1>
+            <h1 className={styles.heroName}>{activeUser.name}</h1>
 
             <div className={`${styles.heroRoleBadge} ${roleMeta.className}`}>
               <span className={styles.heroRoleIcon}>{roleMeta.icon}</span>
               {roleMeta.label}
             </div>
 
-            <div className={styles.heroEmail}>{user.email}</div>
+            <div className={styles.heroEmail}>{activeUser.email}</div>
 
-            {/* Social link pills shown in hero if set */}
-            {(user.facebookUrl || user.instagramUrl || user.twitterUrl) && (
+            {/* Social link pills */}
+            {(activeUser.facebookUrl || activeUser.instagramUrl || activeUser.twitterUrl) && (
               <div className={styles.heroSocialRow}>
-                {user.facebookUrl && (
-                  <a href={user.facebookUrl} target="_blank" rel="noopener noreferrer" className={styles.heroSocialPill}>
+                {activeUser.facebookUrl && (
+                  <a href={activeUser.facebookUrl} target="_blank" rel="noopener noreferrer" className={styles.heroSocialPill}>
                     <span className={styles.heroSocialBadge}>f</span> Facebook
                   </a>
                 )}
-                {user.instagramUrl && (
-                  <a href={user.instagramUrl} target="_blank" rel="noopener noreferrer" className={styles.heroSocialPill}>
+                {activeUser.instagramUrl && (
+                  <a href={activeUser.instagramUrl} target="_blank" rel="noopener noreferrer" className={styles.heroSocialPill}>
                     <span className={styles.heroSocialBadge}>in</span> Instagram
                   </a>
                 )}
-                {user.twitterUrl && (
-                  <a href={user.twitterUrl} target="_blank" rel="noopener noreferrer" className={styles.heroSocialPill}>
+                {activeUser.twitterUrl && (
+                  <a href={activeUser.twitterUrl} target="_blank" rel="noopener noreferrer" className={styles.heroSocialPill}>
                     <span className={styles.heroSocialBadge}>𝕏</span> Twitter
                   </a>
                 )}
@@ -427,7 +397,7 @@ const Profile: React.FC = () => {
                   <span className={`${styles.fieldBadge} ${styles.fieldBadgeLocked}`}>🔒 Locked</span>
                 </span>
                 <div className={styles.fieldValue}>
-                  {user.email}
+                  {activeUser.email}
                   <span className={styles.fieldLockIcon}>🔒</span>
                 </div>
               </div>

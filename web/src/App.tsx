@@ -37,6 +37,9 @@ function App() {
           <Route path="/properties/:id" element={<PropertyDetail />} />
           <Route path="/my-rentals" element={<MyRentals />} />
           <Route path="/my-rentals/:requestId" element={<RentalDetail />} />
+          
+          {/* Tenant Profile */}
+          <Route path="/tenant/profile" element={<Profile />} /> 
         </Route>
  
         <Route element={<ProtectedRoute allowedRoles={["OWNER"]}><OwnerLayout /></ProtectedRoute>}>
@@ -44,6 +47,9 @@ function App() {
           <Route path="/owner/properties" element={<OwnerProperties />} />
           <Route path="/owner/properties/new" element={<AddProperty />} />
           <Route path="/owner/properties/:id/edit" element={<EditProperty />} />
+          
+          {/* Owner Profile */}
+          <Route path="/owner/profile" element={<Profile />} />
         </Route>
 
         {/* Admin Routes */}
@@ -82,13 +88,7 @@ function App() {
         } />
         <Route path="/admin/notifications" element={<AdminNotifications />} />
 
-        {/* Shared Routes (Accessible by multiple roles) */}
-        <Route path="/profile" element={
         
-          <ProtectedRoute allowedRoles={["TENANT", "OWNER", "ADMIN"]}>
-            <Profile />
-          </ProtectedRoute>
-        } />
         
       </Routes>
     </BrowserRouter>

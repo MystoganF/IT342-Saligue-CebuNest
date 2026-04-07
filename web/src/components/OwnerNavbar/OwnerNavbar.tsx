@@ -291,11 +291,15 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
                     <span className={styles.dropdownRole}>🔑 Owner</span>
                   </div>
                   <div className={styles.dropdownItems}>
-                    {/* CHANGED FROM <a> TO <Link> */}
-                    <Link to="/profile" className={styles.dropdownItem} role="menuitem"
-                      onClick={() => setMenuOpen(false)}>
-                      <span className={styles.dropdownItemIcon}>👤</span>Profile
-                    </Link>
+                   <Link 
+  to="/owner/profile" // <--- UPDATE THIS
+  className={styles.dropdownItem} 
+  role="menuitem"
+  onClick={() => setMenuOpen(false)}
+>
+  <span className={styles.dropdownItemIcon}>👤</span>
+  Profile
+</Link>
                     <div className={styles.dropdownDivider} />
                     <button className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`} role="menuitem"
                       onClick={() => { setMenuOpen(false); setShowLogoutModal(true); }}>
