@@ -26,19 +26,17 @@ public class GoogleAuthService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final JwtUtil jwtUtil;
-
-    // ─── Inside GoogleAuthService.java ───
+    private final EmailService emailService; // 1. Inject EmailService
 
     @Transactional
     public Map<String, Object> processGoogleLogin(String googleAccessToken, String requestedRole) {
-        // 1. Fetch profile from Google
         Map<String, Object> googleUser = fetchGoogleProfile(googleAccessToken);
         String email = (String) googleUser.get("email");
         String name = (String) googleUser.get("name");
 
         if (email == null) throw new IllegalArgumentException("Google identity not found.");
 
-        // 2. LOGIN FLOW (No role provided)
+        // LOGIN FLOW
         if (requestedRole == null || requestedRole.isBlank()) {
             if (!userRepository.existsByEmail(email)) {
                 return Map.of("requiresRoleSelection", true, "email", email, "name", name);
@@ -46,27 +44,41 @@ public class GoogleAuthService {
             return buildTokenMap(userRepository.findByEmail(email).get());
         }
 
-        // 3. REGISTRATION FLOW (Role provided)
-        // CRITICAL FIX: If we are here, the user is trying to REGISTER.
-        // If they already exist, return the flag and STOP. Do not generate tokens.
+        // REGISTRATION FLOW
         if (userRepository.existsByEmail(email)) {
             return Map.of("alreadyExists", true);
         }
 
-        // 4. Create brand new user
         Role role = roleRepository.findByName(requestedRole.toUpperCase())
                 .orElseThrow(() -> new RuntimeException("Role not found."));
 
+        // 2. Create brand new user
         User newUser = userRepository.save(User.builder()
                 .name(name != null ? name : email.split("@")[0])
                 .email(email)
-                .password("GOOGLE_OAUTH_" + UUID.randomUUID())
+                .password("GOOGLE_OAUTH_" + UUID.randomUUID()) // Secure placeholder
                 .role(role)
                 .createdAt(LocalDateTime.now())
                 .active(true)
                 .build());
 
+        // 3. Send the Welcome Email for Google Registration
+        sendGoogleWelcomeEmail(newUser, requestedRole.toUpperCase());
+
         return buildTokenMap(newUser);
+    }
+
+    // Helper method for the Google Welcome Email
+    private void sendGoogleWelcomeEmail(User user, String roleName) {
+        String subject = "Welcome to CebuNest, " + user.getName() + "! 🎉";
+        String body = "Hi " + user.getName() + ",\n\n" +
+                "Welcome to CebuNest! You have successfully registered using your Google account as a " + roleName + ".\n\n" +
+                "Now that your account is set up, you can instantly manage your properties or browse listings " +
+                "without needing a separate password.\n\n" +
+                "We're happy to have you!\n\n" +
+                "— The CebuNest Team";
+
+        emailService.sendEmail(user.getEmail(), subject, body);
     }
 
     private Map<String, Object> fetchGoogleProfile(String token) {
