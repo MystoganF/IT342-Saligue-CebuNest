@@ -126,13 +126,7 @@ const AdminPropertyDetail: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      <AdminSidebar user={admin} navItems={[
-        { path: "/admin/rental-requests", icon: "📋", label: "Rental Requests" },
-        { path: "/admin/properties",      icon: "🏘️", label: "All Properties"  },
-        { path: "/admin/users",           icon: "👥", label: "Users"          },
-         { path: "/admin/audit-log",       icon: "📜", label: "Audit Log"       },
-         { path: "/admin/notifications",   icon: "🔔", label: "Create Notification"   },
-      ]} />
+     
 
       <div className={styles.main}>
         <button type="button" className={styles.backBtn} onClick={() => navigate("/admin/rental-requests")}>

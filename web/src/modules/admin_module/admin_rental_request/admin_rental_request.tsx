@@ -1,26 +1,36 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { adminApi } from "../adminApi";
+import { API_BASE } from "../../../api/axiosInstance"; 
 import styles from "./admin_rental_request.module.css";
 
 interface AdminUser { id: number; name: string; email: string; role: string; }
 
 interface RentalRequest {
   id: number;
-  propertyTitle: string;
-  propertyLocation: string;
-  propertyPrice: number;
-  propertyImage: string | null;
-  propertyType: string;
+  // Fallbacks to support standard backend DTO keys
+  title?: string;
+  propertyTitle?: string;
+  location?: string;
+  propertyLocation?: string;
+  price?: number;
+  propertyPrice?: number;
+  type?: string;
+  propertyType?: string;
+  images?: string[];
+  imageUrl?: string;
+  propertyImage?: string | null;
   status: string;
   createdAt: string;
-  ownerName: string;
+  ownerName?: string;
+  owner?: { name: string; id: number };
   beds: number | null;
   baths: number | null;
   sqm: number | null;
 }
 
-function timeAgo(isoStr: string): string {
+function timeAgo(isoStr: string | undefined): string {
+  if (!isoStr) return "Unknown time";
   const diff  = Date.now() - new Date(isoStr).getTime();
   const mins  = Math.floor(diff / 60_000);
   const hours = Math.floor(diff / 3_600_000);
@@ -32,11 +42,33 @@ function timeAgo(isoStr: string): string {
   return new Date(isoStr).toLocaleDateString("en-PH", { month: "short", day: "numeric" });
 }
 
-function formatPrice(n: number) {
+function formatPrice(n: number | undefined) {
+  if (n == null || isNaN(n)) return "₱0";
   return new Intl.NumberFormat("en-PH", {
     style: "currency", currency: "PHP",
     minimumFractionDigits: 0, maximumFractionDigits: 0,
   }).format(n);
+}
+
+function getValidImageUrl(path: any): string | null {
+  if (!path) return null;
+
+  // 1. If the backend sent an object (like PropertyImageDTO), extract the URL string
+  let imageStr = "";
+  if (typeof path === "object") {
+    imageStr = path.imageUrl || path.url || path.image || "";
+  } else if (typeof path === "string") {
+    imageStr = path;
+  }
+
+  // 2. If we couldn't extract a valid string, return null
+  if (!imageStr || typeof imageStr !== "string") return null;
+
+  // 3. If it's already a full URL (like your Supabase URLs!) or base64, return it as-is
+  if (imageStr.startsWith("http") || imageStr.startsWith("data:")) return imageStr;
+  
+  // 4. Otherwise, prepend your dynamic API base URL for local files
+  return `${API_BASE}${imageStr.startsWith("/") ? "" : "/"}${imageStr}`;
 }
 
 const AdminRentalRequests: React.FC = () => {
@@ -52,7 +84,9 @@ const AdminRentalRequests: React.FC = () => {
     try {
       const data = await adminApi.getAllRentalRequests();
       if (!data.success) { setError(data?.error?.message ?? "Failed to fetch."); return; }
-      setRequests(data.data.requests ?? []);
+      
+      // Handles both potential array keys from the backend map
+      setRequests(data.data.properties ?? data.data.requests ?? []);
     } catch { 
       setError("Unable to connect to server."); 
     } finally { 
@@ -66,8 +100,6 @@ const AdminRentalRequests: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      {/* ── AdminSidebar removed (Handled by AdminLayout) ── */}
-
       <div className={styles.main}>
         <div className={styles.pageHeader}>
           <div>
@@ -85,9 +117,9 @@ const AdminRentalRequests: React.FC = () => {
               <div key={i} className={styles.skeletonCard}>
                 <div className={styles.skeletonImg} />
                 <div className={styles.skeletonBody}>
-                  <div className={`${styles.skeletonLine} ${styles.skeletonLg}`} />
-                  <div className={`${styles.skeletonLine} ${styles.skeletonMd}`} />
-                  <div className={`${styles.skeletonLine} ${styles.skeletonSm}`} />
+                  <div className={`${styles.skeletonLine} ${styles.skeletonLineLg}`} />
+                  <div className={`${styles.skeletonLine} ${styles.skeletonLineMd}`} />
+                  <div className={`${styles.skeletonLine} ${styles.skeletonLineSm}`} />
                 </div>
               </div>
             ))}
@@ -107,38 +139,70 @@ const AdminRentalRequests: React.FC = () => {
           </div>
         ) : (
           <div className={styles.requestList}>
-            {requests.map((r, i) => (
-              <div key={r.id} className={styles.requestCard} style={{ animationDelay: `${i * 30}ms` }} 
-                   onClick={() => navigate(`/admin/rental-requests/${r.id}`)}>
-                <div className={styles.cardLeft}>
-                  <div className={styles.cardImgWrap}>
-                    {r.propertyImage ? <img src={r.propertyImage} alt="" className={styles.cardImg} /> : <div className={styles.cardImgPlaceholder}>🏠</div>}
-                  </div>
-                  <div className={styles.cardInfo}>
-                    <h3 className={styles.cardTitle}>{r.propertyTitle}</h3>
-                    <div className={styles.cardMeta}>
-                      <span>📍 {r.propertyLocation}</span>
-                      <span>🏷️ {r.propertyType}</span>
-                      <span>👤 {r.ownerName}</span>
-                      <span>🕐 {timeAgo(r.createdAt)}</span>
+            {requests.map((r, i) => {
+              // Extract values dynamically to handle both standard backend DTOs and old interfaces
+              const displayTitle = r.title || r.propertyTitle || "Untitled Property";
+              const displayLocation = r.location || r.propertyLocation || "Location not provided";
+              const displayPrice = r.price ?? r.propertyPrice ?? 0;
+              const displayType = r.type || r.propertyType || "Property";
+              const displayOwner = r.ownerName || r.owner?.name || "Unknown Owner";
+              
+              // Process image
+              const rawImg = (r.images && r.images.length > 0) ? r.images[0] : (r.imageUrl || r.propertyImage || null);
+              const displayImg = getValidImageUrl(rawImg);
+
+              return (
+                <div key={r.id} className={styles.requestCard} style={{ animationDelay: `${i * 30}ms` }} 
+                     onClick={() => navigate(`/admin/rental-requests/${r.id}`)}>
+                     
+                  <div className={styles.cardTop}>
+                    <div className={styles.cardThumb}>
+                      {displayImg ? (
+                        <img src={displayImg} alt="" className={styles.cardThumbImg} />
+                      ) : (
+                        <div className={styles.cardThumbPlaceholder}>🏠</div>
+                      )}
                     </div>
-                    {(r.beds || r.baths || r.sqm) && (
-                      <div className={styles.cardSpecs}>
-                        {r.beds  != null && <span className={styles.specBadge}>🛏 {r.beds} beds</span>}
-                        {r.baths != null && <span className={styles.specBadge}>🚿 {r.baths} bath</span>}
-                        {r.sqm   != null && <span className={styles.specBadge}>📐 {r.sqm} sqm</span>}
+                    
+                    <div className={styles.cardInfo}>
+                      <div className={styles.cardInfoTop}>
+                        <div>
+                          <h3 className={styles.cardTitle}>{displayTitle}</h3>
+                          <div className={styles.cardMeta}>
+                            <span>📍 {displayLocation}</span>
+                            <span>🏷️ {displayType}</span>
+                            <span>👤 {displayOwner}</span>
+                            <span>🕐 {timeAgo(r.createdAt)}</span>
+                          </div>
+                        </div>
+                        <div className={styles.cardPrice}>
+                          {formatPrice(displayPrice)}<span>/mo</span>
+                        </div>
                       </div>
-                    )}
+
+                      {(r.beds || r.baths || r.sqm) && (
+                        <div className={styles.cardSpecs}>
+                          {r.beds  != null && <span className={styles.spec}>🛏 {r.beds} beds</span>}
+                          {r.baths != null && <span className={styles.spec}>🚿 {r.baths} bath</span>}
+                          {r.sqm   != null && <span className={styles.spec}>📐 {r.sqm} sqm</span>}
+                        </div>
+                      )}
+                    </div>
                   </div>
+
+                  <div className={styles.cardActions}>
+                    <button 
+                      className={styles.detailBtn} 
+                      type="button" 
+                      onClick={(e) => { e.stopPropagation(); navigate(`/admin/rental-requests/${r.id}`); }}
+                    >
+                      Review Listing →
+                    </button>
+                  </div>
+                  
                 </div>
-                <div className={styles.cardRight}>
-                  <div className={styles.cardPrice}>{formatPrice(r.propertyPrice)}<span>/mo</span></div>
-                  <button className={styles.reviewBtn} type="button" onClick={(e) => { e.stopPropagation(); navigate(`/admin/rental-requests/${r.id}`); }}>
-                    Review Listing →
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
