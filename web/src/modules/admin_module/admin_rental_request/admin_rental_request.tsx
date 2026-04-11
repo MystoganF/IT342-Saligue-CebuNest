@@ -8,7 +8,7 @@ interface AdminUser { id: number; name: string; email: string; role: string; }
 
 interface RentalRequest {
   id: number;
-  // Fallbacks to support standard backend DTO keys
+  
   title?: string;
   propertyTitle?: string;
   location?: string;
