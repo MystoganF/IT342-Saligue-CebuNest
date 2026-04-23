@@ -108,6 +108,7 @@ function formatDate(d: string | null | undefined) {
   return date.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
 }
 
+
 function geocodeUrl(location: string) {
   return `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location)}&format=json&limit=1`;
 }
@@ -164,7 +165,6 @@ const RentalDetail: React.FC = () => {
   const { requestId } = useParams<{ requestId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Grab user from TenantLayout context instead of localStorage
   const { user } = useOutletContext<{ user: User }>();
 
   // ── Core States ──
@@ -181,6 +181,7 @@ const RentalDetail: React.FC = () => {
 
   const [verifyBanner, setVerifyBanner] = useState<{ state: "verifying" | "success" | "error"; text: string; } | null>(null);
   const autoVerifyAttempted = useRef(false);
+  const overdueNotifiedRef = useRef(false);
   const paymentSectionRef = useRef<HTMLDivElement>(null);
 
   // ── Dropdown & Receipt States ──
@@ -190,7 +191,7 @@ const RentalDetail: React.FC = () => {
   const [viewingReceiptId, setViewingReceiptId]   = useState<number | null>(null);
 
   // ── Review states ──
-  const [allReviews, setAllReviews]         = useState<Review[]>([]); 
+  const [allReviews, setAllReviews]         = useState<Review[]>([]);
   const [existingReview, setExistingReview] = useState<Review | null>(null);
   const [reviewRating, setReviewRating]     = useState(0);
   const [reviewComment, setReviewComment]   = useState("");
@@ -211,10 +212,10 @@ const RentalDetail: React.FC = () => {
   const [extMsg, setExtMsg]                       = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [showExtForm, setShowExtForm]             = useState(false);
 
-  // ── Fetch everything (Optimized via Promise.all) ──────────────────────────
+  // ── Fetch everything ──────────────────────────────────────────────────────
   const fetchAll = useCallback(async () => {
     if (!requestId) return;
-    setLoading(true); 
+    setLoading(true);
     setError(null);
     setReviewsLoading(true);
 
@@ -233,7 +234,7 @@ const RentalDetail: React.FC = () => {
       promises.push(
         tenantApi.getPropertyById(found.propertyId)
           .then((d) => { if (d.success) setProperty(d.data.property); })
-          .catch(() => {}) 
+          .catch(() => {})
       );
 
       if (found.status === "CONFIRMED" || found.status === "COMPLETED") {
@@ -245,11 +246,11 @@ const RentalDetail: React.FC = () => {
                 setPayments(fetched);
                 const years = new Set(fetched.map((p) => {
                   if (!p.dueDate) return "Unknown";
-                  const d = new Date(p.dueDate);
-                  return isNaN(d.getTime()) ? "Unknown" : d.getFullYear().toString();
+                  const dt = new Date(p.dueDate);
+                  return isNaN(dt.getTime()) ? "Unknown" : dt.getFullYear().toString();
                 }));
                 const initial: Record<string, boolean> = {};
-                years.forEach((y) => { initial[y] = false; }); 
+                years.forEach((y) => { initial[y] = false; });
                 setExpandedYears(initial);
 
                 const stale = fetched.find((p) => p.paymongoPaymentId !== null && p.status !== "PAID" && p.status !== "FAILED");
@@ -277,8 +278,7 @@ const RentalDetail: React.FC = () => {
             .then((d) => {
               if (d.success) {
                 const fetchedReviews = d.data.reviews ?? [];
-                setAllReviews(fetchedReviews); 
-                
+                setAllReviews(fetchedReviews);
                 const mine = fetchedReviews.find(
                   (r: Review & { rentalRequestId: number }) => r.tenantId === user.id && r.rentalRequestId === found.id
                 );
@@ -295,30 +295,42 @@ const RentalDetail: React.FC = () => {
 
       await Promise.all(promises);
 
-    } catch (err: any) { 
-      setError(err.message || "Unable to load rental details."); 
-    } finally { 
-      setLoading(false); 
+    } catch (err: any) {
+      setError(err.message || "Unable to load rental details.");
+    } finally {
+      setLoading(false);
       setReviewsLoading(false);
     }
   }, [requestId, user.id]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  // ── Payment verify & FAILURE redirect ──────────────────────────────────────
+  // ── Show overdue banner once when payments load ───────────────────────────
+  useEffect(() => {
+    if (!payments.length || overdueNotifiedRef.current) return;
+    const overduePayments = payments.filter(p => p.status === "OVERDUE");
+    if (overduePayments.length > 0) {
+      overdueNotifiedRef.current = true;
+      setVerifyBanner({
+        state: "error",
+        text: `⚠ You have ${overduePayments.length} overdue payment${overduePayments.length > 1 ? "s" : ""}. Please settle your balance as soon as possible.`,
+      });
+    }
+  }, [payments]);
+
+  // ── Payment verify & redirect handling ───────────────────────────────────
   useEffect(() => {
     const paymentIdParam = searchParams.get("payment_id");
     const paymentStatus  = searchParams.get("payment");
     if (!paymentIdParam || !paymentStatus || autoVerifyAttempted.current) return;
     autoVerifyAttempted.current = true;
     setSearchParams({}, { replace: true });
-    
+
     const paymentId = parseInt(paymentIdParam, 10);
     if (isNaN(paymentId)) return;
-    
+
     setTimeout(() => { paymentSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }, 400);
 
-    // CANCELLED
     if (paymentStatus === "cancelled") {
       setVerifyBanner({ state: "error", text: "Payment was cancelled. You can try again whenever you're ready." });
       tenantApi.cancelPayment(paymentId)
@@ -330,7 +342,6 @@ const RentalDetail: React.FC = () => {
       return;
     }
 
-    // FAILED
     if (paymentStatus === "failed") {
       setVerifyBanner({ state: "error", text: "Your payment failed or was declined. Please try again." });
       tenantApi.failPayment(paymentId)
@@ -342,7 +353,6 @@ const RentalDetail: React.FC = () => {
       return;
     }
 
-    // SUCCESS
     if (paymentStatus === "success") {
       setVerifyBanner({ state: "verifying", text: "Verifying your payment with PayMongo…" });
       tenantApi.verifyPayment(paymentId)
@@ -370,7 +380,7 @@ const RentalDetail: React.FC = () => {
       .finally(() => setMapLoading(false));
   }, [property?.location]);
 
-  // ── Pay now / Re-Initiate ──────────────────────────────────────────────────
+  // ── Pay now ───────────────────────────────────────────────────────────────
   const handlePay = async (paymentId: number) => {
     setInitiating(paymentId);
     try {
@@ -381,17 +391,16 @@ const RentalDetail: React.FC = () => {
     finally { setInitiating(null); }
   };
 
-  // ── Reset Expired Paymongo Link ──────────────────────────────────────────
+  // ── Reset Expired Paymongo Link ───────────────────────────────────────────
   const handleResetPayment = async (paymentId: number) => {
     setInitiating(paymentId);
     try {
       await tenantApi.cancelPayment(paymentId);
       setPayments(prev => prev.map(p => p.id === paymentId ? { ...p, checkoutUrl: null, paymongoPaymentId: null } : p));
-      
       const data = await tenantApi.initiatePayment(paymentId);
       if (data.success && data.data.payment.checkoutUrl) window.location.href = data.data.payment.checkoutUrl;
-    } catch { 
-      setVerifyBanner({ state: "error", text: "Failed to reset link. Please try again." }); 
+    } catch {
+      setVerifyBanner({ state: "error", text: "Failed to reset link. Please try again." });
       setInitiating(null);
     }
   };
@@ -408,22 +417,19 @@ const RentalDetail: React.FC = () => {
         rating: reviewRating,
         comment: reviewComment.trim() || null
       });
-
       if (!data.success) { setReviewMsg({ type: "error", text: data?.error?.message ?? "Failed to submit review." }); return; }
-      
       const newReview = data.data.review;
       setExistingReview(newReview);
-      setAllReviews(prev => [newReview, ...prev]); 
+      setAllReviews(prev => [newReview, ...prev]);
       setReviewMsg({ type: "success", text: "Review submitted! Thank you for your feedback." });
     } catch { setReviewMsg({ type: "error", text: "Network error. Please try again." }); }
     finally { setReviewSubmitting(false); }
   };
 
-  // ── Open Reviews Modal (Simulate Lazy Fetch) ─────────────────────────────
+  // ── Reviews Modal ─────────────────────────────────────────────────────────
   const openReviewModal = (rating: number) => {
     setModalFilterRating(rating);
     setIsFetchingModal(true);
-    
     setTimeout(() => {
       setModalReviews(rating === 0 ? allReviews : allReviews.filter(r => r.rating === rating));
       setIsFetchingModal(false);
@@ -446,11 +452,7 @@ const RentalDetail: React.FC = () => {
         requestedMonths: extMonths,
         reason: extReason.trim() || null
       });
-      
-      if (!data.success) {
-        setExtMsg({ type: "error", text: data?.error?.message ?? "Failed to submit request." });
-        return;
-      }
+      if (!data.success) { setExtMsg({ type: "error", text: data?.error?.message ?? "Failed to submit request." }); return; }
       const newExt: LeaseExtension = data.data.extensionRequest;
       setExtensions((prev) => [newExt, ...prev]);
       setExtMsg({ type: "success", text: `Extension request for ${extMonths} month(s) sent to the owner!` });
@@ -478,8 +480,9 @@ const RentalDetail: React.FC = () => {
       acc[year].push(p);
       return acc;
     }, {} as Record<string, Payment[]>);
-    
-    const unpaid = payments.filter((p) => p.status === "PENDING" || p.status === "OVERDUE" || p.status === "FAILED")
+
+    const unpaid = payments
+      .filter((p) => p.status === "PENDING" || p.status === "OVERDUE" || p.status === "FAILED")
       .sort((a, b) => a.installmentNumber - b.installmentNumber);
     return { paymentsByYear: grouped, nextPayablePaymentId: unpaid.length > 0 ? unpaid[0].id : null };
   }, [payments]);
@@ -494,9 +497,9 @@ const RentalDetail: React.FC = () => {
   const isConfirmed  = request?.status === "CONFIRMED";
   const hasPendingExt = extensions.some((e) => e.status === "PENDING");
   const activeReceipt = viewingReceiptId ? payments.find((p) => p.id === viewingReceiptId) : null;
-  
-  const averageRating = allReviews.length > 0 
-    ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length 
+
+  const averageRating = allReviews.length > 0
+    ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
     : 0;
 
   if (loading) return (
@@ -519,8 +522,6 @@ const RentalDetail: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      
-      {/* ── Navbar removed (Handled by TenantLayout) ── */}
 
       <div className={styles.backBar}>
         <button className={styles.backBtn} onClick={() => navigate("/my-rentals")} type="button">
@@ -531,6 +532,7 @@ const RentalDetail: React.FC = () => {
       <div className={styles.main}>
         {/* ══ LEFT ══ */}
         <div className={styles.leftCol}>
+
           {/* Gallery */}
           <div className={styles.gallery}>
             <div className={styles.galleryMain}>
@@ -657,10 +659,10 @@ const RentalDetail: React.FC = () => {
             <div className={styles.cardTitle} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: '20px' }}>
               <div>Tenant Reviews</div>
             </div>
-            
+
             {reviewsLoading && <div className={styles.requestsLoading}>Loading reviews…</div>}
             {!reviewsLoading && allReviews.length === 0 && <div className={styles.requestsEmpty}><span className={styles.requestsEmptyIcon}>⭐</span><p>No reviews yet for this property.</p></div>}
-            
+
             {!reviewsLoading && allReviews.length > 0 && (
               <>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: '24px' }}>
@@ -671,14 +673,14 @@ const RentalDetail: React.FC = () => {
                     </div>
                     <div style={{ fontSize: '12px', color: '#6e7071' }}>{allReviews.length} review{allReviews.length !== 1 ? "s" : ""}</div>
                   </div>
-                  
+
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {[5, 4, 3, 2, 1].map((star) => { 
-                      const count = allReviews.filter((r) => r.rating === star).length; 
-                      const pct = allReviews.length > 0 ? Math.round((count / allReviews.length) * 100) : 0; 
+                    {[5, 4, 3, 2, 1].map((star) => {
+                      const count = allReviews.filter((r) => r.rating === star).length;
+                      const pct = allReviews.length > 0 ? Math.round((count / allReviews.length) * 100) : 0;
                       return (
-                        <div 
-                          key={star} 
+                        <div
+                          key={star}
                           onClick={() => openReviewModal(star)}
                           style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', cursor: 'pointer' }}
                           title={`Click to view all ${star}-star reviews`}
@@ -691,7 +693,7 @@ const RentalDetail: React.FC = () => {
                           </div>
                           <span style={{ color: '#6e7071', width: '20px', textAlign: 'right' }}>{count}</span>
                         </div>
-                      ); 
+                      );
                     })}
                   </div>
                 </div>
@@ -701,7 +703,9 @@ const RentalDetail: React.FC = () => {
                     <div key={rev.id} className={styles.reviewItem}>
                       <div className={styles.reviewItemHeader}>
                         <div className={styles.reviewAvatar}>
-                          {rev.tenantAvatarUrl ? <img src={rev.tenantAvatarUrl} alt={rev.tenantName} className={styles.reviewAvatarImg} /> : <span>{getInitials(rev.tenantName)}</span>}
+                          {rev.tenantAvatarUrl
+                            ? <img src={rev.tenantAvatarUrl} alt={rev.tenantName} className={styles.reviewAvatarImg} />
+                            : <span>{getInitials(rev.tenantName)}</span>}
                         </div>
                         <div className={styles.reviewItemMeta}>
                           <span className={styles.reviewItemName}>{rev.tenantName}</span>
@@ -715,14 +719,14 @@ const RentalDetail: React.FC = () => {
                 </div>
 
                 {allReviews.length > 2 && (
-                  <button 
-                    type="button" 
-                    onClick={() => openReviewModal(0)} 
-                    style={{ 
-                      marginTop: "16px", width: "100%", padding: "12px", 
-                      borderRadius: "10px", border: "1.5px solid rgba(83,164,163,0.3)", 
-                      background: "rgba(83,164,163,0.05)", color: "#1f5d71", 
-                      fontWeight: "bold", cursor: "pointer", transition: "0.2s" 
+                  <button
+                    type="button"
+                    onClick={() => openReviewModal(0)}
+                    style={{
+                      marginTop: "16px", width: "100%", padding: "12px",
+                      borderRadius: "10px", border: "1.5px solid rgba(83,164,163,0.3)",
+                      background: "rgba(83,164,163,0.05)", color: "#1f5d71",
+                      fontWeight: "bold", cursor: "pointer", transition: "0.2s"
                     }}
                     onMouseOver={(e) => (e.currentTarget.style.background = "rgba(83,164,163,0.15)")}
                     onMouseOut={(e) => (e.currentTarget.style.background = "rgba(83,164,163,0.05)")}
@@ -754,6 +758,7 @@ const RentalDetail: React.FC = () => {
 
         {/* ══ RIGHT ══ */}
         <div className={styles.rightCol}>
+
           {/* Rental Summary */}
           <div className={styles.summaryCard}>
             <div className={styles.summaryPrice}>
@@ -777,8 +782,8 @@ const RentalDetail: React.FC = () => {
                   <span className={styles.progressRemaining}>{formatPrice(totalAmount - paidAmount)} remaining</span>
                 </div>
                 {nextDue && (
-                  <div className={`${styles.nextDue} ${nextDue.status === "OVERDUE" || nextDue.status === "FAILED" ? styles.nextDueOverdue : ""}`}>
-                    {nextDue.status === "OVERDUE" ? "⚠ Overdue:" : nextDue.status === "FAILED" ? "✕ Failed:" : "📅 Next due:"}{" "}
+                  <div className={`${styles.nextDue} ${nextDue.status === "OVERDUE" ? styles.nextDueOverdue : ""}`}>
+  {nextDue.status === "OVERDUE" ? "⚠ Overdue:" : "📅 Next due:"}
                     <strong>{formatDate(nextDue.dueDate)}</strong> — {formatPrice(nextDue.amount)}
                   </div>
                 )}
@@ -789,7 +794,8 @@ const RentalDetail: React.FC = () => {
           {/* ── Action Dropdowns Container ── */}
           {isConfirmed && payments.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }} ref={paymentSectionRef}>
-              
+
+              {/* Verify / Overdue Banner */}
               {verifyBanner && (
                 <div className={`${styles.verifyBanner} ${styles[`verifyBanner_${verifyBanner.state}`]}`}>
                   <span className={styles.verifyBannerIcon}>
@@ -804,7 +810,7 @@ const RentalDetail: React.FC = () => {
                 </div>
               )}
 
-              {/* 1. Payment Schedule Dropdown (Grouped by Year) */}
+              {/* 1. Payment Schedule */}
               <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", background: "#fff" }}>
                 <div style={{ padding: "16px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", fontWeight: "700", color: "#1f5d71" }}>
                   Payment Schedule
@@ -815,7 +821,7 @@ const RentalDetail: React.FC = () => {
                     const yearPayments = paymentsByYear[year];
                     const schedulePayments = yearPayments.filter(p => p.status !== "PAID");
                     const yearPaid     = yearPayments.filter((p) => p.status === "PAID").length;
-                    
+
                     return (
                       <div key={year} className={styles.yearAccordion}>
                         <button type="button" className={styles.yearAccordionHeader}
@@ -839,10 +845,16 @@ const RentalDetail: React.FC = () => {
                                 const isNext          = p.id === nextPayablePaymentId;
                                 const isLocked        = !isNext;
                                 const isActionLoading = initiating === p.id;
-                                const hasError        = p.status === "OVERDUE" || p.status === "FAILED";
-                                
+                                const isActuallyOverdue = p.status === "OVERDUE";
+                                const hasError        = isActuallyOverdue || p.status === "FAILED";
+
                                 return (
-                                  <div key={p.id} className={[styles.paymentRow, isLocked ? styles.paymentRowLocked : "", isNext ? styles.paymentRowNext : "", hasError ? styles.paymentRowOverdue : ""].filter(Boolean).join(" ")}>
+                                  <div key={p.id} className={[
+                                    styles.paymentRow,
+                                    isLocked ? styles.paymentRowLocked : "",
+                                    isNext ? styles.paymentRowNext : "",
+                                    hasError ? styles.paymentRowOverdue : ""
+                                  ].filter(Boolean).join(" ")}>
                                     <div className={styles.paymentRowLeft}>
                                       <div className={[styles.paymentMonthBadge, isNext ? styles.paymentMonthBadgeNext : ""].filter(Boolean).join(" ")}>
                                         {isLocked ? "🔒" : p.installmentNumber}
@@ -850,13 +862,17 @@ const RentalDetail: React.FC = () => {
                                       <div className={styles.paymentRowInfo}>
                                         <span className={styles.paymentLabel}>Month {p.installmentNumber}</span>
                                         <span className={styles.paymentDates}>Due {formatDate(p.dueDate)}</span>
+                                        {/* ── Overdue pill ── */}
+                                        {isActuallyOverdue && !isLocked && (
+                                          <span className={styles.overduePill}>⚠ Overdue</span>
+                                        )}
                                         {p.status === "PENDING" && p.checkoutUrl && !isLocked && (
-                                            <div 
-                                                style={{ fontSize: "11px", color: "#b78e42", textDecoration: "underline", cursor: "pointer", marginTop: "4px" }}
-                                                onClick={() => handleResetPayment(p.id)}
-                                            >
-                                                Link expired? Click to reset
-                                            </div>
+                                          <div
+                                            style={{ fontSize: "11px", color: "#b78e42", textDecoration: "underline", cursor: "pointer", marginTop: "4px" }}
+                                            onClick={() => handleResetPayment(p.id)}
+                                          >
+                                            Link expired? Click to reset
+                                          </div>
                                         )}
                                       </div>
                                     </div>
@@ -865,12 +881,12 @@ const RentalDetail: React.FC = () => {
                                       {hasError ? (
                                         <div className={styles.paymentRowActions}>
                                           <span className={`${styles.payStatusBadge} ${styles.payStatusOverdue}`}>
-                                            {p.status === "OVERDUE" ? "Overdue" : "Failed"}
+                                            {p.status === "FAILED" ? "Failed" : "Overdue"}
                                           </span>
                                           {isNext && (
                                             <button type="button" className={`${styles.payNowBtn} ${styles.payNowBtnOverdue}`}
                                               onClick={() => handlePay(p.id)} disabled={isActionLoading}>
-                                              {isActionLoading ? <span className={styles.payBtnSpinner} /> : "Try Again"}
+                                              {isActionLoading ? <span className={styles.payBtnSpinner} /> : "Pay Now"}
                                             </button>
                                           )}
                                         </div>
@@ -895,7 +911,7 @@ const RentalDetail: React.FC = () => {
                 </div>
               </div>
 
-              {/* 2. Payment History Dropdown */}
+              {/* 2. Payment History */}
               <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", background: "#fff" }}>
                 <button
                   type="button"
@@ -905,7 +921,7 @@ const RentalDetail: React.FC = () => {
                   <span>Payment History</span>
                   <span>{historyExpanded ? "▲" : "▼"}</span>
                 </button>
-                
+
                 {historyExpanded && (
                   <div style={{ padding: "0 16px" }}>
                     {payments.filter(p => p.status === "PAID").length === 0 ? (
@@ -922,7 +938,7 @@ const RentalDetail: React.FC = () => {
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                               <span style={{ fontWeight: "600", color: "#1e293b" }}>{formatPrice(payment.amount)}</span>
-                              <button 
+                              <button
                                 onClick={() => setViewingReceiptId(payment.id)}
                                 className={styles.receiptBtn}
                               >
@@ -937,7 +953,7 @@ const RentalDetail: React.FC = () => {
                 )}
               </div>
 
-              {/* 3. Lease Extension Dropdown */}
+              {/* 3. Lease Extension */}
               <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", background: "#fff" }}>
                 <button
                   type="button"
@@ -947,7 +963,7 @@ const RentalDetail: React.FC = () => {
                   <span>Lease Extension Requests</span>
                   <span>{extensionExpanded ? "▲" : "▼"}</span>
                 </button>
-                
+
                 {extensionExpanded && (
                   <div style={{ padding: "16px", borderTop: "1px solid #e2e8f0" }}>
                     {extensions.length > 0 && (
@@ -1062,7 +1078,7 @@ const RentalDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* ── Receipt Modal Overlay ── */}
+      {/* ── Receipt Modal ── */}
       {viewingReceiptId && activeReceipt && (
         <div className={styles.modalOverlay} onClick={() => setViewingReceiptId(null)}>
           <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -1072,29 +1088,29 @@ const RentalDetail: React.FC = () => {
             </div>
             <div className={styles.modalBody}>
               <div className={styles.receiptRow}>
-                <span>Property:</span> 
+                <span>Property:</span>
                 <span style={{ fontWeight: "600" }}>{property?.title || request?.propertyTitle}</span>
               </div>
               <div className={styles.receiptRow}>
-                <span>Installment:</span> 
+                <span>Installment:</span>
                 <span>Month {activeReceipt.installmentNumber}</span>
               </div>
               <div className={styles.receiptRow}>
-                <span>Amount Paid:</span> 
+                <span>Amount Paid:</span>
                 <span style={{ fontWeight: "700", color: "#1f5d71" }}>{formatPrice(activeReceipt.amount)}</span>
               </div>
               <div className={styles.receiptRow}>
-                <span>Date Paid:</span> 
+                <span>Date Paid:</span>
                 <span>{formatDate(activeReceipt.paidAt || activeReceipt.dueDate)}</span>
               </div>
               <div className={styles.receiptRow}>
-                <span>Reference ID:</span> 
+                <span>Reference ID:</span>
                 <span style={{ fontFamily: "monospace", fontSize: "12px", background: "#f0f4f5", padding: "2px 6px", borderRadius: "4px" }}>
                   {activeReceipt.paymongoPaymentId || `MANUAL-${activeReceipt.id}`}
                 </span>
               </div>
               <div className={styles.receiptRow}>
-                <span>Status:</span> 
+                <span>Status:</span>
                 <span style={{ color: "#10b981", fontWeight: "bold", display: "flex", alignItems: "center", gap: "4px" }}>
                   ✓ COMPLETED
                 </span>
@@ -1107,13 +1123,13 @@ const RentalDetail: React.FC = () => {
         </div>
       )}
 
-      {/* ── Reviews Lazy Fetch Modal ── */}
+      {/* ── Reviews Modal ── */}
       {modalFilterRating !== null && (
         <div className={styles.modalOverlay} onClick={closeReviewModal}>
           <div style={{ maxWidth: '600px', width: '100%', padding: '24px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', background: '#fff', borderRadius: '16px' }} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ fontSize: '20px', margin: 0, color: '#1f5d71', fontFamily: "'Playfair Display', serif", fontWeight: 700 }}>
-                {modalFilterRating === 0 ? "All" : modalFilterRating} Star Reviews
+                {modalFilterRating === 0 ? "All" : `${modalFilterRating} Star`} Reviews
               </h3>
               <button onClick={closeReviewModal} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>✕</button>
             </div>
@@ -1147,7 +1163,7 @@ const RentalDetail: React.FC = () => {
                 ))
               )}
             </div>
-            
+
             <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end' }}>
               <button onClick={closeReviewModal} style={{ padding: '10px 20px', background: '#f0f4f5', color: '#1f5d71', border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>Close</button>
             </div>

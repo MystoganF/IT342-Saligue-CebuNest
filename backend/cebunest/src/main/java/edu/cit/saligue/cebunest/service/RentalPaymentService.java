@@ -132,8 +132,42 @@ public class RentalPaymentService {
     @Transactional
     public void markOverduePayments() {
         LocalDate today = LocalDate.now();
-        List<RentalPayment> pending = rentalPaymentRepository.findAll().stream().filter(p -> p.getStatus() == RentalPayment.PaymentStatus.PENDING && p.getDueDate().isBefore(today)).toList();
-        pending.forEach(p -> p.setStatus(RentalPayment.PaymentStatus.OVERDUE));
+        List<RentalPayment> pending = rentalPaymentRepository.findAll().stream()
+                .filter(p -> p.getStatus() == RentalPayment.PaymentStatus.PENDING
+                        && p.getDueDate().isBefore(today))
+                .toList();
+
+        pending.forEach(p -> {
+            p.setStatus(RentalPayment.PaymentStatus.OVERDUE);
+
+            RentalRequest rental = p.getRentalRequest();
+            User tenant = rental.getTenant();
+            User owner  = rental.getProperty().getOwner();
+            String propertyTitle = rental.getProperty().getTitle();
+
+            // Notify tenant
+            notificationService.send(
+                    tenant,
+                    "PAYMENT_OVERDUE",
+                    "Your payment for Month " + p.getInstallmentNumber() +
+                            " (₱" + String.format("%.0f", p.getAmount()) + ") for \"" +
+                            propertyTitle + "\" is now overdue. Please settle it as soon as possible.",
+                    rental.getId(),
+                    rental.getProperty().getId()
+            );
+
+            // Notify owner
+            notificationService.send(
+                    owner,
+                    "PAYMENT_OVERDUE",
+                    rental.getTenant().getName() + "'s payment for Month " +
+                            p.getInstallmentNumber() + " (₱" + String.format("%.0f", p.getAmount()) +
+                            ") for \"" + propertyTitle + "\" is overdue.",
+                    rental.getId(),
+                    rental.getProperty().getId()
+            );
+        });
+
         rentalPaymentRepository.saveAll(pending);
     }
 
