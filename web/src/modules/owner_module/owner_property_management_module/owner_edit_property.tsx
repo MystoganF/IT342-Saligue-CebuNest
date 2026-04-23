@@ -304,6 +304,7 @@ const EditProperty: React.FC = () => {
           leaseDurationMonths: t.leaseDurationMonths, status: t.status,
         };
         setActiveTenant(tenant);
+         setActiveTenantLoading(false); // ← ADD THIS LINE
 
         setPaymentsLoading(true);
         ownerApi.getPaymentsForRequest(tenant.id)
