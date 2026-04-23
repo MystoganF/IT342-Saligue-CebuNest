@@ -22,6 +22,9 @@ import AdminNotifications from "./modules/admin_module/admin_notification_module
 import TenantLayout from "./modules/tenant_module/TenantLayout";
 import OwnerLayout from "./modules/owner_module/OwnerLayout";
 import AdminLayout from "./modules/admin_module/AdminLayout";
+import ForgotPassword from "./modules/authentication_module/forgot_password_module/ForgotPassword";
+import VerifyCode from "./modules/authentication_module/forgot_password_module/VerifyCode";
+import ResetPassword from "./modules/authentication_module/forgot_password_module/ResetPassword";
 
 function App() {
   return (
@@ -30,7 +33,10 @@ function App() {
         {/* Auth (Public Routes) */}
         <Route path="/"           element={<Login />}           />
         <Route path="/register"   element={<Register />}        />
- 
+
+        <Route path="/forgot-password"        element={<ForgotPassword />} />
+        <Route path="/forgot-password/verify" element={<VerifyCode />} />
+        <Route path="/forgot-password/reset"  element={<ResetPassword />} />
      
         <Route element={<ProtectedRoute allowedRoles={["TENANT"]}><TenantLayout /></ProtectedRoute>}>
           <Route path="/home" element={<Home />} />

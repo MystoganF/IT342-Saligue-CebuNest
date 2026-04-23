@@ -341,7 +341,7 @@ const Navbar: React.FC<NavbarProps> = ({ user }) => {
       {showLogoutModal && (
         <div className={styles.modalOverlay} onClick={() => setShowLogoutModal(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalIcon}>🚪</div>
+         
             <h3 className={styles.modalTitle}>Sign Out?</h3>
             <p className={styles.modalBody}>
               You'll be logged out of your account and returned to the login page.

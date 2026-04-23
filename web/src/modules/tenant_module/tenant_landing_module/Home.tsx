@@ -217,8 +217,6 @@ const Home: React.FC = () => {
   return (
     <div className={styles.page}>
 
-      {/* ── Navbar removed (Handled by TenantLayout wrapper) ── */}
-
       {/* ── Hero ── */}
       <section className={styles.hero}>
         <div className={styles.heroDeco + " " + styles.heroDeco1} />
@@ -245,22 +243,7 @@ const Home: React.FC = () => {
             Submit a rental request in minutes.
           </p>
 
-          {/* Search bar */}
-          <form className={styles.heroSearch} onSubmit={handleSearchSubmit}>
-            <span className={styles.heroSearchIcon}>🔍</span>
-            <input
-              className={styles.heroSearchInput}
-              type="text"
-              placeholder="Search by location, name, or type…"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
-            <button type="submit" className={styles.heroSearchBtn}>
-              Search
-            </button>
-          </form>
-
-          {/* Stats */}
+          {/* Stats (Search was removed from here) */}
           <div className={styles.heroStats}>
             {[
               { num: "240+",  label: "Active Listings" },
@@ -294,50 +277,67 @@ const Home: React.FC = () => {
                 : `${properties.length} propert${properties.length === 1 ? "y" : "ies"} found`}
             </h2>
           </div>
-          
         </div>
 
-        {/* Filter bar */}
-        <div className={styles.filterBar}>
-          <span className={styles.filterLabel}>Filter</span>
-          <div className={styles.filterChips}>
-            {/* "All Types" chip is always first */}
-            <button
-              className={`${styles.filterChip} ${activeType === "ALL" ? styles.filterChipActive : ""}`}
-              onClick={() => setActiveType("ALL")}
-            >
-              All Types
+        {/* ── Search & Filter Section ── */}
+        <div className={styles.filterSection}>
+          
+          {/* New Search Bar Position */}
+          <form className={styles.mainSearch} onSubmit={handleSearchSubmit}>
+            <span className={styles.mainSearchIcon}>🔍</span>
+            <input
+              className={styles.mainSearchInput}
+              type="text"
+              placeholder="Search by location, name, or type…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+            />
+            <button type="submit" className={styles.mainSearchBtn}>
+              Search
             </button>
-            {propertyTypes.map((pt) => (
-              <button
-                key={pt.id}
-                className={`${styles.filterChip} ${activeType === pt.name ? styles.filterChipActive : ""}`}
-                onClick={() => setActiveType(pt.name)}
-              >
-                {pt.name}
-              </button>
-            ))}
-          </div>
+          </form>
 
-          {/* Price range */}
-          <div className={styles.filterPrice}>
-            <input
-              type="number"
-              className={styles.filterPriceInput}
-              placeholder="Min ₱"
-              value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value)}
-              min={0}
-            />
-            <span className={styles.filterPriceSep}>–</span>
-            <input
-              type="number"
-              className={styles.filterPriceInput}
-              placeholder="Max ₱"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-              min={0}
-            />
+          {/* Existing Filter Bar */}
+          <div className={styles.filterBar}>
+            <span className={styles.filterLabel}>Filter</span>
+            <div className={styles.filterChips}>
+              <button
+                className={`${styles.filterChip} ${activeType === "ALL" ? styles.filterChipActive : ""}`}
+                onClick={() => setActiveType("ALL")}
+              >
+                All Types
+              </button>
+              {propertyTypes.map((pt) => (
+                <button
+                  key={pt.id}
+                  className={`${styles.filterChip} ${activeType === pt.name ? styles.filterChipActive : ""}`}
+                  onClick={() => setActiveType(pt.name)}
+                >
+                  {pt.name}
+                </button>
+              ))}
+            </div>
+
+            {/* Price range */}
+            <div className={styles.filterPrice}>
+              <input
+                type="number"
+                className={styles.filterPriceInput}
+                placeholder="Min ₱"
+                value={minPrice}
+                onChange={(e) => setMinPrice(e.target.value)}
+                min={0}
+              />
+              <span className={styles.filterPriceSep}>–</span>
+              <input
+                type="number"
+                className={styles.filterPriceInput}
+                placeholder="Max ₱"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(e.target.value)}
+                min={0}
+              />
+            </div>
           </div>
         </div>
 

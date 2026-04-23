@@ -647,3 +647,73 @@
   .filterPrice { margin-left: 0; }
   .propertyGrid { grid-template-columns: 1fr; }
 }
+
+
+/* ─── Search & Filter Section ────────────────────────────────────────────── */
+
+.filterSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 32px;
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid #e5eced;
+  box-shadow: 0 4px 12px rgba(31, 93, 113, 0.04);
+}
+
+.mainSearch {
+  display: flex;
+  align-items: center;
+  background: #f8fafb;
+  border: 1.5px solid #e5eced;
+  border-radius: 12px;
+  padding: 6px 6px 6px 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.mainSearch:focus-within {
+  border-color: #1f5d71;
+  box-shadow: 0 0 0 4px rgba(31, 93, 113, 0.1);
+}
+
+.mainSearchIcon {
+  font-size: 16px;
+  opacity: 0.5;
+  margin-right: 8px;
+}
+
+.mainSearchInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 8px 4px;
+  font-family: inherit;
+  font-size: 15px;
+  outline: none;
+  color: #1a2a2e;
+}
+
+.mainSearchInput::placeholder {
+  color: #a0b0b5;
+}
+
+.mainSearchBtn {
+  background: #1f5d71;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.mainSearchBtn:hover {
+  background: #174d5e;
+}
+
+.mainSearchBtn:active {
+  transform: scale(0.98);
+}
