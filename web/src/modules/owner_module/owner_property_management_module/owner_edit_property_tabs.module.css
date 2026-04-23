@@ -1,0 +1,122 @@
+/* ─────────────────────────────────────
+   TAB NAVIGATION
+   owner_edit_property_tabs.module.css
+───────────────────────────────────── */
+
+.tabNav {
+  background: #ffffff;
+  border-bottom: 1.5px solid #e5eced;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(31, 93, 113, 0.03);
+}
+
+.tabNavInner {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 40px;
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  /* Hide scrollbar for a cleaner look */
+  scrollbar-width: none; 
+}
+
+.tabNavInner::-webkit-scrollbar {
+  display: none;
+}
+
+.tabBtn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 18px 4px;
+  background: transparent;
+  border: none;
+  color: #6e7071; /* slate */
+  font-family: "DM Sans", sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+}
+
+.tabBtn:hover {
+  color: #1f5d71; /* teal-deep */
+}
+
+.tabBtnActive {
+  color: #1f5d71;
+  font-weight: 700;
+}
+
+.tabIcon {
+  font-size: 18px;
+}
+
+.tabLabel {
+  /* Inherits typography from .tabBtn */
+}
+
+.tabBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.tabBadgeDanger {
+  background: #c0392b; /* Red for overdue/errors */
+}
+
+.tabBadgeWarn {
+  background: #b78e42; /* Gold for pending requests */
+}
+
+.tabActiveLine {
+  position: absolute;
+  bottom: -1.5px; /* Overlaps the container's bottom border */
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #1f5d71;
+  border-radius: 3px 3px 0 0;
+  animation: slideIn 0.2s ease-out forwards;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─────────────────────────────────────
+   RESPONSIVE
+───────────────────────────────────── */
+@media (max-width: 640px) {
+  .tabNavInner {
+    padding: 0 20px;
+    gap: 16px;
+  }
+  
+  .tabBtn {
+    padding: 14px 2px;
+    font-size: 14px;
+  }
+  
+  .tabIcon {
+    font-size: 16px;
+  }
+}
