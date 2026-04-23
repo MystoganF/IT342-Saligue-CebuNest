@@ -172,10 +172,10 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
           {/* CHANGED FROM <a> TO <Link> */}
           <div className={styles.navLinks}>
             <Link to="/owner/dashboard" className={`${styles.navLink} ${isActive("/owner/dashboard")}`}>
-              <span className={styles.navLinkIcon}>📊</span>Dashboard
+             Dashboard
             </Link>
             <Link to="/owner/properties" className={`${styles.navLink} ${isActive("/owner/properties")}`}>
-              <span className={styles.navLinkIcon}>🏠</span>My Properties
+            My Properties
             </Link>
           </div>
 
@@ -288,23 +288,20 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
                   <div className={styles.dropdownHeader}>
                     <span className={styles.dropdownName}>{user.name}</span>
                     <span className={styles.dropdownEmail}>{user.email}</span>
-                    <span className={styles.dropdownRole}>🔑 Owner</span>
+                    <span className={styles.dropdownRole}> Owner</span>
                   </div>
                   <div className={styles.dropdownItems}>
-                   <Link 
-  to="/owner/profile" // <--- UPDATE THIS
-  className={styles.dropdownItem} 
-  role="menuitem"
-  onClick={() => setMenuOpen(false)}
->
-  <span className={styles.dropdownItemIcon}>👤</span>
-  Profile
-</Link>
+                    <button
+                      className={styles.dropdownItem}
+                      role="menuitem"
+                      onClick={() => { setMenuOpen(false); navigate("/owner/profile"); }}
+                    >Profile</button>
                     <div className={styles.dropdownDivider} />
-                    <button className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`} role="menuitem"
-                      onClick={() => { setMenuOpen(false); setShowLogoutModal(true); }}>
-                      <span className={styles.dropdownItemIcon}>🚪</span>Logout
-                    </button>
+                    <button
+                      className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`}
+                      role="menuitem"
+                      onClick={() => { setMenuOpen(false); setShowLogoutModal(true); }}
+                    >Logout</button>
                   </div>
                 </div>
               )}

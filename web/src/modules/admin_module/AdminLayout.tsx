@@ -30,11 +30,11 @@ const AdminLayout: React.FC = () => {
   if (!user) return null;
 
   const navItems = [
-    { path: "/admin/rental-requests", icon: "📋", label: "Rental Requests" },
-    { path: "/admin/properties",      icon: "🏘️", label: "All Properties"  },
-    { path: "/admin/users",           icon: "👥", label: "Users"           },
-    { path: "/admin/audit-log",       icon: "📜", label: "Audit Log"       },
-    { path: "/admin/notifications",   icon: "🔔", label: "Notifications"   },
+    { path: "/admin/rental-requests", icon: "", label: "Rental Requests" },
+    { path: "/admin/properties",      icon: "", label: "All Properties"  },
+    { path: "/admin/users",           icon: "", label: "Users"           },
+    { path: "/admin/audit-log",       icon: "", label: "Audit Log"       },
+    { path: "/admin/notifications",   icon: "", label: "Notifications"   },
   ];
 
   return (

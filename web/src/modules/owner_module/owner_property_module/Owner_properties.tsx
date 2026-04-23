@@ -345,7 +345,7 @@ const OwnerProperties: React.FC = () => {
                           to={`/owner/properties/${p.id}/edit`}
                           className={styles.cardEditBtn}
                         >
-                          {isRejected ? "👁 View" : "✏️ View"}
+                          {isRejected ? "👁 View" : " View"}
                         </Link>
                       <button
                         className={styles.cardDeleteBtn}

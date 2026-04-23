@@ -294,9 +294,7 @@ const Home: React.FC = () => {
                 : `${properties.length} propert${properties.length === 1 ? "y" : "ies"} found`}
             </h2>
           </div>
-          <a href="/properties" className={styles.sectionViewAll}>
-            View All →
-          </a>
+          
         </div>
 
         {/* Filter bar */}

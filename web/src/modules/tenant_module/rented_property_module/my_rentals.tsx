@@ -47,12 +47,12 @@ function formatDate(dateStr: string): string {
 
 function statusLabel(status: string): string {
   switch (status) {
-    case "PENDING":    return "⏳ Awaiting Approval";
-    case "APPROVED":   return "✅ Approved — Action Required";
-    case "REJECTED":   return "❌ Rejected";
-    case "CONFIRMED":  return "🏠 Active Rental";
-    case "TERMINATED": return "🚫 Lease Terminated";
-    case "COMPLETED":  return "✓ Completed";
+    case "PENDING":    return " Awaiting Approval";
+    case "APPROVED":   return " Approved — Action Required";
+    case "REJECTED":   return " Rejected";
+    case "CONFIRMED":  return " Active Rental";
+    case "TERMINATED": return " Lease Terminated";
+    case "COMPLETED":  return " Completed";
     default:           return status;
   }
 }
@@ -144,10 +144,10 @@ const MyRentals: React.FC = () => {
   };
 
   const tabConfig: { key: Tab; label: string; icon: string }[] = [
-    { key: "active",   icon: "🏠", label: "Active"   },
-    { key: "pending",  icon: "⏳", label: "Pending"  },
-    { key: "rejected", icon: "❌", label: "Rejected" },
-    { key: "past",     icon: "✓",  label: "Past"     },
+    { key: "active",   icon: "", label: "Active"   },
+    { key: "pending",  icon: "", label: "Pending"  },
+    { key: "rejected", icon: "", label: "Rejected" },
+    { key: "past",     icon: "",  label: "Past"     },
   ];
 
   const emptyText: Record<Tab, string> = {

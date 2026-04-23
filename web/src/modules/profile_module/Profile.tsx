@@ -21,9 +21,9 @@ function getInitials(name: string): string {
 
 function getRoleMeta(role: string): { label: string; icon: string; className: string } {
   switch (role?.toUpperCase()) {
-    case "OWNER":  return { label: "Property Owner", icon: "🔑", className: styles.heroRoleOwner };
-    case "ADMIN":  return { label: "Administrator",  icon: "🛡️", className: styles.heroRoleAdmin };
-    default:       return { label: "Tenant",         icon: "🏡", className: styles.heroRoleTenant };
+    case "OWNER":  return { label: "Property Owner", icon: "", className: styles.heroRoleOwner };
+    case "ADMIN":  return { label: "Administrator",  icon: "", className: styles.heroRoleAdmin };
+    default:       return { label: "Tenant",         icon: "", className: styles.heroRoleTenant };
   }
 }
 
@@ -268,7 +268,7 @@ const Profile: React.FC = () => {
       <main className={styles.main}>
 
         <div className={styles.lockedNotice}>
-          <span className={styles.lockedNoticeIcon}>🔒</span>
+        
           <p className={styles.lockedNoticeText}>
             <strong>Email and Role cannot be changed</strong> — these were set during
             registration and are locked for security. To update them, please contact support.
@@ -394,7 +394,7 @@ const Profile: React.FC = () => {
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>
                   Email Address
-                  <span className={`${styles.fieldBadge} ${styles.fieldBadgeLocked}`}>🔒 Locked</span>
+                  <span className={`${styles.fieldBadge} ${styles.fieldBadgeLocked}`}> Locked</span>
                 </span>
                 <div className={styles.fieldValue}>
                   {activeUser.email}
@@ -405,7 +405,7 @@ const Profile: React.FC = () => {
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>
                   Role
-                  <span className={`${styles.fieldBadge} ${styles.fieldBadgeLocked}`}>🔒 Locked</span>
+                  <span className={`${styles.fieldBadge} ${styles.fieldBadgeLocked}`}> Locked</span>
                 </span>
                 <div className={styles.fieldValue}>
                   {roleMeta.icon} {roleMeta.label}
@@ -441,7 +441,7 @@ const Profile: React.FC = () => {
             </div>
           </div>
           <button type="button" className={styles.logoutBtn} onClick={() => setShowLogoutModal(true)}>
-            🚪 Logout
+             Logout
           </button>
         </div>
 

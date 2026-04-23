@@ -190,12 +190,12 @@ const Navbar: React.FC<NavbarProps> = ({ user }) => {
           {/* ── Nav Links (CHANGED FROM <a> TO <Link>) ── */}
           <div className={styles.navLinks}>
             <Link to="/home" className={`${styles.navLink} ${isActive("/home")}`}>
-              <span className={styles.navLinkIcon}>🏠</span>
+           
               Browse
             </Link>
 
             <Link to="/my-rentals" className={`${styles.navLink} ${isActive("/my-rentals")}`}>
-              <span className={styles.navLinkIcon}>📋</span>
+            
               My Rentals
             </Link>
           </div>
@@ -316,26 +316,18 @@ const Navbar: React.FC<NavbarProps> = ({ user }) => {
                     <span className={styles.dropdownEmail}>{user.email}</span>
                     <span className={styles.dropdownRole}>{user.role}</span>
                   </div>
-                  <div className={styles.dropdownItems}>
-                    {/* ── Profile Link (CHANGED FROM <a> TO <Link>) ── */}
-                    <Link
-                      to="/tenant/profile"
+                 <div className={styles.dropdownItems}>
+                    <button
                       className={styles.dropdownItem}
                       role="menuitem"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      <span className={styles.dropdownItemIcon}>👤</span>
-                      Profile
-                    </Link>
+                      onClick={() => { setMenuOpen(false); navigate("/tenant/profile"); }}
+                    >Profile</button>
                     <div className={styles.dropdownDivider} />
                     <button
                       className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`}
                       role="menuitem"
                       onClick={() => { setMenuOpen(false); setShowLogoutModal(true); }}
-                    >
-                      <span className={styles.dropdownItemIcon}>🚪</span>
-                      Logout
-                    </button>
+                    >Logout</button>
                   </div>
                 </div>
               )}

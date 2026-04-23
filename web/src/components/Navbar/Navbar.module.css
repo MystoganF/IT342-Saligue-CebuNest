@@ -1,17 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap");
 
 /* ─────────────────────────────────────
    CSS VARIABLES
 ───────────────────────────────────── */
 .navbar {
-  --teal-deep:  #1f5d71;
-  --teal-aero:  #53a4a3;
-  --teal-soft:  #98c1c1;
-  --gold:       #b78e42;
+  --teal-deep: #1f5d71;
+  --teal-aero: #53a4a3;
+  --teal-soft: #98c1c1;
+  --gold: #b78e42;
   --gold-light: #d4ab6a;
-  --slate:      #6e7071;
-  --cloud:      #dcdddd;
-  --bg:         #f0f4f5;
+  --slate: #6e7071;
+  --cloud: #dcdddd;
+  --bg: #f0f4f5;
 
   position: sticky;
   top: 0;
@@ -26,7 +26,7 @@
   align-items: center;
   padding: 0;
   box-shadow: 0 2px 16px rgba(31, 93, 113, 0.06);
-  font-family: 'DM Sans', sans-serif;
+  font-family: "DM Sans", sans-serif;
 }
 
 /* Reset global button styles bleeding in */
@@ -38,9 +38,13 @@
   font-family: inherit;
   cursor: pointer;
 }
-.navbar button:hover       { border-color: transparent; }
+.navbar button:hover {
+  border-color: transparent;
+}
 .navbar button:focus,
-.navbar button:focus-visible { outline: none; }
+.navbar button:focus-visible {
+  outline: none;
+}
 
 .inner {
   width: 100%;
@@ -63,16 +67,21 @@
   text-decoration: none;
   flex-shrink: 0;
 }
-.brandLogo  { width: 36px; height: 36px; object-fit: contain; }
-.brandName  {
-  font-family: 'Playfair Display', serif;
+.brandLogo {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+.brandName {
+  font-family: "Playfair Display", serif;
   font-size: 20px;
   font-weight: 700;
   color: var(--teal-deep);
   letter-spacing: -0.3px;
 }
 .brandDot {
-  width: 5px; height: 5px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: var(--gold);
   align-self: flex-end;
@@ -99,13 +108,24 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--slate);
-  transition: color 0.2s, background 0.2s;
+  transition:
+    color 0.2s,
+    background 0.2s;
   letter-spacing: 0.2px;
   white-space: nowrap;
 }
-.navLink:hover    { color: var(--teal-deep); background: rgba(31, 93, 113, 0.06); }
-.navLinkActive    { color: var(--teal-deep); background: rgba(31, 93, 113, 0.08); }
-.navLinkIcon      { font-size: 16px; line-height: 1; }
+.navLink:hover {
+  color: var(--teal-deep);
+  background: rgba(31, 93, 113, 0.06);
+}
+.navLinkActive {
+  color: var(--teal-deep);
+  background: rgba(31, 93, 113, 0.08);
+}
+.navLinkIcon {
+  font-size: 16px;
+  line-height: 1;
+}
 
 /* ─────────────────────────────────────
    RIGHT ACTIONS
@@ -136,7 +156,11 @@
   background: transparent;
   border: 1.5px solid transparent;
   cursor: pointer;
-  transition: color 0.2s, background 0.2s, border-color 0.2s, transform 0.15s;
+  transition:
+    color 0.2s,
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.15s;
 }
 .notifBtn:hover {
   color: var(--teal-deep);
@@ -180,8 +204,12 @@
 }
 
 @keyframes badgePop {
-  from { transform: scale(0); }
-  to   { transform: scale(1); }
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
 }
 
 /* ── Dropdown ── */
@@ -193,15 +221,23 @@
   background: #fff;
   border: 1px solid rgba(31, 93, 113, 0.12);
   border-radius: 18px;
-  box-shadow: 0 12px 40px rgba(31, 93, 113, 0.16), 0 2px 8px rgba(0,0,0,0.06);
+  box-shadow:
+    0 12px 40px rgba(31, 93, 113, 0.16),
+    0 2px 8px rgba(0, 0, 0, 0.06);
   overflow: hidden;
   animation: notifDropIn 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
   z-index: 300;
 }
 
 @keyframes notifDropIn {
-  from { opacity: 0; transform: translateY(-10px) scale(0.96); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .notifDropdownHeader {
@@ -225,10 +261,18 @@
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 6px;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
-.markAllBtn:hover { background: rgba(83, 164, 163, 0.1); color: var(--teal-deep); }
-.markAllBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.markAllBtn:hover {
+  background: rgba(83, 164, 163, 0.1);
+  color: var(--teal-deep);
+}
+.markAllBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 /* ── Notification list ── */
 .notifList {
@@ -237,8 +281,13 @@
   scrollbar-width: thin;
   scrollbar-color: rgba(31, 93, 113, 0.15) transparent;
 }
-.notifList::-webkit-scrollbar       { width: 4px; }
-.notifList::-webkit-scrollbar-thumb { background: rgba(31, 93, 113, 0.15); border-radius: 4px; }
+.notifList::-webkit-scrollbar {
+  width: 4px;
+}
+.notifList::-webkit-scrollbar-thumb {
+  background: rgba(31, 93, 113, 0.15);
+  border-radius: 4px;
+}
 
 /* Empty state */
 .notifEmpty {
@@ -249,9 +298,19 @@
   padding: 40px 20px;
   color: var(--slate);
 }
-.notifEmptyIcon    { font-size: 32px; opacity: 0.4; }
-.notifEmptyText    { font-size: 14px; font-weight: 700; color: #334155; }
-.notifEmptySubtext { font-size: 12px; color: var(--slate); }
+.notifEmptyIcon {
+  font-size: 32px;
+  opacity: 0.4;
+}
+.notifEmptyText {
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+}
+.notifEmptySubtext {
+  font-size: 12px;
+  color: var(--slate);
+}
 
 .notifSpinner {
   width: 22px;
@@ -261,7 +320,11 @@
   border-radius: 50%;
   animation: spin 0.75s linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 
 /* Notification item */
 .notifItem {
@@ -278,11 +341,19 @@
   transition: background 0.15s;
   position: relative;
 }
-.notifItem:last-child { border-bottom: none; }
-.notifItem:hover      { background: rgba(31, 93, 113, 0.04); }
+.notifItem:last-child {
+  border-bottom: none;
+}
+.notifItem:hover {
+  background: rgba(31, 93, 113, 0.04);
+}
 
-.notifItemUnread { background: rgba(83, 164, 163, 0.05); }
-.notifItemUnread:hover { background: rgba(83, 164, 163, 0.09); }
+.notifItemUnread {
+  background: rgba(83, 164, 163, 0.05);
+}
+.notifItemUnread:hover {
+  background: rgba(83, 164, 163, 0.09);
+}
 
 .notifItemIcon {
   font-size: 20px;
@@ -311,7 +382,9 @@
   margin: 0;
   word-break: break-word;
 }
-.notifItemUnread .notifItemMsg { font-weight: 600; }
+.notifItemUnread .notifItemMsg {
+  font-weight: 600;
+}
 
 .notifItemTime {
   font-size: 11px;
@@ -343,14 +416,21 @@
   cursor: pointer;
   padding: 6px 12px;
   border-radius: 8px;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
-.viewAllBtn:hover { background: rgba(83, 164, 163, 0.1); color: var(--teal-deep); }
+.viewAllBtn:hover {
+  background: rgba(83, 164, 163, 0.1);
+  color: var(--teal-deep);
+}
 
 /* ─────────────────────────────────────
    PROFILE DROPDOWN
 ───────────────────────────────────── */
-.profileWrap { position: relative; }
+.profileWrap {
+  position: relative;
+}
 .profileBtn {
   display: flex;
   align-items: center;
@@ -360,8 +440,11 @@
   border: 1.5px solid rgba(31, 93, 113, 0.12);
   border-radius: 40px;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
-  font-family: 'DM Sans', sans-serif;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s;
+  font-family: "DM Sans", sans-serif;
 }
 .profileBtn:hover {
   background: rgba(31, 93, 113, 0.1);
@@ -370,13 +453,15 @@
 }
 
 .avatar {
-  width: 32px; height: 32px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid var(--teal-aero);
 }
 .avatarPlaceholder {
-  width: 32px; height: 32px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: var(--teal-deep);
   color: #fff;
@@ -403,7 +488,9 @@
   transition: transform 0.2s;
   line-height: 1;
 }
-.chevronOpen { transform: rotate(180deg); }
+.chevronOpen {
+  transform: rotate(180deg);
+}
 
 .dropdown {
   position: absolute;
@@ -419,18 +506,34 @@
   z-index: 200;
 }
 @keyframes dropIn {
-  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .dropdownHeader {
   padding: 16px 18px 12px;
   border-bottom: 1px solid rgba(31, 93, 113, 0.08);
 }
-.dropdownName  { font-size: 14px; font-weight: 700; color: var(--teal-deep); display: block; }
+.dropdownName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--teal-deep);
+  display: block;
+}
 .dropdownEmail {
-  font-size: 12px; color: var(--slate); display: block;
-  margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px;
+  color: var(--slate);
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .dropdownRole {
   display: inline-block;
@@ -445,32 +548,53 @@
   text-transform: uppercase;
 }
 
-.dropdownItems { padding: 6px; }
+.dropdownItems {
+  padding: 6px;
+}
 .dropdownItem {
   display: flex;
   align-items: center;
-  gap: 10px;
+  margin-left: 5px;
   width: 100%;
   padding: 10px 12px;
   border: none;
   background: none;
   border-radius: 10px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: "DM Sans", sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: var(--slate);
   cursor: pointer;
   text-decoration: none;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
   text-align: left;
   line-height: 1.4;
   box-sizing: border-box;
 }
-.dropdownItem:hover          { background: rgba(31, 93, 113, 0.06); color: var(--teal-deep); }
-.dropdownItemDanger          { color: #c0392b; }
-.dropdownItemDanger:hover    { background: rgba(192, 57, 43, 0.06); color: #c0392b; }
-.dropdownDivider             { height: 1px; background: rgba(31, 93, 113, 0.08); margin: 4px 6px; }
-.dropdownItemIcon            { font-size: 16px; width: 20px; text-align: center; }
+
+.dropdownItem:hover {
+  background: rgba(31, 93, 113, 0.06);
+  color: var(--teal-deep);
+}
+.dropdownItemDanger {
+  color: #c0392b;
+}
+.dropdownItemDanger:hover {
+  background: rgba(192, 57, 43, 0.06);
+  color: #c0392b;
+}
+.dropdownDivider {
+  height: 1px;
+  background: rgba(31, 93, 113, 0.08);
+  margin: 4px 6px;
+}
+.dropdownItemIcon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
 
 /* ─────────────────────────────────────
    LOGOUT CONFIRMATION MODAL
@@ -502,35 +626,63 @@
   text-align: center;
   animation: modalIn 0.25s ease both;
 }
-.modalIcon  { font-size: 44px; animation: modalBounce 0.5s ease both; }
+.modalIcon {
+  font-size: 44px;
+  animation: modalBounce 0.5s ease both;
+}
 .modalTitle {
-  font-family: 'Playfair Display', serif;
+  font-family: "Playfair Display", serif;
   font-size: 22px;
   font-weight: 800;
   color: var(--teal-deep);
   letter-spacing: -0.3px;
 }
-.modalBody  { font-size: 14px; color: var(--slate); line-height: 1.65; max-width: 280px; }
-.modalActions { display: flex; gap: 10px; width: 100%; margin-top: 8px; }
+.modalBody {
+  font-size: 14px;
+  color: var(--slate);
+  line-height: 1.65;
+  max-width: 280px;
+}
+.modalActions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-top: 8px;
+}
 .modalCancelBtn {
-  flex: 1; padding: 13px;
+  flex: 1;
+  padding: 13px;
   background: #f0f4f5;
   border: 1.5px solid #e5eced;
   border-radius: 12px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px; font-weight: 700;
-  color: var(--slate); cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--slate);
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
 }
-.modalCancelBtn:hover  { background: #e5eced; border-color: var(--cloud); }
+.modalCancelBtn:hover {
+  background: #e5eced;
+  border-color: var(--cloud);
+}
 .modalConfirmBtn {
-  flex: 1; padding: 13px;
+  flex: 1;
+  padding: 13px;
   background: #c0392b;
-  border: none; border-radius: 12px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px; font-weight: 700;
-  color: #fff; cursor: pointer;
-  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  border: none;
+  border-radius: 12px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    transform 0.15s,
+    box-shadow 0.2s;
 }
 .modalConfirmBtn:hover {
   background: #a93226;
@@ -538,15 +690,50 @@
   box-shadow: 0 6px 18px rgba(192, 57, 43, 0.3);
 }
 
-@keyframes overlayIn   { from { opacity: 0; }                                           to { opacity: 1; } }
-@keyframes modalIn     { from { opacity: 0; transform: translateY(20px) scale(0.97); }  to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes modalBounce { 0% { transform: scale(0.5); opacity: 0; } 60% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
+@keyframes overlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes modalBounce {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
 
 /* ─────────────────────────────────────
    RESPONSIVE
 ───────────────────────────────────── */
 @media (max-width: 768px) {
-  .navLinks    { display: none; }
-  .profileName { display: none; }
-  .notifDropdown { width: calc(100vw - 32px); right: -40px; }
+  .navLinks {
+    display: none;
+  }
+  .profileName {
+    display: none;
+  }
+  .notifDropdown {
+    width: calc(100vw - 32px);
+    right: -40px;
+  }
 }
