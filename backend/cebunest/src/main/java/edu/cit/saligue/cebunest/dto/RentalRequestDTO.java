@@ -35,6 +35,9 @@ public class RentalRequestDTO {
     private String  status;
     private String  paymentPlan;   // "MONTHLY" | "FULL" | null (not yet chosen)
     private String  createdAt;
+    private String  tenantFacebookUrl;
+    private String  tenantInstagramUrl;
+    private String  tenantTwitterUrl;
 
     // Payments only populated when fetching detail
     private List<RentalPaymentDTO> payments;
@@ -60,6 +63,10 @@ public class RentalRequestDTO {
                 .ownerFacebookUrl(r.getProperty().getOwner().getFacebookUrl())
                 .ownerInstagramUrl(r.getProperty().getOwner().getInstagramUrl())
                 .ownerTwitterUrl(r.getProperty().getOwner().getTwitterUrl())
+
+                .tenantFacebookUrl(r.getTenant().getFacebookUrl())
+                .tenantInstagramUrl(r.getTenant().getInstagramUrl())
+                .tenantTwitterUrl(r.getTenant().getTwitterUrl())
 
                 .tenantId(r.getTenant().getId())
                 .tenantName(r.getTenant().getName())

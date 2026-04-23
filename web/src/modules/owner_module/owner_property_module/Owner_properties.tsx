@@ -3,7 +3,6 @@ import { useNavigate, useOutletContext, Link } from "react-router-dom";
 import { ownerApi } from "../ownerApi";
 import styles from "./Owner_properties.module.css";
 
-
 // ─── types ─────────────────────────────────────────────────────────────────
 interface User {
   id: number;
@@ -124,11 +123,18 @@ const OwnerProperties: React.FC = () => {
     setSearchQuery(searchInput.trim());
   };
 
+  const handleClearFilters = () => {
+    setSearchInput("");
+    setSearchQuery("");
+    setStatusFilter("");
+    setMinPrice("");
+    setMaxPrice("");
+  };
+
   if (!user) return null;
 
   return (
     <div className={styles.page}>
-      {/* ── Navbar removed (Handled by OwnerLayout) ── */}
 
       {/* ── Delete Confirmation Modal ── */}
       {deleteTarget && (
@@ -196,18 +202,30 @@ const OwnerProperties: React.FC = () => {
       <main className={styles.main}>
 
         {/* Filter bar */}
-        <form className={styles.filterBar} onSubmit={handleSearchSubmit}>
-          <div className={styles.searchWrap}>
-            <span className={styles.searchIcon}>🔍</span>
-            <input
-              type="text"
-              className={styles.searchInput}
-              placeholder="Search by title or location…"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
-          </div>
+        <div className={styles.filterBar}>
           
+          {/* Isolated Form for Search Input */}
+          <form 
+            className={styles.searchWrap} 
+            style={{ display: 'flex', flexDirection: 'row' }} 
+            onSubmit={handleSearchSubmit}
+          >
+            <div style={{ position: 'relative', width: '100%' }}>
+              <span className={styles.searchIcon}>🔍</span>
+              <input
+                type="text"
+                className={styles.searchInput}
+                placeholder="Search by title or location…"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+            </div>
+            <button type="submit" className={styles.searchBtn}>
+              Search
+            </button>
+          </form>
+          
+          {/* Dropdown Filter */}
           <select 
             className={styles.filterSelect}
             value={statusFilter}
@@ -220,6 +238,7 @@ const OwnerProperties: React.FC = () => {
             <option value="REJECTED">Rejected</option>
           </select>
 
+          {/* Price Filters */}
           <div className={styles.filterPrice}>
             <input
               type="number"
@@ -239,7 +258,7 @@ const OwnerProperties: React.FC = () => {
               min={0}
             />
           </div>
-        </form>
+        </div>
 
         {/* Grid */}
         <div className={styles.propertyGrid}>
@@ -266,7 +285,7 @@ const OwnerProperties: React.FC = () => {
             </div>
           )}
 
-          {/* Empty */}
+          {/* Empty / No Results */}
           {!loading && !error && properties.length === 0 && (
             <div className={styles.stateBox}>
               <span className={styles.stateIcon}>🏘️</span>
@@ -276,12 +295,23 @@ const OwnerProperties: React.FC = () => {
                   ? "Try adjusting your search or filters."
                   : "You haven't added any properties yet."}
               </p>
-              <button
-                className={styles.stateBtn}
-                onClick={() => navigate("/owner/properties/new")}
-              >
-                + Add Your First Property
-              </button>
+              {searchQuery || statusFilter || minPrice || maxPrice ? (
+                <button
+                  className={styles.stateBtn}
+                  onClick={handleClearFilters}
+                  type="button"
+                >
+                  Clear Filters
+                </button>
+              ) : (
+                <button
+                  className={styles.stateBtn}
+                  onClick={() => navigate("/owner/properties/new")}
+                  type="button"
+                >
+                  + Add Your First Property
+                </button>
+              )}
             </div>
           )}
 

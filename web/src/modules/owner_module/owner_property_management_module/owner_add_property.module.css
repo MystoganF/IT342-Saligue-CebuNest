@@ -2550,3 +2550,8 @@
   background: rgba(31, 93, 113, 0.05);
   border-color: rgba(31, 93, 113, 0.5);
 }
+.requestRow.clickable:hover {
+  border-color: rgba(83,164,163,0.5);
+  background: #f3f8f9;
+  cursor: pointer;
+}
