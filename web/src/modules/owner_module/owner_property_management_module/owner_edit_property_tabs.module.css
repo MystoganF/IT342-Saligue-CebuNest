@@ -8,7 +8,7 @@
   border-bottom: 1.5px solid #e5eced;
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 10;
   box-shadow: 0 4px 12px rgba(31, 93, 113, 0.03);
 }
 

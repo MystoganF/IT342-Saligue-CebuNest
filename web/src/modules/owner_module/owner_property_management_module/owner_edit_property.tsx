@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useParams, useOutletContext } from "react-router-dom";
 import { ownerApi } from "../ownerApi";
 import styles from "./owner_add_property.module.css";
@@ -6,7 +6,6 @@ import tabStyles from "./owner_edit_property_tabs.module.css";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
 
@@ -18,24 +17,28 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-// ─── types ─────────────────────────────────────────────────────────────────
+// ─── TYPES ─────────────────────────────────────────────────────────────────
 interface User { id: number; name: string; email: string; role: string; avatarUrl?: string | null; }
 interface PropertyType { id: number; name: string; }
 interface ExistingImage { id: number; imageUrl: string; }
 interface MapCoords { lat: number; lon: number; }
 interface RentalRequest {
   id: number; tenantId: number; tenantName: string; tenantEmail: string;
-  startDate: string; leaseDurationMonths: number; status: string; createdAt: string;
+  startDate: string; leaseDurationMonths: number; status: string;
+  createdAt: string;
   tenantFacebookUrl?: string | null; tenantInstagramUrl?: string | null; tenantTwitterUrl?: string | null;
 }
 interface ActiveTenant {
-  id: number; tenantId: number; tenantName: string; tenantEmail: string;
+  id: number;
+  tenantId: number; tenantName: string; tenantEmail: string;
   startDate: string; leaseDurationMonths: number; status: string;
-  tenantFacebookUrl?: string | null; tenantInstagramUrl?: string | null; tenantTwitterUrl?: string | null;
+  tenantFacebookUrl?: string | null; tenantInstagramUrl?: string | null;
+  tenantTwitterUrl?: string | null;
 }
 interface RentalPayment {
   id: number; rentalRequestId: number; installmentNumber: number; amount: number;
-  dueDate: string; paidAt: string | null; status: string; checkoutUrl: string | null;
+  dueDate: string;
+  paidAt: string | null; status: string; checkoutUrl: string | null;
   paymongoPaymentId: string | null; createdAt: string;
 }
 interface LeaseExtension {
@@ -44,20 +47,36 @@ interface LeaseExtension {
 }
 interface PropertyReview {
   id: number; tenantId: number; tenantName: string; tenantAvatarUrl: string | null;
-  rating: number; comment: string | null; createdAt: string;
+  rating: number; comment: string | null;
+  createdAt: string;
 }
 
-// ─── Tab definition ─────────────────────────────────────────────────────────
+// ─── TAB DEFINITION ─────────────────────────────────────────────────────────
 type TabId = "property" | "tenant" | "payments" | "requests" | "reviews";
-
 interface Tab {
-  id: TabId;
-  label: string;
-  icon: string;
-  badge?: number | null;
+  id: TabId; label: string; icon: string; badge?: number | null;
 }
 
-// ─── helpers ───────────────────────────────────────────────────────────────
+// ─── ICONS ──────────────────────────────────────────────────────────────────
+const FacebookIcon = ({ size = 18 }: { size?: number }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width={size} height={size}>
+    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
+  </svg>
+);
+const InstagramIcon = ({ size = 18 }: { size?: number }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width={size} height={size}>
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+  </svg>
+);
+const TwitterIcon = ({ size = 18 }: { size?: number }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width={size} height={size}>
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+  </svg>
+);
+
+// ─── HELPERS ───────────────────────────────────────────────────────────────
 async function geocode(query: string): Promise<MapCoords | null> {
   try {
     const cebuQuery = query.toLowerCase().includes("cebu city") ? query : `${query}, Cebu City, Philippines`;
@@ -70,7 +89,6 @@ async function geocode(query: string): Promise<MapCoords | null> {
 }
 
 const CEBU_CITY_BOUNDS = { minLat: 10.255, maxLat: 10.445, minLon: 123.808, maxLon: 123.924 };
-
 async function reverseGeocode(lat: number, lon: number): Promise<string | null> {
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`);
@@ -143,28 +161,30 @@ function formatDate(d: string) {
   return new Date(d).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
 }
 
+// SVG Social Links Component
 function SocialLinks({ facebook, instagram, twitter, size = "sm" }: {
   facebook?: string | null; instagram?: string | null; twitter?: string | null; size?: "sm" | "md";
 }) {
+  const iconSize = size === "sm" ? 14 : 18;
+  const wrapperSize = size === "sm" ? "28px" : "36px";
   const links = [
-    { url: facebook, label: "Facebook", color: "#1877F2", bg: "rgba(24,119,242,0.08)", border: "rgba(24,119,242,0.25)", icon: "f" },
-    { url: instagram, label: "Instagram", color: "#C13584", bg: "rgba(193,53,132,0.08)", border: "rgba(193,53,132,0.25)", icon: "ig" },
-    { url: twitter, label: "Twitter", color: "#1DA1F2", bg: "rgba(29,161,242,0.08)", border: "rgba(29,161,242,0.25)", icon: "t" },
+    { url: facebook, label: "Facebook", color: "#1877F2", bg: "#e8f0fe", icon: <FacebookIcon size={iconSize} /> },
+    { url: instagram, label: "Instagram", color: "#E4405F", bg: "#fceef3", icon: <InstagramIcon size={iconSize} /> },
+    { url: twitter, label: "Twitter", color: "#0f1419", bg: "#eef1f4", icon: <TwitterIcon size={iconSize} /> },
   ].filter((l) => l.url);
 
   if (!links.length) return null;
-  const pad = size === "sm" ? "4px 10px" : "6px 14px";
-  const fs = size === "sm" ? "12px" : "13px";
 
   return (
-    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "6px" }}>
+    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "6px" }}>
       {links.map((l) => (
         <a key={l.label} href={l.url!} target="_blank" rel="noopener noreferrer"
-          style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: pad, borderRadius: "8px", fontSize: fs, fontWeight: 600, color: l.color, background: l.bg, border: `1px solid ${l.border}`, textDecoration: "none", transition: "opacity 0.15s" }}
-          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.75")}
-          onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+          style={{ width: wrapperSize, height: wrapperSize, backgroundColor: l.bg, color: l.color, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", transition: "transform 0.15s", border: l.label === "Twitter" ? "1px solid #d5d9dc" : "none" }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.1)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+          onClick={(e) => e.stopPropagation()} 
         >
-          {l.label}
+          {l.icon}
         </a>
       ))}
     </div>
@@ -184,22 +204,22 @@ function ClickableMap({ coords, setCoords, onLocationSelect }: {
   return coords ? <Marker position={[coords.lat, coords.lon]} /> : null;
 }
 
-// ─── Main component ────────────────────────────────────────────────────────
+// ─── MAIN COMPONENT ────────────────────────────────────────────────────────
 const EditProperty: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useOutletContext<{ user: User }>();
 
-  // ── Active tab ─────────────────────────────────────────────────────────
+  // ── Active tab ──
   const [activeTab, setActiveTab] = useState<TabId>("property");
 
-  // ── Auth & metadata ────────────────────────────────────────────────────
+  // ── Auth & metadata ──
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
 
-  // ── Form fields ────────────────────────────────────────────────────────
+  // ── Form fields ──
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -213,24 +233,24 @@ const EditProperty: React.FC = () => {
   const [isAdminDisabled, setIsAdminDisabled] = useState(false);
   const [adminNote, setAdminNote] = useState<string | null>(null);
 
-  // ── Map ────────────────────────────────────────────────────────────────
+  // ── Map ──
   const [mapCoords, setMapCoords] = useState<MapCoords | null>(null);
   const [mapSearching, setMapSearching] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
 
-  // ── Images ─────────────────────────────────────────────────────────────
+  // ── Images ──
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
   const [removedImageIds, setRemovedImageIds] = useState<number[]>([]);
   const [newImageFiles, setNewImageFiles] = useState<File[]>([]);
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
   const [dragOver, setDragOver] = useState(false);
 
-  // ── Lightbox ───────────────────────────────────────────────────────────
+  // ── Lightbox ──
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number>(0);
   const [lightboxList, setLightboxList] = useState<string[]>([]);
 
-  // ── Rental requests ────────────────────────────────────────────────────
+  // ── Rental requests ──
   const [requests, setRequests] = useState<RentalRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestsError, setRequestsError] = useState<string | null>(null);
@@ -241,44 +261,45 @@ const EditProperty: React.FC = () => {
   const [openRequestYears, setOpenRequestYears] = useState<Set<string>>(new Set());
   const [showPastRequests, setShowPastRequests] = useState(false);
 
-  // ── Active tenant ──────────────────────────────────────────────────────
+  // ── Active tenant ──
   const [activeTenant, setActiveTenant] = useState<ActiveTenant | null>(null);
   const [activeTenantLoading, setActiveTenantLoading] = useState(false);
 
-  // ── Payment history ────────────────────────────────────────────────────
+  // ── Payment history & Receipts ──
   const [payments, setPayments] = useState<RentalPayment[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
   const [openPaymentYears, setOpenPaymentYears] = useState<Set<string>>(new Set());
+  const [viewingReceiptId, setViewingReceiptId] = useState<number | null>(null);
 
-  // ── Lease management modal ─────────────────────────────────────────────
+  // ── Lease management modal ──
   const [leaseModal, setLeaseModal] = useState<"extend" | "reduce" | "terminate" | null>(null);
   const [leaseMonths, setLeaseMonths] = useState<number>(1);
   const [leaseSubmitting, setLeaseSubmitting] = useState(false);
   const [leaseError, setLeaseError] = useState<string | null>(null);
   const [leaseSuccess, setLeaseSuccess] = useState<string | null>(null);
 
-  // ── Lease extension requests ───────────────────────────────────────────
+  // ── Lease extension requests ──
   const [leaseExtensions, setLeaseExtensions] = useState<LeaseExtension[]>([]);
   const [leaseExtLoading, setLeaseExtLoading] = useState(false);
   const [extActionId, setExtActionId] = useState<number | null>(null);
   const [extActionSubmitting, setExtActionSubmitting] = useState(false);
   const [extActionError, setExtActionError] = useState<string | null>(null);
 
-  // ── Property reviews ───────────────────────────────────────────────────
+  // ── Property reviews ──
   const [reviews, setReviews] = useState<PropertyReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [showReviewsModal, setShowReviewsModal] = useState(false);
   const [modalRatingFilter, setModalRatingFilter] = useState<number>(0);
 
-  // ── Past Request Modal ─────────────────────────────────────────────────
+  // ── Past Request Modal ──
   const [pastRequestModal, setPastRequestModal] = useState<RentalRequest | null>(null);
   const [modalPayments, setModalPayments] = useState<RentalPayment[]>([]);
   const [modalPaymentsLoading, setModalPaymentsLoading] = useState(false);
   const [modalOpenPaymentYears, setModalOpenPaymentYears] = useState<Set<string>>(new Set());
 
-  // ── Submit ─────────────────────────────────────────────────────────────
+  // ── Submit ──
   const [submitting, setSubmitting] = useState(false);
   const [submitMsg, setSubmitMsg] = useState<{ type: "success" | "error" | "warning"; text: string } | null>(null);
 
@@ -324,7 +345,6 @@ const EditProperty: React.FC = () => {
 
       setActiveTenantLoading(true);
       const activeTenantData = await ownerApi.getActiveTenant(id).catch(() => ({ success: false }));
-
       if (activeTenantData.success && activeTenantData.data?.activeTenant?.tenantId) {
         const t = activeTenantData.data.activeTenant;
         const tenant = {
@@ -359,6 +379,7 @@ const EditProperty: React.FC = () => {
       ownerApi.getPropertyReviews(id).then((data) => {
         if (data.success) setReviews(data.data.reviews ?? []);
       }).catch(() => {}).finally(() => setReviewsLoading(false));
+
     } catch (err: any) {
       setPageError(err.message);
     } finally {
@@ -440,6 +461,7 @@ const EditProperty: React.FC = () => {
 
   const openAction = (req: RentalRequest, type: "APPROVED" | "REJECTED") => { setActionTarget(req); setActionType(type); setActionError(null); };
   const closeAction = () => { if (actionSubmitting) return; setActionTarget(null); setActionType(null); setActionError(null); };
+
   const handleRequestAction = async () => {
     if (!actionTarget || !actionType) return;
     setActionSubmitting(true); setActionError(null);
@@ -462,6 +484,7 @@ const EditProperty: React.FC = () => {
 
   const openLeaseModal = (type: "extend" | "reduce" | "terminate") => { setLeaseModal(type); setLeaseMonths(1); setLeaseError(null); setLeaseSuccess(null); };
   const closeLeaseModal = () => { if (leaseSubmitting) return; setLeaseModal(null); setLeaseError(null); setLeaseSuccess(null); };
+
   const handleLeaseAction = async () => {
     if (!activeTenant) return;
     setLeaseSubmitting(true); setLeaseError(null);
@@ -469,7 +492,8 @@ const EditProperty: React.FC = () => {
       if (leaseModal === "terminate") {
         const data = await ownerApi.terminateLease(activeTenant.id);
         if (!data.success) { setLeaseError(data?.error?.message ?? "Failed to terminate lease."); return; }
-        setActiveTenant(null); setPayments([]); setLeaseExtensions([]);
+        setActiveTenant(null); setPayments([]);
+        setLeaseExtensions([]);
         setStatus("AVAILABLE"); setCurrentStatus("AVAILABLE");
         setLeaseSuccess("Lease terminated. Property is now available.");
         setTimeout(closeLeaseModal, 1800);
@@ -512,6 +536,7 @@ const EditProperty: React.FC = () => {
         removedImageIds: removedImageIds.length > 0 ? removedImageIds : undefined,
       });
       if (!updateData.success) { setSubmitMsg({ type: "error", text: updateData?.error?.message ?? "Failed to update property." }); return; }
+      
       if (newImageFiles.length > 0) {
         const formData = new FormData();
         newImageFiles.forEach((f) => formData.append("files", f));
@@ -524,9 +549,15 @@ const EditProperty: React.FC = () => {
     finally { setSubmitting(false); }
   };
 
+  // Derived Receipt Data
+  const activeReceipt = useMemo(() => {
+    if (!viewingReceiptId) return null;
+    return payments.find((p) => p.id === viewingReceiptId) || modalPayments.find((p) => p.id === viewingReceiptId) || null;
+  }, [viewingReceiptId, payments, modalPayments]);
+
   if (!user) return null;
 
-  // ── Derived values ─────────────────────────────────────────────────────
+  // ── Derived values ──
   const isRejected = currentStatus === "REJECTED";
   const canToggleStatus = currentStatus === "AVAILABLE" || currentStatus === "UNAVAILABLE";
   const visibleExisting = existingImages.filter((img) => !removedImageIds.includes(img.id));
@@ -548,25 +579,16 @@ const EditProperty: React.FC = () => {
   const filteredReviews = modalRatingFilter === 0 ? reviews : reviews.filter((r) => r.rating === modalRatingFilter);
   const modalPaymentsByYear = groupBy(modalPayments, (p) => getYear(p.dueDate));
   const modalPaymentYears = Object.keys(modalPaymentsByYear).sort((a, b) => Number(b) - Number(a));
-
+  
   const submitIcon = submitMsg?.type === "success" ? "✓" : submitMsg?.type === "warning" ? "⚠" : "✕";
   const submitMsgClass = submitMsg?.type === "success" ? styles.submitMsgSuccess : submitMsg?.type === "warning" ? styles.submitMsgWarning : styles.submitMsgError;
 
-  // ── Tab configuration ──────────────────────────────────────────────────
+  // ── Tab configuration ──
   const tabs: Tab[] = [
     { id: "property", label: "Property", icon: "" },
-    {
-      id: "tenant", label: "Tenant", icon: "",
-      badge: pendingExtensions.length > 0 ? pendingExtensions.length : null,
-    },
-    {
-      id: "payments", label: "Payments", icon: "",
-      badge: overdueCount > 0 ? overdueCount : null,
-    },
-    {
-      id: "requests", label: "Requests", icon: "",
-      badge: pendingCount > 0 ? pendingCount : null,
-    },
+    { id: "tenant", label: "Tenant", icon: "", badge: pendingExtensions.length > 0 ? pendingExtensions.length : null },
+    { id: "payments", label: "Payments", icon: "", badge: overdueCount > 0 ? overdueCount : null },
+    { id: "requests", label: "Requests", icon: "", badge: pendingCount > 0 ? pendingCount : null },
     { id: "reviews", label: "Reviews", icon: "" },
   ];
 
@@ -576,6 +598,7 @@ const EditProperty: React.FC = () => {
         <div style={{ padding: "60px 40px", textAlign: "center", color: "#6e7071" }}>Loading property…</div>
       </div>
     );
+
   if (pageError)
     return (
       <div className={styles.page}>
@@ -585,6 +608,50 @@ const EditProperty: React.FC = () => {
 
   return (
     <div className={styles.page}>
+      
+      {/* ── Receipt Modal ── */}
+      {viewingReceiptId && activeReceipt && (
+        <div className={styles.modalOverlay} onClick={() => setViewingReceiptId(null)} style={{ zIndex: 1050 }}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxWidth: "420px", padding: 0 }}>
+            <div className={styles.reqModalHeader} style={{ background: "linear-gradient(135deg, #f0f4f5, #e5eced)" }}>
+              <span>🧾</span>
+              <h3 className={styles.reqModalTitle}>Transaction Receipt</h3>
+            </div>
+            <div className={styles.reqModalBody} style={{ padding: "24px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", fontSize: "14px" }}>
+                <span style={{ color: "#6e7071" }}>Installment:</span>
+                <span style={{ fontWeight: "600", color: "#1a2a2e" }}>Month {activeReceipt.installmentNumber}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", fontSize: "14px" }}>
+                <span style={{ color: "#6e7071" }}>Amount Paid:</span>
+                <span style={{ fontWeight: "800", color: "#1f5d71", fontSize: "16px" }}>₱{activeReceipt.amount.toLocaleString("en-PH", { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", fontSize: "14px" }}>
+                <span style={{ color: "#6e7071" }}>Date Paid:</span>
+                <span style={{ fontWeight: "600", color: "#1a2a2e" }}>{formatDate(activeReceipt.paidAt || activeReceipt.dueDate)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", fontSize: "14px", alignItems: "center" }}>
+                <span style={{ color: "#6e7071" }}>Reference ID:</span>
+                <span style={{ fontFamily: "monospace", fontSize: "12px", background: "#f0f4f5", padding: "4px 8px", borderRadius: "6px", color: "#1a2a2e", border: "1px solid #e5eced" }}>
+                  {activeReceipt.paymongoPaymentId || `MANUAL-${activeReceipt.id}`}
+                </span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "14px", marginTop: "20px", paddingTop: "20px", borderTop: "1px dashed #ccd6d8" }}>
+                <span style={{ color: "#6e7071" }}>Status:</span>
+                <span style={{ color: "#1a7a4a", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ background: "rgba(26,122,74,0.1)", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center" }}>✓</span> COMPLETED
+                </span>
+              </div>
+            </div>
+            <div className={styles.reqModalFooter} style={{ borderTop: "none", paddingTop: 0 }}>
+              <button className={styles.modalCancelBtn} onClick={() => setViewingReceiptId(null)} type="button" style={{ width: "100%", justifyContent: "center" }}>
+                Close Receipt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Lightbox ── */}
       {lightboxSrc && (
         <div className={styles.lightboxOverlay} onClick={closeLightbox}>
@@ -715,12 +782,12 @@ const EditProperty: React.FC = () => {
       {/* ── Past Request Modal ── */}
       {pastRequestModal && (
         <div className={styles.modalOverlay} onClick={() => setPastRequestModal(null)}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxHeight: "85vh", display: "flex", flexDirection: "column" }}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()} style={{ maxHeight: "85vh", display: "flex", flexDirection: "column", maxWidth: "500px" }}>
             <div className={`${styles.reqModalHeader}`} style={{ background: "linear-gradient(135deg,#f0f4f5,#e5eced)", flexShrink: 0 }}>
               <span>📋</span>
               <h3 className={styles.reqModalTitle}>Rental Request Details</h3>
             </div>
-            <div className={styles.reqModalBody} style={{ overflowY: "auto" }}>
+            <div className={styles.reqModalBody} style={{ overflowY: "auto", padding: "20px 24px" }}>
               <div className={styles.reqModalMeta} style={{ flexDirection: "column", gap: "10px" }}>
                 <span>👤 {pastRequestModal.tenantName}</span>
                 <span>✉️ {pastRequestModal.tenantEmail}</span>
@@ -731,13 +798,19 @@ const EditProperty: React.FC = () => {
               </div>
               {(pastRequestModal.tenantFacebookUrl || pastRequestModal.tenantInstagramUrl || pastRequestModal.tenantTwitterUrl) && (
                 <div style={{ marginTop: "14px" }}>
-                  <div style={{ fontSize: "11px", fontWeight: 700, color: "#1f5d71", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "8px" }}>Tenant Social Media</div>
+                  <div style={{ fontSize: "11px", fontWeight: 700, color: "#1f5d71", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "4px" }}>Tenant Social Media</div>
                   <SocialLinks facebook={pastRequestModal.tenantFacebookUrl} instagram={pastRequestModal.tenantInstagramUrl} twitter={pastRequestModal.tenantTwitterUrl} size="md" />
                 </div>
               )}
+              
+              {/* Payment History for Past Tenant */}
               <div style={{ marginTop: "24px" }}>
                 <div style={{ fontSize: "13px", fontWeight: 800, color: "#1e293b", borderBottom: "1px solid #e5eced", paddingBottom: "8px", marginBottom: "12px" }}>Payment History</div>
-                {modalPaymentsLoading ? <div className={styles.requestsLoading} style={{ padding: "12px 0" }}>Loading payment history…</div> : modalPayments.length === 0 ? <div className={styles.requestsEmpty} style={{ padding: "16px 0", background: "transparent", border: "none" }}><p>No payments recorded for this request.</p></div> : (
+                {modalPaymentsLoading ? (
+                  <div className={styles.requestsLoading} style={{ padding: "12px 0" }}>Loading payment history…</div>
+                ) : modalPayments.length === 0 ? (
+                  <div className={styles.requestsEmpty} style={{ padding: "16px 0", background: "transparent", border: "none" }}><p>No payments recorded for this request.</p></div>
+                ) : (
                   <div className={styles.yearAccordionList}>
                     {modalPaymentYears.map((year) => {
                       const yearPayments = modalPaymentsByYear[year];
@@ -762,7 +835,21 @@ const EditProperty: React.FC = () => {
                                       <div className={styles.paymentTitle}>Month {pmt.installmentNumber}<span className={styles.paymentStatusChip} style={{ color: sc.color, background: sc.bg, borderColor: sc.border }}>{pmt.status}</span></div>
                                       <div className={styles.paymentMeta}><span>📅 Due: {pmt.dueDate}</span>{pmt.paidAt && <span style={{ color: "#1a7a4a" }}>✓ Paid: {pmt.paidAt}</span>}</div>
                                     </div>
-                                    <div className={styles.paymentAmount}>₱{pmt.amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                    <div className={styles.paymentAmount}>
+                                      ₱{pmt.amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      {/* Receipt Button for Past Tenant */}
+                                      {pmt.status === "PAID" && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setViewingReceiptId(pmt.id)}
+                                          style={{ display: "block", marginTop: "6px", fontSize: "11px", color: "#1f5d71", fontWeight: "bold", background: "rgba(31,93,113,0.08)", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer", width: "100%", transition: "0.2s", textAlign: "center" }}
+                                          onMouseEnter={(e) => e.currentTarget.style.background = "rgba(31,93,113,0.15)"}
+                                          onMouseLeave={(e) => e.currentTarget.style.background = "rgba(31,93,113,0.08)"}
+                                        >
+                                          View Receipt
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                 );
                               })}
@@ -797,18 +884,11 @@ const EditProperty: React.FC = () => {
       <div className={tabStyles.tabNav}>
         <div className={tabStyles.tabNavInner}>
           {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              className={`${tabStyles.tabBtn} ${activeTab === tab.id ? tabStyles.tabBtnActive : ""}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
+            <button key={tab.id} type="button" className={`${tabStyles.tabBtn} ${activeTab === tab.id ? tabStyles.tabBtnActive : ""}`} onClick={() => setActiveTab(tab.id)}>
               <span className={tabStyles.tabIcon}>{tab.icon}</span>
               <span className={tabStyles.tabLabel}>{tab.label}</span>
               {tab.badge != null && tab.badge > 0 && (
-                <span className={`${tabStyles.tabBadge} ${tab.id === "payments" ? tabStyles.tabBadgeDanger : tabStyles.tabBadgeWarn}`}>
-                  {tab.badge}
-                </span>
+                <span className={`${tabStyles.tabBadge} ${tab.id === "payments" ? tabStyles.tabBadgeDanger : tabStyles.tabBadgeWarn}`}>{tab.badge}</span>
               )}
               {activeTab === tab.id && <span className={tabStyles.tabActiveLine} />}
             </button>
@@ -871,6 +951,23 @@ const EditProperty: React.FC = () => {
                 </div>
               </div>
 
+              {/* Location */}
+              <div className={styles.card}>
+                <div className={styles.cardTitle}>Location</div>
+                <div className={styles.mapSearchWrap} style={{ marginBottom: "14px" }}>
+                  <input type="text" className={styles.mapSearchInput} placeholder="e.g. Lahug, Cebu City" value={location} onChange={(e) => { setLocation(e.target.value); setMapError(null); }} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleMapSearch())} required />
+                  <button type="button" className={styles.mapSearchBtn} onClick={handleMapSearch} disabled={mapSearching || !location.trim()}>{mapSearching ? "Searching…" : "🔍 Find"}</button>
+                </div>
+                {mapError && <p style={{ color: "#c0392b", fontSize: "13px", marginBottom: "10px" }}>⚠ {mapError}</p>}
+                <div className={styles.mapFrame}>
+                  <MapContainer center={mapCoords ? [mapCoords.lat, mapCoords.lon] : [10.3157, 123.8854]} zoom={mapCoords ? 16 : 14} minZoom={12} maxBounds={[[CEBU_CITY_BOUNDS.minLat, CEBU_CITY_BOUNDS.minLon], [CEBU_CITY_BOUNDS.maxLat, CEBU_CITY_BOUNDS.maxLon]]} maxBoundsViscosity={1.0} style={{ height: "100%", width: "100%", zIndex: 1 }}>
+                    <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    <ClickableMap coords={mapCoords} setCoords={setMapCoords} onLocationSelect={handleMapClick} />
+                  </MapContainer>
+                </div>
+                {mapCoords && <div className={styles.mapCoordsBadge}><span className={styles.mapCoordsIcon}>📍</span>{mapCoords.lat.toFixed(5)}, {mapCoords.lon.toFixed(5)}</div>}
+              </div>
+
               {/* Listing Visibility */}
               <div className={styles.card}>
                 <div className={styles.cardTitle}>Listing Visibility</div>
@@ -895,23 +992,6 @@ const EditProperty: React.FC = () => {
                 ) : (
                   <div className={styles.visibilityLocked}><span className={styles.visibilityLockedIcon}>🔒</span><div><div className={styles.visibilityLockedLabel}>Status: <strong>{currentStatus?.replace("_", " ")}</strong></div><div className={styles.visibilityLockedSub}>Visibility can only be toggled once approved.</div></div></div>
                 )}
-              </div>
-
-              {/* Location */}
-              <div className={styles.card}>
-                <div className={styles.cardTitle}>Location</div>
-                <div className={styles.mapSearchWrap} style={{ marginBottom: "14px" }}>
-                  <input type="text" className={styles.mapSearchInput} placeholder="e.g. Lahug, Cebu City" value={location} onChange={(e) => { setLocation(e.target.value); setMapError(null); }} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleMapSearch())} required />
-                  <button type="button" className={styles.mapSearchBtn} onClick={handleMapSearch} disabled={mapSearching || !location.trim()}>{mapSearching ? "Searching…" : "🔍 Find"}</button>
-                </div>
-                {mapError && <p style={{ color: "#c0392b", fontSize: "13px", marginBottom: "10px" }}>⚠ {mapError}</p>}
-                <div className={styles.mapFrame}>
-                  <MapContainer center={mapCoords ? [mapCoords.lat, mapCoords.lon] : [10.3157, 123.8854]} zoom={mapCoords ? 16 : 14} minZoom={12} maxBounds={[[CEBU_CITY_BOUNDS.minLat, CEBU_CITY_BOUNDS.minLon], [CEBU_CITY_BOUNDS.maxLat, CEBU_CITY_BOUNDS.maxLon]]} maxBoundsViscosity={1.0} style={{ height: "100%", width: "100%", zIndex: 1 }}>
-                    <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                    <ClickableMap coords={mapCoords} setCoords={setMapCoords} onLocationSelect={handleMapClick} />
-                  </MapContainer>
-                </div>
-                {mapCoords && <div className={styles.mapCoordsBadge}><span className={styles.mapCoordsIcon}>📍</span>{mapCoords.lat.toFixed(5)}, {mapCoords.lon.toFixed(5)}</div>}
               </div>
 
               {/* Photos */}
@@ -1096,7 +1176,21 @@ const EditProperty: React.FC = () => {
                                       <div className={styles.paymentTitle}>Month {pmt.installmentNumber}<span className={styles.paymentStatusChip} style={{ color: sc.color, background: sc.bg, borderColor: sc.border }}>{pmt.status}</span></div>
                                       <div className={styles.paymentMeta}><span>📅 Due: {pmt.dueDate}</span>{pmt.paidAt && <span style={{ color: "#1a7a4a" }}>✓ Paid: {pmt.paidAt}</span>}</div>
                                     </div>
-                                    <div className={styles.paymentAmount}>₱{pmt.amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                    <div className={styles.paymentAmount}>
+                                      ₱{pmt.amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      {/* Receipt Button for Active Tenant */}
+                                      {pmt.status === "PAID" && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setViewingReceiptId(pmt.id)}
+                                          style={{ display: "block", marginTop: "6px", fontSize: "11px", color: "#1f5d71", fontWeight: "bold", background: "rgba(31,93,113,0.08)", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer", width: "100%", transition: "0.2s", textAlign: "center" }}
+                                          onMouseEnter={(e) => e.currentTarget.style.background = "rgba(31,93,113,0.15)"}
+                                          onMouseLeave={(e) => e.currentTarget.style.background = "rgba(31,93,113,0.08)"}
+                                        >
+                                          View Receipt
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                 );
                               })}
@@ -1150,7 +1244,7 @@ const EditProperty: React.FC = () => {
                                     <div className={styles.requestRight}>
                                       <span className={styles.requestStatus} style={{ color: statusColor(req.status), borderColor: statusColor(req.status) }}>{req.status}</span>
                                       {isPending && (
-                                        <div className={styles.requestActions}>
+                                        <div className={styles.requestActions} onClick={(e) => e.stopPropagation()}>
                                           <button type="button" className={styles.requestRejectBtn} onClick={() => openAction(req, "REJECTED")}>✕ Reject</button>
                                           <button type="button" className={styles.requestApproveBtn} onClick={() => openAction(req, "APPROVED")}>✓ Approve</button>
                                         </div>
@@ -1168,7 +1262,7 @@ const EditProperty: React.FC = () => {
                 </div>
               )}
               {!showPastRequests && pastRequests.length > 0 && (
-                <button type="button" onClick={() => setShowPastRequests(true)} className={styles.contactBtn} style={{ width: "100%", marginTop: "16px" }}>
+                <button type="button" onClick={() => setShowPastRequests(true)} className={styles.contactBtn} style={{ width: "100%", marginTop: "16px", padding: "12px", background: "transparent", border: "1.5px dashed rgba(31, 93, 113, 0.3)", borderRadius: "10px", color: "var(--teal-deep)", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
                   Load Past Requests ({pastRequests.length})
                 </button>
               )}
@@ -1221,7 +1315,7 @@ const EditProperty: React.FC = () => {
                     ))}
                   </div>
                   {reviews.length > 0 && (
-                    <button type="button" onClick={() => { setModalRatingFilter(0); setShowReviewsModal(true); }} className={styles.contactBtn} style={{ marginTop: "16px", width: "100%" }}>
+                    <button type="button" onClick={() => { setModalRatingFilter(0); setShowReviewsModal(true); }} className={styles.contactBtn} style={{ marginTop: "16px", width: "100%", padding: "12px", background: "transparent", border: "1.5px dashed rgba(31, 93, 113, 0.3)", borderRadius: "10px", color: "var(--teal-deep)", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
                       View & Filter All {reviews.length} Reviews
                     </button>
                   )}
