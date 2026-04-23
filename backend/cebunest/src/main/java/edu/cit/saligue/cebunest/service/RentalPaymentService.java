@@ -57,7 +57,7 @@ public class RentalPaymentService {
         int months = request.getLeaseDurationMonths();
         List<RentalPayment> payments = new ArrayList<>();
         for (int i = 0; i < months; i++) {
-            payments.add(RentalPayment.builder().rentalRequest(request).installmentNumber(i + 1).amount(monthlyAmount).dueDate(startDate.plusMonths(i)).status(RentalPayment.PaymentStatus.PENDING).build());
+            payments.add(RentalPayment.builder().rentalRequest(request).installmentNumber(i + 1).amount(monthlyAmount).dueDate(startDate.plusMonths(i + 1)).status(RentalPayment.PaymentStatus.PENDING).build());
         }
         rentalPaymentRepository.saveAll(payments);
     }
