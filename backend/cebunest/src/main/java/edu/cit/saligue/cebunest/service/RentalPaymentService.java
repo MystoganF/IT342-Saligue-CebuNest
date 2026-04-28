@@ -3,11 +3,13 @@ package edu.cit.saligue.cebunest.service;
 import edu.cit.saligue.cebunest.dto.RentalPaymentDTO;
 import edu.cit.saligue.cebunest.dto.RentalRequestDTO;
 import edu.cit.saligue.cebunest.entity.*;
+import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
 import edu.cit.saligue.cebunest.repository.*;
 import edu.cit.saligue.cebunest.users.shared.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import edu.cit.saligue.cebunest.properties.shared.Property;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -20,7 +22,7 @@ public class RentalPaymentService {
 
     private final RentalRequestRepository  rentalRequestRepository;
     private final RentalPaymentRepository  rentalPaymentRepository;
-    private final PropertyRepository       propertyRepository;
+    private final PropertyRepository propertyRepository;
     private final PayMongoService          payMongoService;
     private final NotificationService      notificationService;
 

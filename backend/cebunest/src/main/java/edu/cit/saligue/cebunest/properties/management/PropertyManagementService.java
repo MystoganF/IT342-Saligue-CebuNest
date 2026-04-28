@@ -1,11 +1,16 @@
-package edu.cit.saligue.cebunest.service;
+package edu.cit.saligue.cebunest.properties.management;
 
-import edu.cit.saligue.cebunest.dto.CreatePropertyDTO;
-import edu.cit.saligue.cebunest.dto.PropertyDTO;
-import edu.cit.saligue.cebunest.dto.UpdatePropertyDTO;
-import edu.cit.saligue.cebunest.entity.*;
-import edu.cit.saligue.cebunest.repository.*;
+import edu.cit.saligue.cebunest.properties.shared.Property;
+import edu.cit.saligue.cebunest.properties.shared.PropertyDTO;
+import edu.cit.saligue.cebunest.properties.shared.PropertyImage;
+import edu.cit.saligue.cebunest.properties.shared.PropertyType;
+import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
+import edu.cit.saligue.cebunest.properties.shared.PropertyImageRepository;
+import edu.cit.saligue.cebunest.properties.shared.PropertyTypeRepository;
 import edu.cit.saligue.cebunest.users.shared.User;
+import edu.cit.saligue.cebunest.service.SupabaseStorageService; // Keep here for now
+import edu.cit.saligue.cebunest.repository.RentalRequestRepository; // Keep here for now
+import edu.cit.saligue.cebunest.entity.RentalRequest; // Keep here for now
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,34 +21,16 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class PropertyService {
+public class PropertyManagementService {
 
-    private final PropertyRepository      propertyRepository;
-    private final PropertyTypeRepository  propertyTypeRepository;
+    private final PropertyRepository propertyRepository;
+    private final PropertyTypeRepository propertyTypeRepository;
     private final PropertyImageRepository propertyImageRepository;
-    private final SupabaseStorageService  storageService;
+    private final SupabaseStorageService storageService;
     private final RentalRequestRepository rentalRequestRepository;
-    private final AuditLogRepository      auditLogRepository;
-
-    // ── All available properties (tenant view) ───────────────────────────
-    @Transactional(readOnly = true)
-    public List<PropertyDTO> getProperties(
-            String search, String type, Double minPrice, Double maxPrice) {
-        String cleanSearch = blank(search) ? null : search.trim();
-        String cleanType   = blank(type) || type.equalsIgnoreCase("All") ? null : type.trim();
-
-        return propertyRepository.findFiltered(cleanSearch, cleanType, minPrice, maxPrice)
-                .stream()
-                .filter(p -> p.getStatus() == Property.PropertyStatus.AVAILABLE)
-                .filter(p -> rentalRequestRepository.findByPropertyIdAndStatus(
-                        p.getId(), RentalRequest.RentalStatus.CONFIRMED).isEmpty())
-                .map(PropertyDTO::from).toList();
-    }
 
     @Transactional(readOnly = true)
-    public List<PropertyDTO> getMyProperties(
-            User owner, String search, Double minPrice, Double maxPrice, String status) { // <--- Added status
-
+    public List<PropertyDTO> getMyProperties(User owner, String search, Double minPrice, Double maxPrice, String status) {
         String cleanSearch = blank(search) ? null : search.trim();
         String cleanStatus = blank(status) || status.equalsIgnoreCase("ALL") ? null : status.trim().toUpperCase();
 
@@ -58,26 +45,6 @@ public class PropertyService {
                 }).toList();
     }
 
-    // ── All property types ───────────────────────────────────────────────
-    public List<PropertyType> getPropertyTypes() {
-        return propertyTypeRepository.findAll();
-    }
-
-    // ── Get Single Property By ID (WITH REJECTION REASON) ────────────────
-    @Transactional(readOnly = true)
-    public PropertyDTO getPropertyById(Long propertyId) {
-        Property property = propertyRepository.findById(propertyId)
-                .orElseThrow(() -> new IllegalArgumentException("Property not found."));
-
-        String rejectionReason = null;
-        if (property.getStatus() == Property.PropertyStatus.REJECTED) {
-            rejectionReason = auditLogRepository.findLatestRejectionReason(propertyId).orElse(null);
-        }
-
-        return PropertyDTO.from(property, rejectionReason);
-    }
-
-    // ── Create property ──────────────────────────────────────────────────
     @Transactional
     public PropertyDTO createProperty(CreatePropertyDTO dto, User owner) {
         PropertyType type = propertyTypeRepository.findById(dto.getTypeId())
@@ -100,7 +67,6 @@ public class PropertyService {
         return PropertyDTO.from(saved);
     }
 
-    // ── Update property (Owner View with Admin Lock Check) ────────────────
     @Transactional
     public PropertyDTO updateProperty(Long propertyId, UpdatePropertyDTO dto, User owner) {
         Property property = propertyRepository.findById(propertyId)
@@ -109,7 +75,6 @@ public class PropertyService {
         if (!property.getOwner().getId().equals(owner.getId()))
             throw new IllegalArgumentException("You do not own this property.");
 
-        // --- NEW: ADMIN LOCKOUT GUARD ---
         if (property.isAdminDisabled() && "AVAILABLE".equalsIgnoreCase(dto.getStatus())) {
             throw new IllegalArgumentException("This listing is restricted by an administrator. Reason: " + property.getAdminNote());
         }
@@ -117,11 +82,9 @@ public class PropertyService {
         PropertyType type = propertyTypeRepository.findById(dto.getTypeId())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid property type."));
 
-        // Check if property currently has an active tenant
         boolean hasActiveTenant = rentalRequestRepository.findByPropertyIdAndStatus(
                 propertyId, RentalRequest.RentalStatus.CONFIRMED).isPresent();
 
-        // Update scalar fields
         property.setTitle(dto.getTitle().trim());
         property.setDescription(dto.getDescription() != null ? dto.getDescription().trim() : "");
         property.setPrice(dto.getPrice());
@@ -131,12 +94,10 @@ public class PropertyService {
         property.setBaths(dto.getBaths());
         property.setSqm(dto.getSqm());
 
-        // Visibility logic
         if (hasActiveTenant) {
             property.setStatus(Property.PropertyStatus.UNAVAILABLE);
         } else if (dto.getStatus() != null) {
             Property.PropertyStatus current = property.getStatus();
-            // Allow toggle only for approved listings (AVAILABLE/UNAVAILABLE)
             if (current == Property.PropertyStatus.AVAILABLE || current == Property.PropertyStatus.UNAVAILABLE) {
                 if (dto.getStatus().equals("AVAILABLE"))
                     property.setStatus(Property.PropertyStatus.AVAILABLE);
@@ -147,7 +108,6 @@ public class PropertyService {
 
         propertyRepository.save(property);
 
-        // Delete removed images
         if (dto.getRemovedImageIds() != null && !dto.getRemovedImageIds().isEmpty()) {
             for (Long imageId : dto.getRemovedImageIds()) {
                 propertyImageRepository.deleteByIdAndPropertyId(imageId, propertyId);
@@ -163,10 +123,8 @@ public class PropertyService {
         return PropertyDTO.fromWithCover(reloaded, dto.getCoverImageId());
     }
 
-    // ── Upload images ────────────────────────────────────────────────────
     @Transactional
-    public PropertyDTO uploadImages(Long propertyId, User owner, List<MultipartFile> files)
-            throws IOException {
+    public PropertyDTO uploadImages(Long propertyId, User owner, List<MultipartFile> files) throws IOException {
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new IllegalArgumentException("Property not found."));
 
@@ -185,7 +143,6 @@ public class PropertyService {
         return PropertyDTO.from(propertyRepository.findById(propertyId).get());
     }
 
-    // ── Delete property ──────────────────────────────────────────────────
     @Transactional
     public void deleteProperty(Long propertyId, User owner) {
         Property property = propertyRepository.findById(propertyId)

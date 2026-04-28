@@ -1,4 +1,4 @@
-package edu.cit.saligue.cebunest.dto;
+package edu.cit.saligue.cebunest.properties.management;
 
 import lombok.Data;
 

@@ -2,11 +2,11 @@ package edu.cit.saligue.cebunest.service;
 
 import edu.cit.saligue.cebunest.dto.CreateRentalRequestDTO;
 import edu.cit.saligue.cebunest.dto.RentalRequestDTO;
-import edu.cit.saligue.cebunest.entity.Property;
+import edu.cit.saligue.cebunest.properties.shared.Property;
 import edu.cit.saligue.cebunest.entity.RentalPayment;
 import edu.cit.saligue.cebunest.entity.RentalRequest;
 import edu.cit.saligue.cebunest.users.shared.User;
-import edu.cit.saligue.cebunest.repository.PropertyRepository;
+import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
 import edu.cit.saligue.cebunest.repository.RentalPaymentRepository;
 import edu.cit.saligue.cebunest.repository.RentalRequestRepository;
 import lombok.RequiredArgsConstructor;

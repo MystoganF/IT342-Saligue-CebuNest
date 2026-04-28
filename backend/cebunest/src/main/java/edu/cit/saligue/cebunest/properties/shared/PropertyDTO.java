@@ -1,7 +1,5 @@
-package edu.cit.saligue.cebunest.dto;
+package edu.cit.saligue.cebunest.properties.shared;
 
-import edu.cit.saligue.cebunest.entity.Property;
-import edu.cit.saligue.cebunest.entity.PropertyImage;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

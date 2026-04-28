@@ -1,9 +1,8 @@
-package edu.cit.saligue.cebunest.controller;
+package edu.cit.saligue.cebunest.properties.admin;
 
-import edu.cit.saligue.cebunest.dto.PropertyDTO;
-import edu.cit.saligue.cebunest.dto.UpdatePropertyDTO;
+import edu.cit.saligue.cebunest.properties.shared.PropertyDTO;
+import edu.cit.saligue.cebunest.properties.management.UpdatePropertyDTO;
 import edu.cit.saligue.cebunest.users.shared.User;
-import edu.cit.saligue.cebunest.service.AdminPropertyService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

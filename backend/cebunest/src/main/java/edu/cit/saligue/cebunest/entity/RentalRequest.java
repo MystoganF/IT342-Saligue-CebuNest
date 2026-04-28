@@ -3,6 +3,7 @@ package edu.cit.saligue.cebunest.entity;
 import edu.cit.saligue.cebunest.users.shared.User;
 import jakarta.persistence.*;
 import lombok.*;
+import edu.cit.saligue.cebunest.properties.shared.Property;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;

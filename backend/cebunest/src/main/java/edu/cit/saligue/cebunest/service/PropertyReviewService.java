@@ -3,6 +3,7 @@ package edu.cit.saligue.cebunest.service;
 import edu.cit.saligue.cebunest.dto.CreateReviewDTO;
 import edu.cit.saligue.cebunest.dto.PropertyReviewDTO;
 import edu.cit.saligue.cebunest.entity.*;
+import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
 import edu.cit.saligue.cebunest.repository.*;
 import edu.cit.saligue.cebunest.users.shared.User;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +18,7 @@ public class PropertyReviewService {
 
     private final PropertyReviewRepository reviewRepository;
     private final RentalRequestRepository  rentalRequestRepository;
-    private final PropertyRepository       propertyRepository;
+    private final PropertyRepository propertyRepository;
     private final NotificationService      notificationService;   // ← ADDED
 
     // ── Submit a review ──────────────────────────────────────────────────

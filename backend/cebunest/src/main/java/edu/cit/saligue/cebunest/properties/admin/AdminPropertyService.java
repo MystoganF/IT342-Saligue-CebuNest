@@ -1,10 +1,13 @@
-package edu.cit.saligue.cebunest.service;
+package edu.cit.saligue.cebunest.properties.admin;
 
 import edu.cit.saligue.cebunest.dto.AuditLogDTO;
-import edu.cit.saligue.cebunest.dto.PropertyDTO;
+import edu.cit.saligue.cebunest.properties.management.UpdatePropertyDTO;
+import edu.cit.saligue.cebunest.properties.shared.PropertyDTO;
 import edu.cit.saligue.cebunest.entity.AuditLog;
-import edu.cit.saligue.cebunest.entity.Property;
+import edu.cit.saligue.cebunest.properties.shared.*;
 import edu.cit.saligue.cebunest.entity.RentalRequest;
+import edu.cit.saligue.cebunest.service.NotificationService;
+import edu.cit.saligue.cebunest.service.SupabaseStorageService;
 import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.repository.*;
 import lombok.RequiredArgsConstructor;
@@ -173,11 +176,11 @@ public class AdminPropertyService {
 
     // ── Admin Edit Property (Bypasses Owner Check) ───────────────────────
     @Transactional
-    public PropertyDTO updatePropertyAsAdmin(Long propertyId, edu.cit.saligue.cebunest.dto.UpdatePropertyDTO dto, User admin) {
+    public PropertyDTO updatePropertyAsAdmin(Long propertyId, UpdatePropertyDTO dto, User admin) {
         Property property = propertyRepository.findById(propertyId)
                 .orElseThrow(() -> new IllegalArgumentException("Property not found."));
 
-        edu.cit.saligue.cebunest.entity.PropertyType type = propertyTypeRepository.findById(dto.getTypeId())
+        PropertyType type = propertyTypeRepository.findById(dto.getTypeId())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid property type."));
 
         boolean hasActiveTenant = rentalRequestRepository.findByPropertyIdAndStatus(
@@ -280,7 +283,7 @@ public class AdminPropertyService {
 
         for (org.springframework.web.multipart.MultipartFile file : files) {
             String url = storageService.uploadPropertyImage(propertyId, file);
-            edu.cit.saligue.cebunest.entity.PropertyImage image = edu.cit.saligue.cebunest.entity.PropertyImage.builder()
+            PropertyImage image = PropertyImage.builder()
                     .property(property)
                     .imageUrl(url)
                     .build();

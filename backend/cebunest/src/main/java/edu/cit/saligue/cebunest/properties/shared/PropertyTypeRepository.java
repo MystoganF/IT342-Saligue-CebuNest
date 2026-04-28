@@ -1,6 +1,5 @@
-package edu.cit.saligue.cebunest.repository;
+package edu.cit.saligue.cebunest.properties.shared;
 
-import edu.cit.saligue.cebunest.entity.PropertyType;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

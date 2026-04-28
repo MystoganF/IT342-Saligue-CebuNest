@@ -1,6 +1,5 @@
 package edu.cit.saligue.cebunest.service;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -35,7 +34,7 @@ public class SupabaseStorageService {
 
     // ── Upload property image ─────────────────────────────────────────────
     public String uploadPropertyImage(Long propertyId, MultipartFile file) throws IOException {
-        String fileName = "properties/" + propertyId + "-" + UUID.randomUUID() + "." + getExtension(file);
+        String fileName = "edu/cit/saligue/cebunest/properties/" + propertyId + "-" + UUID.randomUUID() + "." + getExtension(file);
         return upload(fileName, file);
     }
 
