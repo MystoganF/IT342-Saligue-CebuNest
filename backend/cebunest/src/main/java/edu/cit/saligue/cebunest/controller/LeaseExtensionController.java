@@ -1,7 +1,7 @@
 package edu.cit.saligue.cebunest.controller;
 
 import edu.cit.saligue.cebunest.dto.LeaseExtensionRequestDTO;
-import edu.cit.saligue.cebunest.entity.User;
+import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.service.LeaseExtensionService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;

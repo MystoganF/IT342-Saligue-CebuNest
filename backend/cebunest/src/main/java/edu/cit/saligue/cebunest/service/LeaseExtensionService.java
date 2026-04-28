@@ -4,7 +4,7 @@ import edu.cit.saligue.cebunest.dto.LeaseExtensionRequestDTO;
 import edu.cit.saligue.cebunest.entity.LeaseExtensionRequest;
 import edu.cit.saligue.cebunest.entity.RentalPayment;
 import edu.cit.saligue.cebunest.entity.RentalRequest;
-import edu.cit.saligue.cebunest.entity.User;
+import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.repository.LeaseExtensionRequestRepository;
 import edu.cit.saligue.cebunest.repository.RentalPaymentRepository; // Ensure this is imported
 import edu.cit.saligue.cebunest.repository.RentalRequestRepository;

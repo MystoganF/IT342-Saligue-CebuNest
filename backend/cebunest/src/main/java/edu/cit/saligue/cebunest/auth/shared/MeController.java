@@ -1,7 +1,7 @@
-package edu.cit.saligue.cebunest.auth.core;
+package edu.cit.saligue.cebunest.auth.shared;
 
-import edu.cit.saligue.cebunest.dto.UserDTO;
-import edu.cit.saligue.cebunest.service.UserService;
+import edu.cit.saligue.cebunest.users.profile.ProfileService;
+import edu.cit.saligue.cebunest.users.shared.UserDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,7 +19,7 @@ import java.util.Map;
 public class MeController {
 
     private final JwtUtil jwtUtil;
-    private final UserService userService;
+    private final ProfileService profileService;
 
     @GetMapping("/me")
     public ResponseEntity<?> me(@RequestHeader("Authorization") String authHeader) {
@@ -31,7 +31,7 @@ public class MeController {
             String token = authHeader.substring(7);
             String email = jwtUtil.extractEmail(token);
 
-            UserDTO user = userService.getByEmail(email);
+            UserDTO user = profileService.getByEmail(email);
 
             Map<String, Object> resp = new HashMap<>();
             resp.put("success", true);

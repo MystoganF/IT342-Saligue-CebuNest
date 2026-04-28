@@ -1,7 +1,7 @@
 package edu.cit.saligue.cebunest.config;
 
-import edu.cit.saligue.cebunest.entity.Role;
-import edu.cit.saligue.cebunest.repository.RoleRepository;
+import edu.cit.saligue.cebunest.users.shared.Role;
+import edu.cit.saligue.cebunest.users.shared.RoleRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;

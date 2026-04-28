@@ -1,5 +1,6 @@
 package edu.cit.saligue.cebunest.entity;
 
+import edu.cit.saligue.cebunest.users.shared.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

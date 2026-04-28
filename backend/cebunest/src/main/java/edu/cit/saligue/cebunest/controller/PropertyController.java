@@ -4,7 +4,7 @@ import edu.cit.saligue.cebunest.dto.CreatePropertyDTO;
 import edu.cit.saligue.cebunest.dto.PropertyDTO;
 import edu.cit.saligue.cebunest.dto.UpdatePropertyDTO;
 import edu.cit.saligue.cebunest.entity.PropertyType;
-import edu.cit.saligue.cebunest.entity.User;
+import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.service.PropertyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

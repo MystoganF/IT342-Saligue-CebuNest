@@ -1,4 +1,4 @@
-package edu.cit.saligue.cebunest.auth.core;
+package edu.cit.saligue.cebunest.auth.shared;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;

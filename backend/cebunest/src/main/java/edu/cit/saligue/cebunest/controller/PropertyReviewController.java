@@ -2,7 +2,7 @@ package edu.cit.saligue.cebunest.controller;
 
 import edu.cit.saligue.cebunest.dto.CreateReviewDTO;
 import edu.cit.saligue.cebunest.dto.PropertyReviewDTO;
-import edu.cit.saligue.cebunest.entity.User;
+import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.service.PropertyReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

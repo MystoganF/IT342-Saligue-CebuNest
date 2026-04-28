@@ -1,8 +1,7 @@
-package edu.cit.saligue.cebunest.controller;
+package edu.cit.saligue.cebunest.users.admin;
 
-import edu.cit.saligue.cebunest.dto.UserDTO;
-import edu.cit.saligue.cebunest.entity.User;
-import edu.cit.saligue.cebunest.service.UserService;
+import edu.cit.saligue.cebunest.users.shared.UserDTO;
+import edu.cit.saligue.cebunest.users.shared.User;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,14 +22,14 @@ import java.util.Map;
 @CrossOrigin(origins = "http://localhost:5173")
 public class AdminUserController {
 
-    private final UserService     userService;
+    private final AdminUserService adminUserService;
     private final PasswordEncoder passwordEncoder;
 
     // ── GET /api/admin/users ──────────────────────────────────────────────
     @GetMapping
     public ResponseEntity<?> getAllUsers(@AuthenticationPrincipal User currentUser) {
         if (!isAdmin(currentUser)) return forbidden();
-        List<UserDTO> users = userService.getAllUsers();
+        List<UserDTO> users = adminUserService.getAllUsers();
         return ok(Map.of("users", users, "count", users.size()));
     }
 
@@ -47,7 +46,7 @@ public class AdminUserController {
         if (blank(body.getRole()))     return bad("VALID-001", "Role is required.");
 
         try {
-            UserDTO created = userService.adminCreateUser(
+            UserDTO created = adminUserService.adminCreateUser(
                     body.getName(), body.getEmail(),
                     passwordEncoder.encode(body.getPassword()),
                     body.getRole());
@@ -67,7 +66,7 @@ public class AdminUserController {
         if (!isAdmin(currentUser)) return forbidden();
         if (blank(body.getRole())) return bad("VALID-001", "Role is required.");
         try {
-            return ResponseEntity.ok(success(Map.of("user", userService.adminUpdateRole(id, body.getRole()))));
+            return ResponseEntity.ok(success(Map.of("user", adminUserService.adminUpdateRole(id, body.getRole()))));
         } catch (IllegalArgumentException e) {
             return bad("BUSINESS-001", e.getMessage());
         }
@@ -82,7 +81,7 @@ public class AdminUserController {
     ) {
         if (!isAdmin(currentUser)) return forbidden();
         try {
-            return ResponseEntity.ok(success(Map.of("user", userService.adminSetActive(id, body.isActive()))));
+            return ResponseEntity.ok(success(Map.of("user", adminUserService.adminSetActive(id, body.isActive()))));
         } catch (IllegalArgumentException e) {
             return bad("BUSINESS-001", e.getMessage());
         }
@@ -96,7 +95,7 @@ public class AdminUserController {
     ) {
         if (!isAdmin(currentUser)) return forbidden();
         try {
-            userService.adminDeleteUser(id);
+            adminUserService.adminDeleteUser(id);
             return ResponseEntity.ok(success(Map.of("deleted", true, "id", id)));
         } catch (IllegalArgumentException e) {
             return bad("BUSINESS-001", e.getMessage());
@@ -149,7 +148,7 @@ public class AdminUserController {
         if (!isAdmin(currentUser)) return forbidden();
         if (blank(body.getEmail())) return bad("VALID-001", "Email is required.");
         try {
-            return ResponseEntity.ok(success(Map.of("user", userService.adminUpdateEmail(id, body.getEmail()))));
+            return ResponseEntity.ok(success(Map.of("user", adminUserService.adminUpdateEmail(id, body.getEmail()))));
         } catch (IllegalArgumentException e) {
             return bad("BUSINESS-001", e.getMessage());
         }

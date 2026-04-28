@@ -1,11 +1,11 @@
 package edu.cit.saligue.cebunest.auth.google;
 
-import edu.cit.saligue.cebunest.dto.UserDTO;
-import edu.cit.saligue.cebunest.entity.Role;
-import edu.cit.saligue.cebunest.entity.User;
-import edu.cit.saligue.cebunest.repository.RoleRepository;
-import edu.cit.saligue.cebunest.repository.UserRepository;
-import edu.cit.saligue.cebunest.auth.core.JwtUtil;
+import edu.cit.saligue.cebunest.users.shared.UserDTO;
+import edu.cit.saligue.cebunest.users.shared.Role;
+import edu.cit.saligue.cebunest.users.shared.User;
+import edu.cit.saligue.cebunest.users.shared.RoleRepository;
+import edu.cit.saligue.cebunest.users.shared.UserRepository;
+import edu.cit.saligue.cebunest.auth.shared.JwtUtil;
 import edu.cit.saligue.cebunest.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpEntity;

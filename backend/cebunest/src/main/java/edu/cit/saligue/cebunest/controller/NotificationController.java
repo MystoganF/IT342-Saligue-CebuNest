@@ -1,7 +1,7 @@
 package edu.cit.saligue.cebunest.controller;
 
 import edu.cit.saligue.cebunest.dto.NotificationDTO;
-import edu.cit.saligue.cebunest.entity.User;
+import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

@@ -1,6 +1,6 @@
 package edu.cit.saligue.cebunest.auth.register;
 
-import edu.cit.saligue.cebunest.auth.core.AuthResponse;
+import edu.cit.saligue.cebunest.auth.shared.AuthResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

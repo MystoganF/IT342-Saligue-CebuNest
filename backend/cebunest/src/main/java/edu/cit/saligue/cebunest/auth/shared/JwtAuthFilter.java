@@ -1,6 +1,6 @@
-package edu.cit.saligue.cebunest.auth.core;
+package edu.cit.saligue.cebunest.auth.shared;
 
-import edu.cit.saligue.cebunest.repository.UserRepository;
+import edu.cit.saligue.cebunest.users.shared.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

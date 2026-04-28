@@ -5,7 +5,7 @@ import edu.cit.saligue.cebunest.dto.PropertyDTO;
 import edu.cit.saligue.cebunest.entity.AuditLog;
 import edu.cit.saligue.cebunest.entity.Property;
 import edu.cit.saligue.cebunest.entity.RentalRequest;
-import edu.cit.saligue.cebunest.entity.User;
+import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

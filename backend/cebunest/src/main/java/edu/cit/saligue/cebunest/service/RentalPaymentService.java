@@ -4,6 +4,7 @@ import edu.cit.saligue.cebunest.dto.RentalPaymentDTO;
 import edu.cit.saligue.cebunest.dto.RentalRequestDTO;
 import edu.cit.saligue.cebunest.entity.*;
 import edu.cit.saligue.cebunest.repository.*;
+import edu.cit.saligue.cebunest.users.shared.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

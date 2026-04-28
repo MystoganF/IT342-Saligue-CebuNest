@@ -1,6 +1,5 @@
-package edu.cit.saligue.cebunest.repository;
+package edu.cit.saligue.cebunest.users.shared;
 
-import edu.cit.saligue.cebunest.entity.Role;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

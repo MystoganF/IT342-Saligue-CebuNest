@@ -1,6 +1,5 @@
-package edu.cit.saligue.cebunest.dto;
+package edu.cit.saligue.cebunest.users.shared;
 
-import edu.cit.saligue.cebunest.entity.User;
 import lombok.Builder;
 import lombok.Data;
 

@@ -1,7 +1,7 @@
 package edu.cit.saligue.cebunest.auth.passwordreset;
 
-import edu.cit.saligue.cebunest.entity.User;
-import edu.cit.saligue.cebunest.repository.UserRepository;
+import edu.cit.saligue.cebunest.users.shared.User;
+import edu.cit.saligue.cebunest.users.shared.UserRepository;
 import edu.cit.saligue.cebunest.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;

@@ -1,4 +1,4 @@
-package edu.cit.saligue.cebunest.auth.core;
+package edu.cit.saligue.cebunest.auth.shared;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;

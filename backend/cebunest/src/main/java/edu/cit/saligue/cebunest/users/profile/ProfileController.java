@@ -1,9 +1,7 @@
-package edu.cit.saligue.cebunest.controller;
+package edu.cit.saligue.cebunest.users.profile;
 
-import edu.cit.saligue.cebunest.dto.UpdateProfileRequest;
-import edu.cit.saligue.cebunest.dto.UserDTO;
+import edu.cit.saligue.cebunest.users.shared.UserDTO;
 import edu.cit.saligue.cebunest.service.SupabaseStorageService;
-import edu.cit.saligue.cebunest.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,9 +18,9 @@ import java.util.Map;
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 @CrossOrigin(origins = "http://localhost:5173")
-public class UserController {
+public class ProfileController {
 
-    private final UserService userService;
+    private final ProfileService profileService;
     private final SupabaseStorageService storageService;
 
     @PutMapping("/{id}")
@@ -30,7 +28,7 @@ public class UserController {
             @PathVariable Long id,
             @RequestBody UpdateProfileRequest request) {
         try {
-            UserDTO updated = userService.updateProfile(id, request);
+            UserDTO updated = profileService.updateProfile(id, request);
             return buildSuccess(updated);
         } catch (IllegalArgumentException e) {
             return buildError("DB-001", e.getMessage(), HttpStatus.NOT_FOUND);
@@ -87,7 +85,7 @@ public class UserController {
                     .avatarUrl(avatarUrl)
                     .build();
 
-            UserDTO updated = userService.updateProfile(id, req);
+            UserDTO updated = profileService.updateProfile(id, req);
 
             Map<String, Object> responseData = new HashMap<>();
             responseData.put("avatarUrl", avatarUrl);

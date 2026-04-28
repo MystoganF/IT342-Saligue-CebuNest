@@ -2,7 +2,7 @@ package edu.cit.saligue.cebunest.controller;
 
 import edu.cit.saligue.cebunest.dto.PropertyDTO;
 import edu.cit.saligue.cebunest.dto.UpdatePropertyDTO;
-import edu.cit.saligue.cebunest.entity.User;
+import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.service.AdminPropertyService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;

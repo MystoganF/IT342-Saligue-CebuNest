@@ -4,6 +4,7 @@ import edu.cit.saligue.cebunest.dto.CreateReviewDTO;
 import edu.cit.saligue.cebunest.dto.PropertyReviewDTO;
 import edu.cit.saligue.cebunest.entity.*;
 import edu.cit.saligue.cebunest.repository.*;
+import edu.cit.saligue.cebunest.users.shared.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

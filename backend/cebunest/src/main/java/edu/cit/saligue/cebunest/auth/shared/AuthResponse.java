@@ -1,6 +1,6 @@
-package edu.cit.saligue.cebunest.auth.core;
+package edu.cit.saligue.cebunest.auth.shared;
 
-import edu.cit.saligue.cebunest.dto.UserDTO;
+import edu.cit.saligue.cebunest.users.shared.UserDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
