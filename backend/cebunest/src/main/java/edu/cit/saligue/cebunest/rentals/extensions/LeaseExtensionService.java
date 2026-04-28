@@ -1,13 +1,15 @@
-package edu.cit.saligue.cebunest.service;
+package edu.cit.saligue.cebunest.rentals.extensions;
 
-import edu.cit.saligue.cebunest.dto.LeaseExtensionRequestDTO;
-import edu.cit.saligue.cebunest.entity.LeaseExtensionRequest;
+import edu.cit.saligue.cebunest.rentals.shared.LeaseExtensionRequestDTO;
+import edu.cit.saligue.cebunest.rentals.shared.LeaseExtensionRequest;
 import edu.cit.saligue.cebunest.entity.RentalPayment;
-import edu.cit.saligue.cebunest.entity.RentalRequest;
+import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
+import edu.cit.saligue.cebunest.service.EmailService;
+import edu.cit.saligue.cebunest.service.NotificationService;
 import edu.cit.saligue.cebunest.users.shared.User;
-import edu.cit.saligue.cebunest.repository.LeaseExtensionRequestRepository;
+import edu.cit.saligue.cebunest.rentals.shared.LeaseExtensionRequestRepository;
 import edu.cit.saligue.cebunest.repository.RentalPaymentRepository; // Ensure this is imported
-import edu.cit.saligue.cebunest.repository.RentalRequestRepository;
+import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,8 +25,8 @@ public class LeaseExtensionService {
     private final LeaseExtensionRequestRepository extensionRepository;
     private final RentalRequestRepository         rentalRequestRepository;
     private final RentalPaymentRepository         rentalPaymentRepository; // Added this
-    private final NotificationService             notificationService;
-    private final EmailService                    emailService;
+    private final NotificationService notificationService;
+    private final EmailService emailService;
 
     // ── Tenant: submit an extension request ─────────────────────────────
     @Transactional

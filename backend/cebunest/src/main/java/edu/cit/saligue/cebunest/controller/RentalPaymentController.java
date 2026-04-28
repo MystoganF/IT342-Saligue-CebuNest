@@ -1,7 +1,7 @@
 package edu.cit.saligue.cebunest.controller;
 
 import edu.cit.saligue.cebunest.dto.RentalPaymentDTO;
-import edu.cit.saligue.cebunest.dto.RentalRequestDTO;
+import edu.cit.saligue.cebunest.rentals.shared.RentalRequestDTO;
 import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.service.RentalPaymentService;
 import lombok.Data;

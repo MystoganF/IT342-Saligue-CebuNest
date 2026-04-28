@@ -1,4 +1,4 @@
-package edu.cit.saligue.cebunest.dto;
+package edu.cit.saligue.cebunest.rentals.application;
 
 import lombok.Data;
 import java.time.LocalDate;

@@ -1,5 +1,6 @@
 package edu.cit.saligue.cebunest.entity;
 
+import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
 import jakarta.persistence.*;
 import lombok.*;
 

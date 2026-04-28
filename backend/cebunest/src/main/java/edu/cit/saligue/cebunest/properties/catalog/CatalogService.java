@@ -6,8 +6,8 @@ import edu.cit.saligue.cebunest.properties.shared.PropertyType;
 import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
 import edu.cit.saligue.cebunest.properties.shared.PropertyTypeRepository;
 import edu.cit.saligue.cebunest.repository.AuditLogRepository; // Kept in original repo for now
-import edu.cit.saligue.cebunest.repository.RentalRequestRepository; // Kept in original repo for now
-import edu.cit.saligue.cebunest.entity.RentalRequest; // Kept in original entity for now
+import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository; // Kept in original repo for now
+import edu.cit.saligue.cebunest.rentals.shared.RentalRequest; // Kept in original entity for now
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

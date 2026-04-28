@@ -1,6 +1,5 @@
-package edu.cit.saligue.cebunest.dto;
+package edu.cit.saligue.cebunest.rentals.shared;
 
-import edu.cit.saligue.cebunest.entity.LeaseExtensionRequest;
 import lombok.*;
 
 import java.time.format.DateTimeFormatter;

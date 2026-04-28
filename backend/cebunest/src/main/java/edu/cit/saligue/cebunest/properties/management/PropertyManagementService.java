@@ -9,8 +9,8 @@ import edu.cit.saligue.cebunest.properties.shared.PropertyImageRepository;
 import edu.cit.saligue.cebunest.properties.shared.PropertyTypeRepository;
 import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.service.SupabaseStorageService; // Keep here for now
-import edu.cit.saligue.cebunest.repository.RentalRequestRepository; // Keep here for now
-import edu.cit.saligue.cebunest.entity.RentalRequest; // Keep here for now
+import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository; // Keep here for now
+import edu.cit.saligue.cebunest.rentals.shared.RentalRequest; // Keep here for now
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

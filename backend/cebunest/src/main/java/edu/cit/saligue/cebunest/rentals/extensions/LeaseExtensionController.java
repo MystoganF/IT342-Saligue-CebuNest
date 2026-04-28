@@ -1,8 +1,7 @@
-package edu.cit.saligue.cebunest.controller;
+package edu.cit.saligue.cebunest.rentals.extensions;
 
-import edu.cit.saligue.cebunest.dto.LeaseExtensionRequestDTO;
+import edu.cit.saligue.cebunest.rentals.shared.LeaseExtensionRequestDTO;
 import edu.cit.saligue.cebunest.users.shared.User;
-import edu.cit.saligue.cebunest.service.LeaseExtensionService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

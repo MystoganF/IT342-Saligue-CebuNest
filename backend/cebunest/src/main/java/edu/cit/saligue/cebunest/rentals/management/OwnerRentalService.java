@@ -1,67 +1,29 @@
-package edu.cit.saligue.cebunest.service;
+package edu.cit.saligue.cebunest.rentals.management;
 
-import edu.cit.saligue.cebunest.dto.CreateRentalRequestDTO;
-import edu.cit.saligue.cebunest.dto.RentalRequestDTO;
 import edu.cit.saligue.cebunest.properties.shared.Property;
-import edu.cit.saligue.cebunest.entity.RentalPayment;
-import edu.cit.saligue.cebunest.entity.RentalRequest;
-import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
-import edu.cit.saligue.cebunest.repository.RentalPaymentRepository;
-import edu.cit.saligue.cebunest.repository.RentalRequestRepository;
+import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
+import edu.cit.saligue.cebunest.rentals.shared.RentalRequestDTO;
+import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository;
+import edu.cit.saligue.cebunest.entity.RentalPayment; // Keep in old folder for now
+import edu.cit.saligue.cebunest.repository.RentalPaymentRepository; // Keep in old folder for now
+import edu.cit.saligue.cebunest.service.NotificationService;
+import edu.cit.saligue.cebunest.users.shared.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class RentalRequestService {
+public class OwnerRentalService {
 
     private final RentalRequestRepository rentalRequestRepository;
-    private final PropertyRepository      propertyRepository;
+    private final PropertyRepository propertyRepository;
     private final RentalPaymentRepository rentalPaymentRepository;
-    private final NotificationService     notificationService;
-
-    @Transactional
-    public RentalRequestDTO createRequest(CreateRentalRequestDTO dto, User tenant) {
-        Property property = propertyRepository.findById(dto.getPropertyId())
-                .orElseThrow(() -> new IllegalArgumentException("Property not found."));
-
-        if (property.getStatus() != Property.PropertyStatus.AVAILABLE)
-            throw new IllegalArgumentException("This property is no longer available.");
-
-        boolean alreadyRequested = rentalRequestRepository
-                .existsByTenantIdAndPropertyIdAndStatusIn(
-                        tenant.getId(), property.getId(),
-                        List.of(RentalRequest.RentalStatus.PENDING, RentalRequest.RentalStatus.APPROVED)
-                );
-        if (alreadyRequested) throw new IllegalArgumentException("You already have an active request for this property.");
-
-        RentalRequest request = RentalRequest.builder()
-                .property(property)
-                .tenant(tenant)
-                .startDate(dto.getStartDate())
-                .leaseDurationMonths(dto.getLeaseDurationMonths())
-                .status(RentalRequest.RentalStatus.PENDING)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        RentalRequest saved = rentalRequestRepository.save(request);
-
-        notificationService.send(tenant, "REQUEST_PENDING", "Your rental request for \"" + property.getTitle() + "\" has been submitted. Waiting for owner review.", property.getId());
-        notificationService.send(property.getOwner(), "NEW_RENTAL_REQUEST", "You have a new rental request from " + tenant.getName() + " for \"" + property.getTitle() + "\".", null, property.getId());
-
-        return RentalRequestDTO.from(saved);
-    }
-
-    @Transactional(readOnly = true)
-    public List<RentalRequestDTO> getMyRequests(User tenant) {
-        return rentalRequestRepository.findByTenantIdOrderByCreatedAtDesc(tenant.getId()).stream().map(RentalRequestDTO::from).toList();
-    }
+    private final NotificationService notificationService;
 
     @Transactional(readOnly = true)
     public List<RentalRequestDTO> getRequestsForProperty(Long propertyId, User owner) {
@@ -79,7 +41,6 @@ public class RentalRequestService {
         RentalRequest.RentalStatus status = RentalRequest.RentalStatus.valueOf(newStatus);
         request.setStatus(status);
         rentalRequestRepository.save(request);
-
         String propTitle = request.getProperty().getTitle();
 
         if (status == RentalRequest.RentalStatus.APPROVED) {
@@ -115,7 +76,6 @@ public class RentalRequestService {
         int oldDuration = request.getLeaseDurationMonths();
         int newDuration = oldDuration + adjustMonths;
         if (newDuration < 1) throw new IllegalArgumentException("Lease duration cannot be less than 1 month.");
-
         request.setLeaseDurationMonths(newDuration);
         rentalRequestRepository.save(request);
 
@@ -136,7 +96,6 @@ public class RentalRequestService {
 
         String action = adjustMonths > 0 ? "extended by " + adjustMonths : "reduced by " + Math.abs(adjustMonths);
         notificationService.send(request.getTenant(), "LEASE_EXTENDED", "Your lease for \"" + request.getProperty().getTitle() + "\" has been " + action + " month(s). New total: " + newDuration + " month(s).", request.getId());
-
         return RentalRequestDTO.from(request);
     }
 
@@ -156,10 +115,5 @@ public class RentalRequestService {
         notificationService.send(request.getTenant(), "LEASE_TERMINATED", "Your lease for \"" + property.getTitle() + "\" has been terminated by the owner.", request.getId());
 
         return RentalRequestDTO.from(request);
-    }
-
-    @Transactional(readOnly = true)
-    public RentalRequestDTO getMyRequestForProperty(Long propertyId, User tenant) {
-        return rentalRequestRepository.findFirstByTenantIdAndPropertyIdOrderByCreatedAtDesc(tenant.getId(), propertyId).map(RentalRequestDTO::from).orElse(null);
     }
 }
