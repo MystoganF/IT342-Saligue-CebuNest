@@ -1,6 +1,5 @@
-package edu.cit.saligue.cebunest.dto;
+package edu.cit.saligue.cebunest.payments.shared;
 
-import edu.cit.saligue.cebunest.entity.RentalPayment;
 import lombok.*;
 
 @Data

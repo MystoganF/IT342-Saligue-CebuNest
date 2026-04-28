@@ -1,6 +1,6 @@
 package edu.cit.saligue.cebunest.rentals.shared;
 
-import edu.cit.saligue.cebunest.dto.RentalPaymentDTO;
+import edu.cit.saligue.cebunest.payments.shared.RentalPaymentDTO;
 import lombok.*;
 
 import java.util.List;

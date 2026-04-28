@@ -1,4 +1,4 @@
-package edu.cit.saligue.cebunest.service;
+package edu.cit.saligue.cebunest.payments.gateway;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;

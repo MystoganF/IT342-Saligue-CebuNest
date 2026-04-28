@@ -1,12 +1,14 @@
-package edu.cit.saligue.cebunest.service;
+package edu.cit.saligue.cebunest.payments.billing;
 
-import edu.cit.saligue.cebunest.dto.RentalPaymentDTO;
+import edu.cit.saligue.cebunest.payments.shared.RentalPaymentDTO;
+import edu.cit.saligue.cebunest.payments.shared.RentalPayment;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequestDTO;
-import edu.cit.saligue.cebunest.entity.*;
 import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository;
-import edu.cit.saligue.cebunest.repository.*;
+import edu.cit.saligue.cebunest.repository.RentalPaymentRepository;
+import edu.cit.saligue.cebunest.service.NotificationService;
+import edu.cit.saligue.cebunest.payments.gateway.PayMongoService;
 import edu.cit.saligue.cebunest.users.shared.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,10 +25,10 @@ import java.util.Map;
 public class RentalPaymentService {
 
     private final RentalRequestRepository rentalRequestRepository;
-    private final RentalPaymentRepository  rentalPaymentRepository;
+    private final RentalPaymentRepository rentalPaymentRepository;
     private final PropertyRepository propertyRepository;
-    private final PayMongoService          payMongoService;
-    private final NotificationService      notificationService;
+    private final PayMongoService payMongoService;
+    private final NotificationService notificationService;
 
     private void authorizeTenantOrOwner(RentalRequest request, User currentUser) {
         boolean isTenant = request.getTenant().getId().equals(currentUser.getId());

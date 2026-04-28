@@ -1,4 +1,4 @@
-package edu.cit.saligue.cebunest.entity;
+package edu.cit.saligue.cebunest.payments.shared;
 
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
 import jakarta.persistence.*;

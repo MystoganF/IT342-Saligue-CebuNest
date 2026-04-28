@@ -233,7 +233,7 @@ const OwnerProperties: React.FC = () => {
           >
             <option value="">All Status</option>
             <option value="AVAILABLE">Available</option>
-            <option value="UNAVAILABLE">Unavailable / Occupied</option>
+            <option value="UNAVAILABLE">Occupied</option>
             <option value="PENDING_REVIEW">Pending Review</option>
             <option value="REJECTED">Rejected</option>
           </select>

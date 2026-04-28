@@ -1,6 +1,6 @@
 package edu.cit.saligue.cebunest.repository;
 
-import edu.cit.saligue.cebunest.entity.RentalPayment;
+import edu.cit.saligue.cebunest.payments.shared.RentalPayment;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

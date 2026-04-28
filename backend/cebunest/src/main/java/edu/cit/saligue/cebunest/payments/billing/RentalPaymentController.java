@@ -1,9 +1,8 @@
-package edu.cit.saligue.cebunest.controller;
+package edu.cit.saligue.cebunest.payments.billing;
 
-import edu.cit.saligue.cebunest.dto.RentalPaymentDTO;
+import edu.cit.saligue.cebunest.payments.shared.RentalPaymentDTO;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequestDTO;
 import edu.cit.saligue.cebunest.users.shared.User;
-import edu.cit.saligue.cebunest.service.RentalPaymentService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

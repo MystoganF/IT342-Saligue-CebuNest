@@ -1,11 +1,13 @@
 package edu.cit.saligue.cebunest.service;
 
-import edu.cit.saligue.cebunest.dto.RentalPaymentDTO;
+import edu.cit.saligue.cebunest.payments.shared.RentalPaymentDTO;
 import edu.cit.saligue.cebunest.entity.*;
+import edu.cit.saligue.cebunest.payments.shared.RentalPayment;
 import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository;
 import edu.cit.saligue.cebunest.repository.*;
+import edu.cit.saligue.cebunest.repository.RentalPaymentRepository;
 import edu.cit.saligue.cebunest.users.shared.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,7 +24,7 @@ public class OwnerAnalyticsService {
 
     private final PropertyRepository propertyRepository;
     private final RentalRequestRepository rentalRequestRepository;
-    private final RentalPaymentRepository  rentalPaymentRepository;
+    private final RentalPaymentRepository rentalPaymentRepository;
     private final PropertyReviewRepository propertyReviewRepository;
 
     @Transactional(readOnly = true)

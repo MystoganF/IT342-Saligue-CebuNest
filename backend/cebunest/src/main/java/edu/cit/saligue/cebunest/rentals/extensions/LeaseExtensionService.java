@@ -2,7 +2,7 @@ package edu.cit.saligue.cebunest.rentals.extensions;
 
 import edu.cit.saligue.cebunest.rentals.shared.LeaseExtensionRequestDTO;
 import edu.cit.saligue.cebunest.rentals.shared.LeaseExtensionRequest;
-import edu.cit.saligue.cebunest.entity.RentalPayment;
+import edu.cit.saligue.cebunest.payments.shared.RentalPayment;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
 import edu.cit.saligue.cebunest.service.EmailService;
 import edu.cit.saligue.cebunest.service.NotificationService;

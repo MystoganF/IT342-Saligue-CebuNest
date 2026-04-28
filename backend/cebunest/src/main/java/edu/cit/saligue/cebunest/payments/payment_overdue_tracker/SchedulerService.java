@@ -1,5 +1,6 @@
-package edu.cit.saligue.cebunest.service;
+package edu.cit.saligue.cebunest.payments.payment_overdue_tracker;
 
+import edu.cit.saligue.cebunest.payments.billing.RentalPaymentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
