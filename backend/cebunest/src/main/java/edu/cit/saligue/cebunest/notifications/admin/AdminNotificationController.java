@@ -1,8 +1,8 @@
-package edu.cit.saligue.cebunest.controller;
+package edu.cit.saligue.cebunest.notifications.admin;
 
-import edu.cit.saligue.cebunest.dto.AdminBroadcastDTO;
+import edu.cit.saligue.cebunest.notifications.shared.AdminBroadcastDTO;
 import edu.cit.saligue.cebunest.users.shared.User;
-import edu.cit.saligue.cebunest.service.NotificationService;
+import edu.cit.saligue.cebunest.notifications.admin.AdminBroadcastService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,7 +22,7 @@ import java.util.Map;
 @CrossOrigin(origins = "http://localhost:5173")
 public class AdminNotificationController {
 
-    private final NotificationService notificationService;
+    private final AdminBroadcastService adminBroadcastService;
 
 
     // ── POST /api/admin/notifications/broadcast ───────────────────────────
@@ -45,7 +45,7 @@ public class AdminNotificationController {
 
         try {
             // Pass currentUser so the broadcast record knows who sent it
-            long recipientCount = notificationService.sendBroadcast(
+            long recipientCount = adminBroadcastService.sendBroadcast(
                     type, body.getMessage(), body.getTargetRoles(), currentUser);
 
             return ok(Map.of(
@@ -64,7 +64,7 @@ public class AdminNotificationController {
     public ResponseEntity<?> getHistory(@AuthenticationPrincipal User currentUser) {
         if (!isAdmin(currentUser)) return forbidden();
         try {
-            List<AdminBroadcastDTO> history = notificationService.getBroadcastHistory();
+            List<AdminBroadcastDTO> history = adminBroadcastService.getBroadcastHistory();
             return ok(Map.of("history", history, "count", history.size()));
         } catch (Exception e) {
             return err("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);

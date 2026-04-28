@@ -1,6 +1,5 @@
-package edu.cit.saligue.cebunest.dto;
+package edu.cit.saligue.cebunest.notifications.shared;
 
-import edu.cit.saligue.cebunest.entity.AdminBroadcast;
 import lombok.*;
 
 import java.time.format.DateTimeFormatter;

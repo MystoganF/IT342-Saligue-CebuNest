@@ -1,7 +1,6 @@
-package edu.cit.saligue.cebunest.dto;
+package edu.cit.saligue.cebunest.notifications.shared;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import edu.cit.saligue.cebunest.entity.Notification;
 import lombok.*;
 
 import java.time.format.DateTimeFormatter;

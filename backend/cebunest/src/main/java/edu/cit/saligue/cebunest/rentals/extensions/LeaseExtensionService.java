@@ -5,7 +5,7 @@ import edu.cit.saligue.cebunest.rentals.shared.LeaseExtensionRequest;
 import edu.cit.saligue.cebunest.payments.shared.RentalPayment;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
 import edu.cit.saligue.cebunest.service.EmailService;
-import edu.cit.saligue.cebunest.service.NotificationService;
+import edu.cit.saligue.cebunest.notifications.core.NotificationService;
 import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.rentals.shared.LeaseExtensionRequestRepository;
 import edu.cit.saligue.cebunest.repository.RentalPaymentRepository; // Ensure this is imported
