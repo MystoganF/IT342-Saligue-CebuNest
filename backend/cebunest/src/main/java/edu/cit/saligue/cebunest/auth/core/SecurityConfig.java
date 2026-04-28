@@ -1,6 +1,5 @@
-package edu.cit.saligue.cebunest.config;
+package edu.cit.saligue.cebunest.auth.core;
 
-import edu.cit.saligue.cebunest.security.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

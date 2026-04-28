@@ -1,5 +1,6 @@
-package edu.cit.saligue.cebunest.dto;
+package edu.cit.saligue.cebunest.auth.core;
 
+import edu.cit.saligue.cebunest.dto.UserDTO;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

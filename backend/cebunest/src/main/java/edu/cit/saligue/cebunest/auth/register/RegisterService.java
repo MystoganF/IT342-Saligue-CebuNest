@@ -1,14 +1,13 @@
-package edu.cit.saligue.cebunest.service;
+package edu.cit.saligue.cebunest.auth.register;
 
-import edu.cit.saligue.cebunest.dto.AuthResponse;
-import edu.cit.saligue.cebunest.dto.LoginRequest;
-import edu.cit.saligue.cebunest.dto.RegisterRequest;
+import edu.cit.saligue.cebunest.auth.core.AuthResponse;
+import edu.cit.saligue.cebunest.auth.core.JwtUtil;
 import edu.cit.saligue.cebunest.dto.UserDTO;
 import edu.cit.saligue.cebunest.entity.Role;
 import edu.cit.saligue.cebunest.entity.User;
 import edu.cit.saligue.cebunest.repository.RoleRepository;
 import edu.cit.saligue.cebunest.repository.UserRepository;
-import edu.cit.saligue.cebunest.security.JwtUtil;
+import edu.cit.saligue.cebunest.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -18,7 +17,7 @@ import java.time.format.DateTimeFormatter;
 
 @Service
 @RequiredArgsConstructor
-public class AuthService {
+public class RegisterService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
@@ -35,6 +34,7 @@ public class AuthService {
         }
 
         String roleName = (request.getRole() != null) ? request.getRole().toUpperCase() : "TENANT";
+
         Role role = roleRepository.findByName(roleName)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid role: " + roleName));
 
@@ -52,13 +52,12 @@ public class AuthService {
 
         userRepository.save(user);
 
-        // 2. Send the Welcome Email
+        // Send the Welcome Email
         sendWelcomeEmail(user, roleName);
 
         return buildAuthResponse(user, roleName);
     }
 
-    // Helper method to keep the register method clean
     private void sendWelcomeEmail(User user, String roleName) {
         String subject = "Welcome to CebuNest, " + user.getName() + "! 🎉";
         String body = "Hi " + user.getName() + ",\n\n" +
@@ -69,21 +68,6 @@ public class AuthService {
                 "— The CebuNest Team";
 
         emailService.sendEmail(user.getEmail(), subject, body);
-    }
-
-    public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid email or password."));
-
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("Invalid email or password.");
-        }
-        if (!user.isActive()) {
-            throw new IllegalArgumentException("Your account has been deactivated.");
-        }
-
-        String roleName = user.getRole().getName();
-        return buildAuthResponse(user, roleName);
     }
 
     private AuthResponse buildAuthResponse(User user, String roleName) {

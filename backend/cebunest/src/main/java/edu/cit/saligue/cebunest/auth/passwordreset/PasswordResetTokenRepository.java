@@ -1,6 +1,5 @@
-package edu.cit.saligue.cebunest.repository;
+package edu.cit.saligue.cebunest.auth.passwordreset;
 
-import edu.cit.saligue.cebunest.entity.PasswordResetToken;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;

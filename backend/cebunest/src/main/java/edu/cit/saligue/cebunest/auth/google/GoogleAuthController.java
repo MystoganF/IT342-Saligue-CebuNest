@@ -1,6 +1,5 @@
-package edu.cit.saligue.cebunest.controller;
+package edu.cit.saligue.cebunest.auth.google;
 
-import edu.cit.saligue.cebunest.service.GoogleAuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

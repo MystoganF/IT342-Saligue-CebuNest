@@ -1,6 +1,5 @@
-package edu.cit.saligue.cebunest.controller;
+package edu.cit.saligue.cebunest.auth.passwordreset;
 
-import edu.cit.saligue.cebunest.service.ForgotPasswordService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

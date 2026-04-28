@@ -1,4 +1,4 @@
-package edu.cit.saligue.cebunest.dto;
+package edu.cit.saligue.cebunest.auth.login;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

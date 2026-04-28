@@ -1,4 +1,4 @@
-package edu.cit.saligue.cebunest.security;
+package edu.cit.saligue.cebunest.auth.core;
 
 import edu.cit.saligue.cebunest.repository.UserRepository;
 import jakarta.servlet.FilterChain;
