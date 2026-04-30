@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, useOutletContext } from "react-router-dom";
-import { adminApi } from "../adminApi";
+import { adminEditPropertyApi } from "./admin_edit_property.api";
 import styles from "./admin_edit_property.module.css";
 
 // ─── types ──────────────────────────────────────────────────────────────────
@@ -118,7 +118,7 @@ const AdminEditProperty: React.FC = () => {
   useEffect(() => {
     if (!admin || !id) return;
     setPageLoading(true);
-    adminApi.getAdminPropertyById(id)
+    adminEditPropertyApi.getAdminPropertyById(id)
       .then((data) => {
         if (!data.success) { setPageError("Property not found."); return; }
         const p = data.data.property;
@@ -212,7 +212,7 @@ const AdminEditProperty: React.FC = () => {
     setSubmitMsg(null);
 
     try {
-      const updateData = await adminApi.updateAdminProperty(id, {
+      const updateData = await adminEditPropertyApi.updateAdminProperty(id, {
         title:           title.trim(),
         description:     description.trim(),
         price:           parseFloat(price),
@@ -233,7 +233,7 @@ const AdminEditProperty: React.FC = () => {
         const formData = new FormData();
         newImageFiles.forEach((f) => formData.append("files", f));
 
-        const imgData = await adminApi.uploadAdminPropertyImages(id, formData);
+        const imgData = await adminEditPropertyApi.uploadAdminPropertyImages(id, formData);
 
         if (!imgData.success) {
           setSubmitMsg({ type: "warning", text: "Property updated! Some images failed to upload." });

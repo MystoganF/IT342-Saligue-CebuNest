@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { adminApi } from "../adminApi";
+import { adminPropertiesApi } from "./admin_properties.api";
 import styles from "./admin_properties.module.css";
 
 const PAGE_SIZE = 12;
@@ -76,7 +76,7 @@ const AdminProperties: React.FC = () => {
   const fetchProperties = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const data = await adminApi.getAllAdminProperties();
+      const data = await adminPropertiesApi.getAllAdminProperties();
       if (!data.success) { setError(data?.error?.message ?? "Failed to fetch."); return; }
       setAllProps(data.data.properties ?? []);
       setPage(1);
@@ -127,7 +127,7 @@ const AdminProperties: React.FC = () => {
 
     setSubmitting(true); setModalError(null);
     try {
-      const data = await adminApi.togglePropertyVisibility(target.id, { reason: deactivateReason });
+      const data = await adminPropertiesApi.togglePropertyVisibility(target.id, { reason: deactivateReason });
 
       if (!data.success) throw new Error(data?.error?.message || "Failed update");
 

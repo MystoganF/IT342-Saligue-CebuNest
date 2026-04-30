@@ -17,7 +17,7 @@ import AdminUsers from "./modules/admin_module/admin_user_management/AdminUsers"
 import AdminPropertyDetail from "./modules/admin_module/admin_property_detail/AdminPropertyDetail";
 import AdminAuditLog from "./modules/admin_module/admin_audit_log/AdminAuditLog";
 import AdminProperties from "./modules/admin_module/admin_property_management/AdminProperties";
-import AdminPropertyEdit from "./modules/admin_module/admin_property_management/AdminEditProperty";
+import AdminPropertyEdit from "./modules/admin_module/admin_edit_property/AdminEditProperty";
 import AdminNotifications from "./modules/admin_module/admin_notification_module/Admin_Notification";
 import TenantLayout from "./modules/tenant_module/TenantLayout";
 import OwnerLayout from "./modules/owner_module/OwnerLayout";

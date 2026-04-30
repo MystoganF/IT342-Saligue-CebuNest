@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { adminApi } from "../adminApi";
+import { rentalRequestsApi } from "./rental_requests.api";
 import { API_BASE } from "../../../api/axiosInstance"; 
 import styles from "./admin_rental_request.module.css";
 
@@ -82,7 +82,7 @@ const AdminRentalRequests: React.FC = () => {
   const fetchRequests = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const data = await adminApi.getAllRentalRequests();
+      const data = await rentalRequestsApi.getAllRentalRequests();
       if (!data.success) { setError(data?.error?.message ?? "Failed to fetch."); return; }
       
       // Handles both potential array keys from the backend map

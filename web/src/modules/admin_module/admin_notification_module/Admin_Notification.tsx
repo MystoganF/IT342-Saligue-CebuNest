@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useOutletContext } from "react-router-dom";
-import { adminApi } from "../adminApi";
+import { notificationsApi } from "./notifications.api";
 import styles from "./admin_notification.module.css";
 
 interface AdminUser { id: number; name: string; email: string; role: string; avatarUrl?: string | null; }
@@ -79,7 +79,7 @@ const AdminNotifications: React.FC = () => {
   const fetchHistory = useCallback(async () => {
     setHistoryLoading(true); setHistoryError(null);
     try {
-      const data = await adminApi.getBroadcastHistory();
+      const data = await notificationsApi.getBroadcastHistory();
       if (!data.success) { setHistoryError(data?.error?.message ?? "Failed to load history."); return; }
       setHistory(data.data.history ?? []);
     } catch { 
@@ -101,7 +101,7 @@ const AdminNotifications: React.FC = () => {
 
     setSubmitting(true); setFormError(null); setSuccessMsg(null);
     try {
-      const data = await adminApi.sendBroadcast({
+      const data = await notificationsApi.sendBroadcast({
         type,
         message: message.trim(),
         targetRoles: roles

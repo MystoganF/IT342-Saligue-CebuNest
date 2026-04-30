@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useOutletContext } from "react-router-dom";
-import { adminApi } from "../adminApi";
+import { auditLogApi } from "./audit_log.api";
 import styles from "./AdminAuditLog.module.css";
 
 const PAGE_SIZE = 20;
@@ -74,7 +74,7 @@ const AdminAuditLog: React.FC = () => {
     append ? setLoadingMore(true) : setLoading(true);
     setError(null);
     try {
-      const data = await adminApi.getAuditLogs(pageNum, PAGE_SIZE);
+      const data = await auditLogApi.getAuditLogs(pageNum, PAGE_SIZE);
       if (!data.success) { setError(data?.error?.message ?? "Failed to load."); return; }
       setLogs((prev) => append ? [...prev, ...data.data.logs] : data.data.logs);
       setTotalPages(data.data.totalPages);
@@ -115,7 +115,7 @@ const AdminAuditLog: React.FC = () => {
     setPropertyLoading(true);
     
     try {
-      const data = await adminApi.getRentalRequestById(log.targetId);
+      const data = await auditLogApi.getRentalRequestById(log.targetId);
       if (!data.success) {
         setPropertyError(data?.error?.message ?? "Failed to load property.");
         return;
