@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useOutletContext } from "react-router-dom";
-import { tenantApi } from "../tenantApi";
+import { rentingApi } from "./renting.api";
 import styles from "./Property_detail.module.css";
 
 // ─── types ─────────────────────────────────────────────────────────────────
@@ -267,7 +267,7 @@ const PropertyDetail: React.FC = () => {
   // Fetch Property Details
   useEffect(() => {
     if (!id) return;
-    tenantApi.getPropertyById(id)
+    rentingApi.getPropertyById(id)
       .then(data => {
         if (!data.success) { setError(data?.error?.message ?? "Property not found."); return; }
         setProperty(data.data.property);
@@ -280,7 +280,7 @@ const PropertyDetail: React.FC = () => {
   useEffect(() => {
     if (!id) return;
     setReviewsLoading(true);
-    tenantApi.getPropertyReviews(id)
+    rentingApi.getPropertyReviews(id)
       .then(data => { if (data.success) setReviews(data.data.reviews ?? []); })
       .catch(console.error)
       .finally(() => setReviewsLoading(false));
@@ -290,7 +290,7 @@ const PropertyDetail: React.FC = () => {
   useEffect(() => {
     if (!id || !user) return;
     setRequestCheckLoading(true);
-    tenantApi.getMyRentalRequestForProperty(id)
+    rentingApi.getMyRentalRequestForProperty(id)
       .then(data => {
         if (data.success && data.data.request && data.data.request.status) {
           setExistingRequest({ id: data.data.request.id, status: data.data.request.status });
@@ -306,7 +306,7 @@ const PropertyDetail: React.FC = () => {
   useEffect(() => {
     if (existingRequest?.status === "CONFIRMED" && existingRequest.id) {
       setPaymentsLoading(true);
-      tenantApi.getPaymentsForRequest(existingRequest.id)
+     rentingApi.getPaymentsForRequest(existingRequest.id)
         .then(data => { if (data.success) setPayments(data.data.payments || []); })
         .catch(console.error)
         .finally(() => setPaymentsLoading(false));
@@ -327,7 +327,7 @@ const PropertyDetail: React.FC = () => {
     setSubmitting(true);
     setBookingMsg(null);
     try {
-      const data = await tenantApi.submitRentalRequest({ propertyId: property.id, startDate, leaseDurationMonths });
+      const data = await rentingApi.submitRentalRequest({ propertyId: property.id, startDate, leaseDurationMonths });
       if (!data.success) {
         setBookingMsg({ type: "error", text: data?.error?.message ?? "Request failed. Please try again." });
         return;
@@ -346,7 +346,7 @@ const PropertyDetail: React.FC = () => {
     setConfirming(true);
     setConfirmMsg(null);
     try {
-      const data = await tenantApi.confirmRental(existingRequest.id);
+      const data = await rentingApi.confirmRental(existingRequest.id);
       if (!data.success) {
         setConfirmMsg({ type: "error", text: data?.error?.message ?? "Failed to confirm rental." });
         return;
@@ -363,7 +363,7 @@ const PropertyDetail: React.FC = () => {
   const handlePayClick = async (paymentId: number) => {
     setPaymentActionLoading(paymentId);
     try {
-      const data = await tenantApi.initiatePayment(paymentId);
+      const data = await rentingApi.initiatePayment(paymentId);
       if (data.success && data.data.payment.checkoutUrl) {
         window.location.href = data.data.payment.checkoutUrl;
       } else {

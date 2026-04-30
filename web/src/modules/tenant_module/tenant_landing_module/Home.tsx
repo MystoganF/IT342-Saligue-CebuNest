@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { tenantApi } from "../tenantApi";
+import { landingApi } from "./landing.api";
 import styles from "./Home.module.css";
 
 // ─── types ─────────────────────────────────────────────────────────────────
@@ -159,7 +159,7 @@ const Home: React.FC = () => {
 
   // ── Fetch property types for filter chips ──────────────────────────────
   useEffect(() => {
-    tenantApi.getPropertyTypes()
+    landingApi.getPropertyTypes()
       .then((data) => {
         if (data.success) setPropertyTypes(data.data.types ?? []);
       })
@@ -178,7 +178,7 @@ const Home: React.FC = () => {
       if (minPrice)             params.minPrice = minPrice;
       if (maxPrice)             params.maxPrice = maxPrice;
 
-      const data = await tenantApi.getProperties(params);
+      const data = await landingApi.getProperties(params);
 
       if (!data.success) {
         setError(data?.error?.message ?? "Failed to load listings.");
