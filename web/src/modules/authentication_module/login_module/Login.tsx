@@ -4,56 +4,10 @@ import { useNavigate } from "react-router-dom";
 import styles from "./Login.module.css";
 import logo from "../../../assets/images/cebunest-logo.png";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
-
-type Role = "TENANT" | "OWNER";
-
-interface PendingGoogleUser {
-  email: string;
-  name: string;
-}
-
-interface AuthResponse {
-  success: boolean;
-  data: {
-    accessToken?: string;
-    refreshToken?: string;
-    user?: { role: string };
-    requiresRoleSelection?: boolean;
-    email?: string;
-    name?: string;
-  };
-  error?: { message: string };
-}
-
-// ─── helpers ───────────────────────────────────────────────────────────────
-
-function storeTokensAndRedirect(data: AuthResponse) {
-  if (data.data.accessToken) localStorage.setItem("accessToken", data.data.accessToken);
-  if (data.data.refreshToken) localStorage.setItem("refreshToken", data.data.refreshToken);
-  if (data.data.user) localStorage.setItem("user", JSON.stringify(data.data.user));
-
-  const role = data.data.user?.role?.toUpperCase();
-  let destination = "/home";
-  if (role === "ADMIN") destination = "/admin/rental-requests";
-  if (role === "OWNER") destination = "/owner/dashboard";
-
-  setTimeout(() => {
-    window.location.href = destination;
-  }, 1200);
-}
-
-async function postJSON(url: string, body: object): Promise<{ res: Response; data: AuthResponse }> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data: AuthResponse = await res.json();
-  return { res, data };
-}
-
-// ─── component ─────────────────────────────────────────────────────────────
+// Import from your new shared slice!
+import type { Role, PendingGoogleUser } from "../shared/auth.types";
+import { storeTokensAndRedirect } from "../shared/auth.utils";
+import { authApi } from "../shared/auth.api";
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -101,18 +55,19 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const { res, data } = await postJSON(`${API_BASE_URL}/api/auth/login`, { email, password });
+      const data = await authApi.login({ email, password });
 
-      if (!res.ok || !data.success) {
-        const msg = data?.error?.message ?? (res.status === 401 ? "Invalid email or password." : "Login failed.");
-        setError(msg);
+      if (!data.success) {
+        setError(data?.error?.message ?? "Login failed.");
         return;
       }
 
       setSuccess(true);
       storeTokensAndRedirect(data);
-    } catch {
-      setError("Unable to connect to the server.");
+    } catch (err: any) {
+      // Axios attaches the backend error response here
+      const backendMessage = err.response?.data?.error?.message;
+      setError(backendMessage || "Invalid email or password.");
     } finally {
       setIsLoading(false);
     }
@@ -126,11 +81,9 @@ const Login: React.FC = () => {
       setGoogleAccessToken(tokenResponse.access_token); // Save token for role submission
 
       try {
-        const { res, data } = await postJSON(`${API_BASE_URL}/api/auth/google`, {
-          token: tokenResponse.access_token,
-        });
+        const data = await authApi.googleAuth(tokenResponse.access_token);
 
-        if (!res.ok || !data.success) {
+        if (!data.success) {
           setError(data?.error?.message ?? "Google login failed.");
           return;
         }
@@ -145,9 +98,10 @@ const Login: React.FC = () => {
         }
 
         setSuccess(true);
-        storeTokensAndRedirect(data as AuthResponse);
-      } catch {
-        setError("Google login failed. Please try again.");
+        storeTokensAndRedirect(data);
+      } catch (err: any) {
+        const backendMessage = err.response?.data?.error?.message;
+        setError(backendMessage || "Google login failed. Please try again.");
       } finally {
         setGoogleLoading(false);
       }
@@ -162,12 +116,9 @@ const Login: React.FC = () => {
     setError(null);
 
     try {
-      const { res, data } = await postJSON(`${API_BASE_URL}/api/auth/google`, {
-        token: googleAccessToken, // Required by refactored backend
-        role: selectedRole,
-      });
+      const data = await authApi.googleAuth(googleAccessToken, selectedRole);
 
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         setError(data?.error?.message ?? "Account creation failed.");
         setShowRolePicker(false);
         return;
@@ -176,8 +127,9 @@ const Login: React.FC = () => {
       setShowRolePicker(false);
       setSuccess(true);
       storeTokensAndRedirect(data);
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (err: any) {
+      const backendMessage = err.response?.data?.error?.message;
+      setError(backendMessage || "Something went wrong. Please try again.");
       setShowRolePicker(false);
     } finally {
       setRoleSubmitting(false);
@@ -197,7 +149,7 @@ const Login: React.FC = () => {
             </div>
 
             <div className={styles.modalRoles}>
-              {(["TENANT", "OWNER"] as Role[]).map((role) => {
+              {(["TENANT", "OWNER"] as const).map((role) => {
                 const isActive = selectedRole === role;
                 const meta = {
                   TENANT: { icon: "🏡", label: "Tenant", desc: "I'm looking to rent a property" },

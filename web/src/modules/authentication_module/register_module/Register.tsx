@@ -4,48 +4,10 @@ import { useNavigate, Link } from "react-router-dom";
 import styles from "./Register.module.css";
 import logo from "../../../assets/images/cebunest-logo.png";
 
-type Role = "TENANT" | "OWNER";
-
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
-
-interface AuthResponse {
-  success: boolean;
-  data: {
-    accessToken?: string;
-    refreshToken?: string;
-    user?: { role: string; [key: string]: unknown };
-    alreadyExists?: boolean;
-  };
-  error?: { message: string };
-}
-
-// ─── helpers ───────────────────────────────────────────────────────────────
-
-function storeTokensAndRedirect(data: AuthResponse) {
-  // Only store if tokens actually exist in the response
-  if (data.data.accessToken) localStorage.setItem("accessToken", data.data.accessToken);
-  if (data.data.refreshToken) localStorage.setItem("refreshToken", data.data.refreshToken);
-  if (data.data.user) localStorage.setItem("user", JSON.stringify(data.data.user));
-
-  const role = data.data.user?.role?.toUpperCase();
-  let destination = "/home";
-  if (role === "ADMIN") destination = "/admin/rental-requests";
-  if (role === "OWNER") destination = "/owner/dashboard";
-
-  setTimeout(() => {
-    window.location.href = destination;
-  }, 1200);
-}
-
-async function postJSON(url: string, body: object): Promise<{ res: Response; data: AuthResponse }> {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  const data: AuthResponse = await res.json();
-  return { res, data };
-}
+// Import from your new shared slice!
+import type { Role } from "../shared/auth.types";
+import { storeTokensAndRedirect } from "../shared/auth.utils";
+import { authApi } from "../shared/auth.api";
 
 const FEATURES = [
   { icon: "🏠", title: "Browse Listings", desc: "Filter by location and price" },
@@ -63,8 +25,6 @@ const SOCIAL_FIELDS = [
   { id: "cn-reg-ig", label: "Instagram", icon: "in", placeholder: "https://instagram.com/yourhandle", key: "instagramUrl" },
   { id: "cn-reg-tw", label: "X / Twitter", icon: "𝕏", placeholder: "https://x.com/yourhandle", key: "twitterUrl" },
 ] as const;
-
-// ─── component ─────────────────────────────────────────────────────────────
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
@@ -119,22 +79,23 @@ const Register: React.FC = () => {
 
     setLoading(true);
     try {
-      const { res, data } = await postJSON(`${API_BASE}/api/auth/register`, {
-        name, phoneNumber, email, password, confirmPassword ,role,
+      const data = await authApi.register({
+        name, phoneNumber, email, password, confirmPassword, role,
         facebookUrl: facebookUrl.trim() || undefined,
         instagramUrl: instagramUrl.trim() || undefined,
         twitterUrl: twitterUrl.trim() || undefined,
       });
 
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         setErrorMsg(data?.error?.message ?? "Registration failed.");
         return;
       }
 
       setSuccess("Account created! Redirecting...");
       storeTokensAndRedirect(data);
-    } catch {
-      setErrorMsg("Network error. Please try again.");
+    } catch (err: any) {
+      const backendMessage = err.response?.data?.error?.message;
+      setErrorMsg(backendMessage || "Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -148,12 +109,10 @@ const Register: React.FC = () => {
       setIsError(false);
 
       try {
-        const { res, data } = await postJSON(`${API_BASE}/api/auth/google`, {
-          token: tokenResponse.access_token,
-          role, // Sending role tells backend we are in "Register Mode"
-        });
+        // Sending role tells backend we are in "Register Mode"
+        const data = await authApi.googleAuth(tokenResponse.access_token, role);
 
-        if (!res.ok || !data.success) {
+        if (!data.success) {
           setErrorMsg(data?.error?.message ?? "Google sign-up failed.");
           return;
         }
@@ -168,8 +127,9 @@ const Register: React.FC = () => {
         // Only proceed to redirect if account was actually created
         setSuccess("Account created! Redirecting...");
         storeTokensAndRedirect(data);
-      } catch {
-        setErrorMsg("Google sign-up failed. Please try again.");
+      } catch (err: any) {
+        const backendMessage = err.response?.data?.error?.message;
+        setErrorMsg(backendMessage || "Google sign-up failed. Please try again.");
       } finally {
         setGoogleLoading(false);
       }
@@ -178,39 +138,38 @@ const Register: React.FC = () => {
   });
 
   return (
-        <div className={styles.page}>
-          {showAlreadyExists && (
-      <div className={styles.modalOverlay} onClick={() => setShowAlreadyExists(false)}>
-        <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-          <div className={styles.modalHeader}>
-            <div className={styles.modalIcon}>⚠️</div>
-            <h3 className={styles.modalTitle}>Account Already Exists</h3>
-            <p className={styles.modalSubtitle}>
-              This Google account is already registered with CebuNest. 
-              Please sign in instead.
+    <div className={styles.page}>
+      {showAlreadyExists && (
+        <div className={styles.modalOverlay} onClick={() => setShowAlreadyExists(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <div className={styles.modalIcon}>⚠️</div>
+              <h3 className={styles.modalTitle}>Account Already Exists</h3>
+              <p className={styles.modalSubtitle}>
+                This Google account is already registered with CebuNest. 
+                Please sign in instead.
+              </p>
+            </div>
+
+            <div className={styles.modalActions}>
+              <Link to="/" className={styles.modalSigninBtn}>
+                Go to Sign In →
+              </Link>
+              
+              <button 
+                className={styles.modalCloseBtn} 
+                onClick={() => setShowAlreadyExists(false)}
+              >
+                Try Another Account
+              </button>
+            </div>
+
+            <p className={styles.modalNote}>
+              Registration is restricted to one account per email.
             </p>
           </div>
-
-          {/* Wrap both buttons in modalActions */}
-          <div className={styles.modalActions}>
-            <Link to="/" className={styles.modalSigninBtn}>
-              Go to Sign In →
-            </Link>
-            
-            <button 
-              className={styles.modalCloseBtn} 
-              onClick={() => setShowAlreadyExists(false)}
-            >
-              Try Another Account
-            </button>
-          </div>
-
-          <p className={styles.modalNote}>
-            Registration is restricted to one account per email.
-          </p>
         </div>
-      </div>
-    )}
+      )}
 
       {/* ══ LEFT PANEL ═════════════════════════════════════════════════════ */}
       <div className={styles.leftPanel}>
