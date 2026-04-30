@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams, useOutletContext } from "react-router-dom";
-import { tenantApi } from "../tenantApi";
+import { rentalsApi } from "./rentals.api";
 import styles from "./my_rentals.module.css";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
@@ -97,7 +97,7 @@ const MyRentals: React.FC = () => {
   const fetchRequests = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const data = await tenantApi.getMyRentalRequests();
+      const data = await rentalsApi.getMyRentalRequests();
       if (!data.success) { setError("Failed to load rentals."); return; }
       setRequests(data.data.requests ?? []);
     } catch {
@@ -113,7 +113,7 @@ const MyRentals: React.FC = () => {
   const handleConfirm = async (requestId: number) => {
     setConfirming(requestId); setConfirmError(null);
     try {
-      const data = await tenantApi.confirmRental(requestId);
+      const data = await rentalsApi.confirmRental(requestId);
       if (!data.success) {
         setConfirmError(data?.error?.message ?? "Failed to confirm."); return;
       }

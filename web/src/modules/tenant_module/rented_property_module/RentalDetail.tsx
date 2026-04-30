@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useParams, useSearchParams, useOutletContext } from "react-router-dom";
-import { tenantApi } from "../tenantApi";
+import { rentalsApi } from "./rentals.api";
 import styles from "./rental_detail.module.css";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
@@ -220,7 +220,7 @@ const RentalDetail: React.FC = () => {
     setReviewsLoading(true);
 
     try {
-      const reqData = await tenantApi.getMyRentalRequests();
+      const reqData = await rentalsApi.getMyRentalRequests();
       if (!reqData.success) throw new Error("Failed to load rental.");
 
       const found: RentalRequest = (reqData.data.requests ?? []).find(
@@ -232,14 +232,14 @@ const RentalDetail: React.FC = () => {
       const promises: Promise<void>[] = [];
 
       promises.push(
-        tenantApi.getPropertyById(found.propertyId)
+        rentalsApi.getPropertyById(found.propertyId)
           .then((d) => { if (d.success) setProperty(d.data.property); })
           .catch(() => {})
       );
 
       if (found.status === "CONFIRMED" || found.status === "COMPLETED") {
         promises.push(
-          tenantApi.getPaymentsForRequest(found.id)
+          rentalsApi.getPaymentsForRequest(found.id)
             .then((d) => {
               if (d.success) {
                 const fetched: Payment[] = d.data.payments ?? [];
@@ -255,7 +255,7 @@ const RentalDetail: React.FC = () => {
 
                 const stale = fetched.find((p) => p.paymongoPaymentId !== null && p.status !== "PAID" && p.status !== "FAILED");
                 if (stale) {
-                  tenantApi.cancelPayment(stale.id)
+                  rentalsApi.cancelPayment(stale.id)
                     .then((cancelData) => {
                       if (cancelData.success) {
                         setPayments((prev) => prev.map((p) => p.id === stale.id ? { ...p, checkoutUrl: null, paymongoPaymentId: null } : p));
@@ -268,13 +268,13 @@ const RentalDetail: React.FC = () => {
         );
 
         promises.push(
-          tenantApi.getLeaseExtensions(found.id)
+          rentalsApi.getLeaseExtensions(found.id)
             .then((d) => { if (d.success) setExtensions(d.data.extensionRequests ?? []); })
             .catch(() => {})
         );
 
         promises.push(
-          tenantApi.getPropertyReviews(found.propertyId)
+          rentalsApi.getPropertyReviews(found.propertyId)
             .then((d) => {
               if (d.success) {
                 const fetchedReviews = d.data.reviews ?? [];
@@ -333,7 +333,7 @@ const RentalDetail: React.FC = () => {
 
     if (paymentStatus === "cancelled") {
       setVerifyBanner({ state: "error", text: "Payment was cancelled. You can try again whenever you're ready." });
-      tenantApi.cancelPayment(paymentId)
+      rentalsApi.cancelPayment(paymentId)
         .then((data) => {
           if (data.success) {
             setPayments((prev) => prev.map((p) => p.id === paymentId ? { ...p, checkoutUrl: null, paymongoPaymentId: null } : p));
@@ -344,7 +344,7 @@ const RentalDetail: React.FC = () => {
 
     if (paymentStatus === "failed") {
       setVerifyBanner({ state: "error", text: "Your payment failed or was declined. Please try again." });
-      tenantApi.failPayment(paymentId)
+      rentalsApi.failPayment(paymentId)
         .then((data) => {
           if (data.success) {
             setPayments((prev) => prev.map((p) => p.id === paymentId ? { ...p, status: "FAILED", checkoutUrl: null, paymongoPaymentId: null } : p));
@@ -355,7 +355,7 @@ const RentalDetail: React.FC = () => {
 
     if (paymentStatus === "success") {
       setVerifyBanner({ state: "verifying", text: "Verifying your payment with PayMongo…" });
-      tenantApi.verifyPayment(paymentId)
+      rentalsApi.verifyPayment(paymentId)
         .then((data) => {
           if (!data.success) { setVerifyBanner({ state: "error", text: data?.error?.message ?? "Verification failed." }); return; }
           const updated: Payment = data.data.payment;
@@ -384,7 +384,7 @@ const RentalDetail: React.FC = () => {
   const handlePay = async (paymentId: number) => {
     setInitiating(paymentId);
     try {
-      const data = await tenantApi.initiatePayment(paymentId);
+      const data = await rentalsApi.initiatePayment(paymentId);
       if (!data.success) { setVerifyBanner({ state: "error", text: data?.error?.message ?? "Failed to create payment link." }); return; }
       if (data.data.payment.checkoutUrl) window.location.href = data.data.payment.checkoutUrl;
     } catch { setVerifyBanner({ state: "error", text: "Network error. Please try again." }); }
@@ -395,9 +395,9 @@ const RentalDetail: React.FC = () => {
   const handleResetPayment = async (paymentId: number) => {
     setInitiating(paymentId);
     try {
-      await tenantApi.cancelPayment(paymentId);
+      await rentalsApi.cancelPayment(paymentId);
       setPayments(prev => prev.map(p => p.id === paymentId ? { ...p, checkoutUrl: null, paymongoPaymentId: null } : p));
-      const data = await tenantApi.initiatePayment(paymentId);
+      const data = await rentalsApi.initiatePayment(paymentId);
       if (data.success && data.data.payment.checkoutUrl) window.location.href = data.data.payment.checkoutUrl;
     } catch {
       setVerifyBanner({ state: "error", text: "Failed to reset link. Please try again." });
@@ -412,7 +412,7 @@ const RentalDetail: React.FC = () => {
     if (reviewRating === 0) { setReviewMsg({ type: "error", text: "Please select a star rating." }); return; }
     setReviewSubmitting(true); setReviewMsg(null);
     try {
-      const data = await tenantApi.submitPropertyReview({
+      const data = await rentalsApi.submitPropertyReview({
         rentalRequestId: request.id,
         rating: reviewRating,
         comment: reviewComment.trim() || null
@@ -447,7 +447,7 @@ const RentalDetail: React.FC = () => {
     if (!request) return;
     setExtSubmitting(true); setExtMsg(null);
     try {
-      const data = await tenantApi.submitLeaseExtension({
+      const data = await rentalsApi.submitLeaseExtension({
         rentalRequestId: request.id,
         requestedMonths: extMonths,
         reason: extReason.trim() || null

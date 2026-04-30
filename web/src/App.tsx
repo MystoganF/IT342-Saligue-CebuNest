@@ -12,7 +12,7 @@ import AddProperty      from "./modules/owner_module/owner_property_management_m
 import AdminRentalRequests from "./modules/admin_module/admin_rental_request/admin_rental_request";
 import EditProperty      from "./modules/owner_module/owner_property_management_module/owner_edit_property";
 import MyRentals from "./modules/tenant_module/rented_property_module/my_rentals";
-import RentalDetail from "./modules/tenant_module/rented_property_module/RentalDetal";
+import RentalDetail from "./modules/tenant_module/rented_property_module/RentalDetail";
 import AdminUsers from "./modules/admin_module/admin_user_management/AdminUsers";
 import AdminPropertyDetail from "./modules/admin_module/admin_property_detail/AdminPropertyDetail";
 import AdminAuditLog from "./modules/admin_module/admin_audit_log/AdminAuditLog";
