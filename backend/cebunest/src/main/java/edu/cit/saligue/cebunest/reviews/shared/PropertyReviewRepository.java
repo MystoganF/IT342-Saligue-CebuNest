@@ -1,6 +1,5 @@
-package edu.cit.saligue.cebunest.repository;
+package edu.cit.saligue.cebunest.reviews.shared;
 
-import edu.cit.saligue.cebunest.entity.PropertyReview;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

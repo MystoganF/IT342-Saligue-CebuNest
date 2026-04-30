@@ -1,13 +1,12 @@
-package edu.cit.saligue.cebunest.service;
+package edu.cit.saligue.cebunest.reviews.core;
 
-import edu.cit.saligue.cebunest.dto.CreateReviewDTO;
-import edu.cit.saligue.cebunest.dto.PropertyReviewDTO;
-import edu.cit.saligue.cebunest.entity.*;
 import edu.cit.saligue.cebunest.notifications.core.NotificationService;
 import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository;
-import edu.cit.saligue.cebunest.repository.*;
+import edu.cit.saligue.cebunest.reviews.shared.PropertyReview;
+import edu.cit.saligue.cebunest.reviews.shared.PropertyReviewDTO;
+import edu.cit.saligue.cebunest.reviews.shared.PropertyReviewRepository;
 import edu.cit.saligue.cebunest.users.shared.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,12 +21,11 @@ public class PropertyReviewService {
     private final PropertyReviewRepository reviewRepository;
     private final RentalRequestRepository rentalRequestRepository;
     private final PropertyRepository propertyRepository;
-    private final NotificationService notificationService;   // ← ADDED
+    private final NotificationService notificationService;
 
     // ── Submit a review ──────────────────────────────────────────────────
     @Transactional
     public PropertyReviewDTO createReview(CreateReviewDTO dto, User tenant) {
-
         if (dto.getRating() == null || dto.getRating() < 1 || dto.getRating() > 5)
             throw new IllegalArgumentException("Rating must be between 1 and 5.");
 
@@ -56,9 +54,9 @@ public class PropertyReviewService {
         PropertyReview saved = reviewRepository.save(review);
 
         // ── Notify owner of the new review ────────────────────────────────
-        String propTitle  = rental.getProperty().getTitle();
+        String propTitle = rental.getProperty().getTitle();
         String tenantName = tenant.getName();
-        String stars      = "★".repeat(dto.getRating()) + "☆".repeat(5 - dto.getRating());
+        String stars = "★".repeat(dto.getRating()) + "☆".repeat(5 - dto.getRating());
 
         notificationService.send(
                 rental.getProperty().getOwner(),

@@ -1,6 +1,5 @@
-package edu.cit.saligue.cebunest.dto;
+package edu.cit.saligue.cebunest.reviews.shared;
 
-import edu.cit.saligue.cebunest.entity.PropertyReview;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

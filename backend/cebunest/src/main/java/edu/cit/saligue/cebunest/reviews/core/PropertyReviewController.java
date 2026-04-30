@@ -1,9 +1,7 @@
-package edu.cit.saligue.cebunest.controller;
+package edu.cit.saligue.cebunest.reviews.core;
 
-import edu.cit.saligue.cebunest.dto.CreateReviewDTO;
-import edu.cit.saligue.cebunest.dto.PropertyReviewDTO;
+import edu.cit.saligue.cebunest.reviews.shared.PropertyReviewDTO;
 import edu.cit.saligue.cebunest.users.shared.User;
-import edu.cit.saligue.cebunest.service.PropertyReviewService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,7 +41,6 @@ public class PropertyReviewController {
         } catch (IllegalArgumentException e) {
             return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
-            e.printStackTrace();
             return buildError("SYSTEM-001", e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

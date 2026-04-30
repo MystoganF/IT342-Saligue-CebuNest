@@ -1,4 +1,4 @@
-package edu.cit.saligue.cebunest.dto;
+package edu.cit.saligue.cebunest.reviews.core;
 
 import lombok.Data;
 
