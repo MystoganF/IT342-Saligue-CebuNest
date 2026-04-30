@@ -6,7 +6,7 @@ import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.users.shared.RoleRepository;
 import edu.cit.saligue.cebunest.users.shared.UserRepository;
 import edu.cit.saligue.cebunest.auth.shared.JwtUtil;
-import edu.cit.saligue.cebunest.service.EmailService;
+import edu.cit.saligue.cebunest.infrastructure.mail.EmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;

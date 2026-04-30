@@ -1,4 +1,4 @@
-package edu.cit.saligue.cebunest.service;
+package edu.cit.saligue.cebunest.infrastructure.mail;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.mail.SimpleMailMessage;

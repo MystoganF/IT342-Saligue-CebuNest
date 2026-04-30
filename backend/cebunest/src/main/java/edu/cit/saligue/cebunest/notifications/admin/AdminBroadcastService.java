@@ -5,7 +5,7 @@ import edu.cit.saligue.cebunest.notifications.shared.AdminBroadcastDTO;
 import edu.cit.saligue.cebunest.notifications.shared.AdminBroadcastRepository;
 import edu.cit.saligue.cebunest.notifications.shared.Notification;
 import edu.cit.saligue.cebunest.notifications.shared.NotificationRepository;
-import edu.cit.saligue.cebunest.service.EmailService;
+import edu.cit.saligue.cebunest.infrastructure.mail.EmailService;
 import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.users.shared.UserRepository;
 import lombok.RequiredArgsConstructor;

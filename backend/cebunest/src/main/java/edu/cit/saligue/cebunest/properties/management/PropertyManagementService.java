@@ -8,7 +8,7 @@ import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
 import edu.cit.saligue.cebunest.properties.shared.PropertyImageRepository;
 import edu.cit.saligue.cebunest.properties.shared.PropertyTypeRepository;
 import edu.cit.saligue.cebunest.users.shared.User;
-import edu.cit.saligue.cebunest.service.SupabaseStorageService; // Keep here for now
+import edu.cit.saligue.cebunest.infrastructure.storage.SupabaseStorageService; // Keep here for now
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository; // Keep here for now
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequest; // Keep here for now
 import lombok.RequiredArgsConstructor;

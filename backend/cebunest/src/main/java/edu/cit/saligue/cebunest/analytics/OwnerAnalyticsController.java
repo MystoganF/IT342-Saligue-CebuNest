@@ -1,7 +1,6 @@
-package edu.cit.saligue.cebunest.controller;
+package edu.cit.saligue.cebunest.analytics;
 
 import edu.cit.saligue.cebunest.users.shared.User;
-import edu.cit.saligue.cebunest.service.OwnerAnalyticsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

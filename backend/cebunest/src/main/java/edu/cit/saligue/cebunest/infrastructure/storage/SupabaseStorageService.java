@@ -1,4 +1,4 @@
-package edu.cit.saligue.cebunest.service;
+package edu.cit.saligue.cebunest.infrastructure.storage;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;

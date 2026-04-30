@@ -1,7 +1,7 @@
 package edu.cit.saligue.cebunest.users.profile;
 
 import edu.cit.saligue.cebunest.users.shared.UserDTO;
-import edu.cit.saligue.cebunest.service.SupabaseStorageService;
+import edu.cit.saligue.cebunest.infrastructure.storage.SupabaseStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

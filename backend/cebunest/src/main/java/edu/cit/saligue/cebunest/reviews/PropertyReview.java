@@ -1,4 +1,4 @@
-package edu.cit.saligue.cebunest.reviews.shared;
+package edu.cit.saligue.cebunest.reviews;
 
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
 import edu.cit.saligue.cebunest.users.shared.User;

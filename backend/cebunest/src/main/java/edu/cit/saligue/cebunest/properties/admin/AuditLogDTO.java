@@ -1,6 +1,5 @@
-package edu.cit.saligue.cebunest.dto;
+package edu.cit.saligue.cebunest.properties.admin;
 
-import edu.cit.saligue.cebunest.entity.AuditLog;
 import lombok.Builder;
 import lombok.Data;
 

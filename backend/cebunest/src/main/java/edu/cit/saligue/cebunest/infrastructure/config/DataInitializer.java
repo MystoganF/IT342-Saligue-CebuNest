@@ -1,4 +1,4 @@
-package edu.cit.saligue.cebunest.config;
+package edu.cit.saligue.cebunest.infrastructure.config;
 
 import edu.cit.saligue.cebunest.users.shared.Role;
 import edu.cit.saligue.cebunest.users.shared.RoleRepository;

@@ -1,4 +1,4 @@
-package edu.cit.saligue.cebunest.reviews.shared;
+package edu.cit.saligue.cebunest.reviews;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

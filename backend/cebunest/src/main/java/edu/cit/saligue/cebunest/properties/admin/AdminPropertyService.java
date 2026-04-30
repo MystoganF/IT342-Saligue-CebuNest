@@ -1,16 +1,13 @@
 package edu.cit.saligue.cebunest.properties.admin;
 
-import edu.cit.saligue.cebunest.dto.AuditLogDTO;
 import edu.cit.saligue.cebunest.properties.management.UpdatePropertyDTO;
 import edu.cit.saligue.cebunest.properties.shared.PropertyDTO;
-import edu.cit.saligue.cebunest.entity.AuditLog;
 import edu.cit.saligue.cebunest.properties.shared.*;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository;
 import edu.cit.saligue.cebunest.notifications.core.NotificationService;
-import edu.cit.saligue.cebunest.service.SupabaseStorageService;
+import edu.cit.saligue.cebunest.infrastructure.storage.SupabaseStorageService;
 import edu.cit.saligue.cebunest.users.shared.User;
-import edu.cit.saligue.cebunest.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;

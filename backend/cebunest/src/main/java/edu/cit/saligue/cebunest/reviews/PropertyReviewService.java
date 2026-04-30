@@ -1,12 +1,9 @@
-package edu.cit.saligue.cebunest.reviews.core;
+package edu.cit.saligue.cebunest.reviews;
 
 import edu.cit.saligue.cebunest.notifications.core.NotificationService;
 import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository;
-import edu.cit.saligue.cebunest.reviews.shared.PropertyReview;
-import edu.cit.saligue.cebunest.reviews.shared.PropertyReviewDTO;
-import edu.cit.saligue.cebunest.reviews.shared.PropertyReviewRepository;
 import edu.cit.saligue.cebunest.users.shared.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

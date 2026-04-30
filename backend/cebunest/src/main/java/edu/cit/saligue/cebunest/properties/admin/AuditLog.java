@@ -1,4 +1,4 @@
-package edu.cit.saligue.cebunest.entity;
+package edu.cit.saligue.cebunest.properties.admin;
 
 import edu.cit.saligue.cebunest.users.shared.User;
 import jakarta.persistence.*;

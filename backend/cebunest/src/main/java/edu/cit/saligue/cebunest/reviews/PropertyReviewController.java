@@ -1,6 +1,5 @@
-package edu.cit.saligue.cebunest.reviews.core;
+package edu.cit.saligue.cebunest.reviews;
 
-import edu.cit.saligue.cebunest.reviews.shared.PropertyReviewDTO;
 import edu.cit.saligue.cebunest.users.shared.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

@@ -1,4 +1,4 @@
-package edu.cit.saligue.cebunest.service;
+package edu.cit.saligue.cebunest.analytics;
 
 import edu.cit.saligue.cebunest.payments.shared.RentalPaymentDTO;
 import edu.cit.saligue.cebunest.payments.shared.RentalPayment;
@@ -6,8 +6,8 @@ import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository;
 import edu.cit.saligue.cebunest.repository.RentalPaymentRepository;
-import edu.cit.saligue.cebunest.reviews.shared.PropertyReview;
-import edu.cit.saligue.cebunest.reviews.shared.PropertyReviewRepository;
+import edu.cit.saligue.cebunest.reviews.PropertyReview;
+import edu.cit.saligue.cebunest.reviews.PropertyReviewRepository;
 import edu.cit.saligue.cebunest.users.shared.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

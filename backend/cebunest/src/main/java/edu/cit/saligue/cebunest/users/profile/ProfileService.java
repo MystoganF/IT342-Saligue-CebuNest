@@ -1,6 +1,6 @@
 package edu.cit.saligue.cebunest.users.profile;
 
-import edu.cit.saligue.cebunest.service.SupabaseStorageService; // Still in the old folder for now
+import edu.cit.saligue.cebunest.infrastructure.storage.SupabaseStorageService; // Still in the old folder for now
 import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.users.shared.UserDTO;
 import edu.cit.saligue.cebunest.users.shared.UserRepository;

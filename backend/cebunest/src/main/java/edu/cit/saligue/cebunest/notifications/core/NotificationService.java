@@ -3,7 +3,7 @@ package edu.cit.saligue.cebunest.notifications.core;
 import edu.cit.saligue.cebunest.notifications.shared.Notification;
 import edu.cit.saligue.cebunest.notifications.shared.NotificationDTO;
 import edu.cit.saligue.cebunest.notifications.shared.NotificationRepository;
-import edu.cit.saligue.cebunest.service.EmailService; // Keep here until Infrastructure slice
+import edu.cit.saligue.cebunest.infrastructure.mail.EmailService; // Keep here until Infrastructure slice
 import edu.cit.saligue.cebunest.users.shared.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
