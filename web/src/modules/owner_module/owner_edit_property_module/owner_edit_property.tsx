@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useParams, useOutletContext } from "react-router-dom";
-import { ownerApi } from "../ownerApi";
-import styles from "./owner_add_property.module.css";
+import { editPropertyApi } from "./edit_property.api";
+import styles from "./owner_edit_property.module.css";
 import tabStyles from "./owner_edit_property_tabs.module.css";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -304,7 +304,7 @@ const EditProperty: React.FC = () => {
   const [submitMsg, setSubmitMsg] = useState<{ type: "success" | "error" | "warning"; text: string } | null>(null);
 
   useEffect(() => {
-    ownerApi.getPropertyTypes().then((data) => {
+    editPropertyApi.getPropertyTypes().then((data) => {
       if (data.success) setPropertyTypes(data.data.types ?? []);
     }).catch(() => {});
   }, []);
@@ -313,7 +313,7 @@ const EditProperty: React.FC = () => {
     if (!id) return;
     setPageLoading(true);
     try {
-      const propData = await ownerApi.getPropertyById(id);
+      const propData = await editPropertyApi.getPropertyById(id);
       if (!propData.success) throw new Error("Property not found.");
       const p = propData.data.property;
 
@@ -335,7 +335,7 @@ const EditProperty: React.FC = () => {
       geocode(p.location).then((coords) => { if (coords) setMapCoords(coords); });
 
       setRequestsLoading(true);
-      ownerApi.getPropertyRentalRequests(id).then((data) => {
+      editPropertyApi.getPropertyRentalRequests(id).then((data) => {
         if (data.success) {
           const reqs = data.data.requests ?? [];
           setRequests(reqs);
@@ -344,7 +344,7 @@ const EditProperty: React.FC = () => {
       }).catch(() => setRequestsError("Unable to load rental requests.")).finally(() => setRequestsLoading(false));
 
       setActiveTenantLoading(true);
-      const activeTenantData = await ownerApi.getActiveTenant(id).catch(() => ({ success: false }));
+      const activeTenantData = await editPropertyApi.getActiveTenant(id).catch(() => ({ success: false }));
       if (activeTenantData.success && activeTenantData.data?.activeTenant?.tenantId) {
         const t = activeTenantData.data.activeTenant;
         const tenant = {
@@ -356,7 +356,7 @@ const EditProperty: React.FC = () => {
         setActiveTenantLoading(false);
 
         setPaymentsLoading(true);
-        ownerApi.getPaymentsForRequest(tenant.id).then((data) => {
+        editPropertyApi.getPaymentsForRequest(tenant.id).then((data) => {
           if (data.success) {
             const pmts = data.data.payments ?? [];
             setPayments(pmts);
@@ -367,7 +367,7 @@ const EditProperty: React.FC = () => {
         }).catch(() => setPaymentsError("Unable to load payment history.")).finally(() => setPaymentsLoading(false));
 
         setLeaseExtLoading(true);
-        ownerApi.getLeaseExtensions(tenant.id).then((data) => {
+        editPropertyApi.getLeaseExtensions(tenant.id).then((data) => {
           if (data.success) setLeaseExtensions(data.data.extensionRequests ?? []);
         }).catch(() => {}).finally(() => setLeaseExtLoading(false));
       } else {
@@ -376,7 +376,7 @@ const EditProperty: React.FC = () => {
       }
 
       setReviewsLoading(true);
-      ownerApi.getPropertyReviews(id).then((data) => {
+      editPropertyApi.getPropertyReviews(id).then((data) => {
         if (data.success) setReviews(data.data.reviews ?? []);
       }).catch(() => {}).finally(() => setReviewsLoading(false));
 
@@ -392,7 +392,7 @@ const EditProperty: React.FC = () => {
   useEffect(() => {
     if (!pastRequestModal) { setModalPayments([]); setModalOpenPaymentYears(new Set()); return; }
     setModalPaymentsLoading(true);
-    ownerApi.getPaymentsForRequest(pastRequestModal.id).then((data) => {
+    editPropertyApi.getPaymentsForRequest(pastRequestModal.id).then((data) => {
       if (data.success) {
         const pmts = data.data.payments ?? [];
         setModalPayments(pmts);
@@ -466,7 +466,7 @@ const EditProperty: React.FC = () => {
     if (!actionTarget || !actionType) return;
     setActionSubmitting(true); setActionError(null);
     try {
-      const data = await ownerApi.updateRentalRequestStatus(actionTarget.id, actionType);
+      const data = await editPropertyApi.updateRentalRequestStatus(actionTarget.id, actionType);
       if (!data.success) { setActionError(data?.error?.message ?? "Action failed."); return; }
       if (actionType === "APPROVED") {
         setRequests((prev) => prev.map((r) => r.id === actionTarget.id ? { ...r, status: "APPROVED" } : r.status === "PENDING" ? { ...r, status: "REJECTED" } : r));
@@ -490,7 +490,7 @@ const EditProperty: React.FC = () => {
     setLeaseSubmitting(true); setLeaseError(null);
     try {
       if (leaseModal === "terminate") {
-        const data = await ownerApi.terminateLease(activeTenant.id);
+        const data = await editPropertyApi.terminateLease(activeTenant.id);
         if (!data.success) { setLeaseError(data?.error?.message ?? "Failed to terminate lease."); return; }
         setActiveTenant(null); setPayments([]);
         setLeaseExtensions([]);
@@ -499,7 +499,7 @@ const EditProperty: React.FC = () => {
         setTimeout(closeLeaseModal, 1800);
       } else {
         const adjust = leaseModal === "extend" ? leaseMonths : -leaseMonths;
-        const data = await ownerApi.adjustLease(activeTenant.id, adjust);
+        const data = await editPropertyApi.adjustLease(activeTenant.id, adjust);
         if (!data.success) { setLeaseError(data?.error?.message ?? "Failed to update lease."); return; }
         setActiveTenant((prev) => prev ? { ...prev, leaseDurationMonths: data.data.request.leaseDurationMonths } : prev);
         setLeaseSuccess(leaseModal === "extend" ? `Lease extended by ${leaseMonths} month(s).` : `Lease reduced by ${leaseMonths} month(s).`);
@@ -512,7 +512,7 @@ const EditProperty: React.FC = () => {
   const handleExtensionRespond = async (extensionId: number, decision: "APPROVED" | "REJECTED") => {
     setExtActionId(extensionId); setExtActionSubmitting(true); setExtActionError(null);
     try {
-      const data = await ownerApi.respondToLeaseExtension(extensionId, decision);
+      const data = await editPropertyApi.respondToLeaseExtension(extensionId, decision);
       if (!data.success) { setExtActionError(data?.error?.message ?? "Action failed."); return; }
       const approved = leaseExtensions.find((e) => e.id === extensionId);
       setLeaseExtensions((prev) => prev.map((e) => e.id === extensionId ? { ...e, status: decision } : e));
@@ -528,7 +528,7 @@ const EditProperty: React.FC = () => {
     if (!id) return;
     setSubmitting(true); setSubmitMsg(null);
     try {
-      const updateData = await ownerApi.updateProperty(id, {
+      const updateData = await editPropertyApi.updateProperty(id, {
         title: title.trim(), description: description.trim(), price: parseFloat(price),
         location: location.trim(), typeId: parseInt(typeId),
         beds: beds ? parseInt(beds) : null, baths: baths ? parseInt(baths) : null, sqm: sqm ? parseInt(sqm) : null,
@@ -540,7 +540,7 @@ const EditProperty: React.FC = () => {
       if (newImageFiles.length > 0) {
         const formData = new FormData();
         newImageFiles.forEach((f) => formData.append("files", f));
-        const imgData = await ownerApi.uploadPropertyImages(id, formData);
+        const imgData = await editPropertyApi.uploadPropertyImages(id, formData);
         if (!imgData.success) { setSubmitMsg({ type: "warning", text: "Property updated! Some images failed to upload." }); setTimeout(() => navigate("/owner/properties"), 2000); return; }
       }
       setSubmitMsg({ type: "success", text: "Property updated successfully! Redirecting…" });

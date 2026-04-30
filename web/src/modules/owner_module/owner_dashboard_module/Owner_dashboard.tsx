@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { ownerApi } from "../ownerApi";
+import { dashboardApi } from "./dashboard.api";
 import styles from "./Owner_dashboard.module.css";
 
 const PAGE_SIZE = 8;
@@ -345,9 +345,8 @@ const OwnerDashboard: React.FC = () => {
   const openDrawer  = useCallback((s: DrawerStatus) => setDrawerStatus(s), []);
   const closeDrawer = useCallback(() => setDrawerStatus(null), []);
 
-  // Fetch Analytics using our new ownerApi
   useEffect(() => {
-    ownerApi.getOwnerAnalytics()
+    dashboardApi.getOwnerAnalytics()
       .then((data) => { if (data.success) setAnalytics(data.data); })
       .catch(() => {})
       .finally(() => setAnalyticsLoading(false));

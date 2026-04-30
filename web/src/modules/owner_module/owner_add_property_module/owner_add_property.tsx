@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { ownerApi } from "../ownerApi";
+import { addPropertyApi } from "./add_property.api";
 import styles from "./owner_add_property.module.css";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -169,7 +169,7 @@ const AddProperty: React.FC = () => {
 
   // ── Fetch property types ───────────────────────────────────────────────
   useEffect(() => {
-    ownerApi
+    addPropertyApi
       .getPropertyTypes()
       .then((data) => {
         if (data.success) setPropertyTypes(data.data.types ?? []);
@@ -281,7 +281,7 @@ const AddProperty: React.FC = () => {
 
     try {
       // Step 1 — Create property
-      const createData = await ownerApi.createProperty({
+      const createData = await addPropertyApi.createProperty({
         title: title.trim(),
         description: description.trim(),
         price: parseFloat(price),
@@ -316,7 +316,7 @@ const AddProperty: React.FC = () => {
         const formData = new FormData();
         imageFiles.forEach((f) => formData.append("files", f));
 
-        const imgData = await ownerApi.uploadPropertyImages(
+        const imgData = await addPropertyApi.uploadPropertyImages(
           propertyId,
           formData,
         );

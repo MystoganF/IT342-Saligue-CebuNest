@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useOutletContext, Link } from "react-router-dom";
-import { ownerApi } from "../ownerApi";
+import { propertiesApi } from "./properties.api";
 import styles from "./Owner_properties.module.css";
 
 // ─── types ─────────────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ const OwnerProperties: React.FC = () => {
       if (minPrice)     params.minPrice = minPrice;
       if (maxPrice)     params.maxPrice = maxPrice;
 
-      const data = await ownerApi.getMyProperties(params);
+      const data = await propertiesApi.getMyProperties(params);
       if (!data.success) { setError("Failed to load properties."); return; }
       setProperties(data.data.properties ?? []);
     } catch {
@@ -104,7 +104,7 @@ const OwnerProperties: React.FC = () => {
     setDeleting(true);
     setDeleteError(null);
     try {
-      const data = await ownerApi.deleteProperty(deleteTarget.id);
+      const data = await propertiesApi.deleteProperty(deleteTarget.id);
       if (!data.success) {
         setDeleteError(data?.error?.message ?? "Delete failed.");
         return;

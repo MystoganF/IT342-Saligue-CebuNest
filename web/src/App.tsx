@@ -8,9 +8,9 @@ import PropertyDetail from "./modules/tenant_module/renting_module/Property_deta
 import Profile from "./modules/profile_module/Profile";
 import OwnerDashboard   from "./modules/owner_module/owner_dashboard_module/Owner_dashboard";
 import OwnerProperties  from "./modules/owner_module/owner_property_module/Owner_properties";
-import AddProperty      from "./modules/owner_module/owner_property_management_module/owner_add_property";
+import AddProperty from "./modules/owner_module/owner_add_property_module/owner_add_property";
 import AdminRentalRequests from "./modules/admin_module/admin_rental_request/admin_rental_request";
-import EditProperty      from "./modules/owner_module/owner_property_management_module/owner_edit_property";
+import EditProperty from "./modules/owner_module/owner_edit_property_module/owner_edit_property";
 import MyRentals from "./modules/tenant_module/rented_property_module/my_rentals";
 import RentalDetail from "./modules/tenant_module/rented_property_module/RentalDetail";
 import AdminUsers from "./modules/admin_module/admin_user_management/AdminUsers";
