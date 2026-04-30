@@ -4,10 +4,12 @@ import { useNavigate } from "react-router-dom";
 import styles from "./Login.module.css";
 import logo from "../../../assets/images/cebunest-logo.png";
 
-// Import from your new shared slice!
+// Import from your shared slice
 import type { Role, PendingGoogleUser } from "../shared/auth.types";
 import { storeTokensAndRedirect } from "../shared/auth.utils";
-import { authApi } from "../shared/auth.api";
+
+// Import the specific login API
+import { loginApi } from "./login.api";
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -55,7 +57,7 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const data = await authApi.login({ email, password });
+      const data = await loginApi.login({ email, password });
 
       if (!data.success) {
         setError(data?.error?.message ?? "Login failed.");
@@ -65,7 +67,6 @@ const Login: React.FC = () => {
       setSuccess(true);
       storeTokensAndRedirect(data);
     } catch (err: any) {
-      // Axios attaches the backend error response here
       const backendMessage = err.response?.data?.error?.message;
       setError(backendMessage || "Invalid email or password.");
     } finally {
@@ -81,7 +82,7 @@ const Login: React.FC = () => {
       setGoogleAccessToken(tokenResponse.access_token); // Save token for role submission
 
       try {
-        const data = await authApi.googleAuth(tokenResponse.access_token);
+        const data = await loginApi.googleLogin(tokenResponse.access_token);
 
         if (!data.success) {
           setError(data?.error?.message ?? "Google login failed.");
@@ -116,7 +117,7 @@ const Login: React.FC = () => {
     setError(null);
 
     try {
-      const data = await authApi.googleAuth(googleAccessToken, selectedRole);
+      const data = await loginApi.googleLogin(googleAccessToken, selectedRole);
 
       if (!data.success) {
         setError(data?.error?.message ?? "Account creation failed.");

@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import styles from "./ForgotPassword.module.css";
 import logo from "../../../assets/images/cebunest-logo.png";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+import { passwordApi } from "./password.api";
 
 const ResetPassword: React.FC = () => {
   const navigate = useNavigate();
@@ -12,7 +12,6 @@ const ResetPassword: React.FC = () => {
   const email: string = (location.state as any)?.email ?? "";
   const code: string = (location.state as any)?.code ?? "";
 
-  // Guard: redirect if missing context
   useEffect(() => {
     if (!email || !code) navigate("/forgot-password", { replace: true });
   }, [email, code, navigate]);
@@ -25,7 +24,6 @@ const ResetPassword: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // Live password strength
   const getStrength = (pw: string): { label: string; level: number; color: string } => {
     if (!pw) return { label: "", level: 0, color: "transparent" };
     let score = 0;
@@ -58,22 +56,18 @@ const ResetPassword: React.FC = () => {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code, newPassword: password }),
-      });
-      const data = await res.json();
+      const data = await passwordApi.resetPassword({ email, code, newPassword: password });
 
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         setError(data?.error?.message ?? "Failed to reset password. Please try again.");
         return;
       }
 
       setSuccess(true);
       setTimeout(() => navigate("/", { replace: true }), 2000);
-    } catch {
-      setError("Unable to connect to the server. Please try again.");
+    } catch (err: any) {
+      const backendMessage = err.response?.data?.error?.message;
+      setError(backendMessage || "Unable to connect to the server. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -146,7 +140,6 @@ const ResetPassword: React.FC = () => {
           </div>
 
           <form className={styles.formFields} onSubmit={handleSubmit}>
-            {/* New Password */}
             <div className={styles.fieldGroup}>
               <label className={styles.fieldLabel} htmlFor="rp-password">
                 New Password
@@ -175,7 +168,6 @@ const ResetPassword: React.FC = () => {
                 </button>
               </div>
 
-              {/* Strength meter */}
               {password.length > 0 && (
                 <div className={styles.strengthWrap}>
                   <div className={styles.strengthBars}>
@@ -197,7 +189,6 @@ const ResetPassword: React.FC = () => {
               )}
             </div>
 
-            {/* Confirm Password */}
             <div className={styles.fieldGroup}>
               <label className={styles.fieldLabel} htmlFor="rp-confirm">
                 Confirm Password

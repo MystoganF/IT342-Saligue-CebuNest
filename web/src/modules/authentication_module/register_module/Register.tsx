@@ -4,10 +4,12 @@ import { useNavigate, Link } from "react-router-dom";
 import styles from "./Register.module.css";
 import logo from "../../../assets/images/cebunest-logo.png";
 
-// Import from your new shared slice!
+// Import from your shared slice
 import type { Role } from "../shared/auth.types";
 import { storeTokensAndRedirect } from "../shared/auth.utils";
-import { authApi } from "../shared/auth.api";
+
+// Import the specific register API
+import { registerApi } from "./register.api";
 
 const FEATURES = [
   { icon: "🏠", title: "Browse Listings", desc: "Filter by location and price" },
@@ -79,7 +81,7 @@ const Register: React.FC = () => {
 
     setLoading(true);
     try {
-      const data = await authApi.register({
+      const data = await registerApi.register({
         name, phoneNumber, email, password, confirmPassword, role,
         facebookUrl: facebookUrl.trim() || undefined,
         instagramUrl: instagramUrl.trim() || undefined,
@@ -110,7 +112,7 @@ const Register: React.FC = () => {
 
       try {
         // Sending role tells backend we are in "Register Mode"
-        const data = await authApi.googleAuth(tokenResponse.access_token, role);
+        const data = await registerApi.googleRegister(tokenResponse.access_token, role);
 
         if (!data.success) {
           setErrorMsg(data?.error?.message ?? "Google sign-up failed.");

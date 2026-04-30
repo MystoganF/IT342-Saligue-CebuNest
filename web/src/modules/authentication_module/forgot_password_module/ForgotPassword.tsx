@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import styles from "./ForgotPassword.module.css";
 import logo from "../../../assets/images/cebunest-logo.png";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+import { passwordApi } from "./password.api";
 
 const ForgotPassword: React.FC = () => {
   const navigate = useNavigate();
@@ -23,25 +23,20 @@ const ForgotPassword: React.FC = () => {
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-      const data = await res.json();
+      const data = await passwordApi.requestReset(email.trim());
 
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         setError(data?.error?.message ?? "Something went wrong. Please try again.");
         return;
       }
 
       setSuccess(true);
-      // Short delay then redirect to verify page with email as state
       setTimeout(() => {
         navigate("/forgot-password/verify", { state: { email: email.trim() } });
       }, 1400);
-    } catch {
-      setError("Unable to connect to the server. Please try again.");
+    } catch (err: any) {
+      const backendMessage = err.response?.data?.error?.message;
+      setError(backendMessage || "Unable to connect to the server. Please try again.");
     } finally {
       setLoading(false);
     }

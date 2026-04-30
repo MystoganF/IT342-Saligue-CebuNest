@@ -3,21 +3,18 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import styles from "./ForgotPassword.module.css";
 import logo from "../../../assets/images/cebunest-logo.png";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+import { passwordApi } from "./password.api";
 
 const VerifyCode: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Email passed from ForgotPassword page
   const email: string = (location.state as any)?.email ?? "";
 
-  // Redirect back if no email in state
   useEffect(() => {
     if (!email) navigate("/forgot-password", { replace: true });
   }, [email, navigate]);
 
-  // 6 individual digit inputs
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -25,20 +22,17 @@ const VerifyCode: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // Resend state
   const [resendLoading, setResendLoading] = useState(false);
   const [resendMsg, setResendMsg] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState(60);
   const [canResend, setCanResend] = useState(false);
 
-  // Countdown timer
   useEffect(() => {
     if (resendCooldown <= 0) { setCanResend(true); return; }
     const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
     return () => clearTimeout(t);
   }, [resendCooldown]);
 
-  // Handle digit input
   const handleDigitChange = (index: number, value: string) => {
     const cleaned = value.replace(/\D/g, "").slice(-1);
     const updated = [...digits];
@@ -46,7 +40,6 @@ const VerifyCode: React.FC = () => {
     setDigits(updated);
     setError(null);
 
-    // Auto-advance
     if (cleaned && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -78,14 +71,9 @@ const VerifyCode: React.FC = () => {
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/verify-reset-code`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, code }),
-      });
-      const data = await res.json();
+      const data = await passwordApi.verifyCode(email, code);
 
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         setError(data?.error?.message ?? "Invalid or expired code. Please try again.");
         return;
       }
@@ -94,8 +82,9 @@ const VerifyCode: React.FC = () => {
       setTimeout(() => {
         navigate("/forgot-password/reset", { state: { email, code } });
       }, 1200);
-    } catch {
-      setError("Unable to connect to the server. Please try again.");
+    } catch (err: any) {
+      const backendMessage = err.response?.data?.error?.message;
+      setError(backendMessage || "Unable to connect to the server. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -108,14 +97,9 @@ const VerifyCode: React.FC = () => {
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const data = await res.json();
+      const data = await passwordApi.requestReset(email);
 
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         setResendMsg("Failed to resend. Please try again.");
         return;
       }
@@ -125,8 +109,9 @@ const VerifyCode: React.FC = () => {
       setResendCooldown(60);
       setDigits(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
-    } catch {
-      setResendMsg("Network error. Please try again.");
+    } catch (err: any) {
+      const backendMessage = err.response?.data?.error?.message;
+      setResendMsg(backendMessage || "Network error. Please try again.");
     } finally {
       setResendLoading(false);
     }
@@ -200,7 +185,6 @@ const VerifyCode: React.FC = () => {
           </div>
 
           <form className={styles.formFields} onSubmit={handleSubmit}>
-            {/* OTP digit inputs */}
             <div className={styles.otpGroup} onPaste={handlePaste}>
               {digits.map((digit, i) => (
                 <input
@@ -248,7 +232,6 @@ const VerifyCode: React.FC = () => {
             )}
           </form>
 
-          {/* Resend section */}
           <div className={styles.resendWrap}>
             <span className={styles.resendText}>Didn't receive the code?</span>
             <button
