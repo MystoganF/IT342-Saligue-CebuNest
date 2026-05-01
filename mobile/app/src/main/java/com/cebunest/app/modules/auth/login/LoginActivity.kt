@@ -1,28 +1,29 @@
-package com.cebunest.app.ui.login
+package com.cebunest.app.modules.auth.login
 
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.cebunest.app.api.RetrofitClient
+import com.cebunest.app.core.api.RetrofitClient
 import com.cebunest.app.databinding.ActivityLoginBinding
-import com.cebunest.app.model.LoginRequest
-import com.cebunest.app.ui.home.HomeActivity
-import com.cebunest.app.ui.register.RegisterActivity
-import com.cebunest.app.util.SessionManager
+import com.cebunest.app.modules.tenant.home.HomeActivity
+import com.cebunest.app.modules.auth.register.RegisterActivity
+import com.cebunest.app.core.session.SessionManager
 import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityLoginBinding
 
+    // Inject the specific Login API
+    private val loginApi = RetrofitClient.create<LoginApi>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityLoginBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Skip login if already authenticated
         if (SessionManager.isLoggedIn()) {
             goToHome()
             return
@@ -39,39 +40,30 @@ class LoginActivity : AppCompatActivity() {
         val email    = binding.etEmail.text.toString().trim()
         val password = binding.etPassword.text.toString().trim()
 
-        if (email.isEmpty()) {
-            binding.etEmail.error = "Email is required"
-            return
-        }
-        if (password.isEmpty()) {
-            binding.etPassword.error = "Password is required"
-            return
-        }
+        if (email.isEmpty()) { binding.etEmail.error = "Email is required"; return }
+        if (password.isEmpty()) { binding.etPassword.error = "Password is required"; return }
 
         setLoading(true)
 
         lifecycleScope.launch {
             try {
-                val response = RetrofitClient.apiService.login(LoginRequest(email, password))
+                // Call the localized API
+                val response = loginApi.login(LoginRequest(email, password))
                 val body = response.body()
 
                 if (response.isSuccessful && body?.success == true) {
                     val data = body.data!!
-                    SessionManager.saveTokens(
-                        data.accessToken ?: "",
-                        data.refreshToken ?: ""
-                    )
+                    SessionManager.saveTokens(data.accessToken ?: "", data.refreshToken ?: "")
                     data.user?.let { SessionManager.saveUser(it) }
 
                     showSuccess()
                     kotlinx.coroutines.delay(1000)
                     goToHome()
                 } else {
-                    val msg = body?.error?.message
-                        ?: when (response.code()) {
-                            401  -> "Invalid email or password."
-                            else -> "Login failed. Please try again."
-                        }
+                    val msg = body?.error?.message ?: when (response.code()) {
+                        401  -> "Invalid email or password."
+                        else -> "Login failed. Please try again."
+                    }
                     showError(msg)
                 }
             } catch (e: Exception) {
@@ -96,8 +88,8 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun showError(msg: String) {
-        binding.tvError.text       = msg
-        binding.tvError.visibility = View.VISIBLE
+        binding.tvError.text         = msg
+        binding.tvError.visibility   = View.VISIBLE
         binding.tvSuccess.visibility = View.GONE
     }
 

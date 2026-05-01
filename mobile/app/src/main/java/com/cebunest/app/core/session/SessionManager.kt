@@ -1,8 +1,8 @@
-package com.cebunest.app.util
+package com.cebunest.app.core.session
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.cebunest.app.model.UserData
+import com.cebunest.app.modules.auth.shared.UserData
 import com.google.gson.Gson
 
 object SessionManager {

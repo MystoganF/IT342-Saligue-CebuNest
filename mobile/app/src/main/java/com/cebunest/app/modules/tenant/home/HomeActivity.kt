@@ -1,11 +1,11 @@
-package com.cebunest.app.ui.home
+package com.cebunest.app.modules.tenant.home
 
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import com.cebunest.app.databinding.ActivityHomeBinding
-import com.cebunest.app.ui.login.LoginActivity
-import com.cebunest.app.util.SessionManager
+import com.cebunest.app.modules.auth.login.LoginActivity
+import com.cebunest.app.core.session.SessionManager
 
 class HomeActivity : AppCompatActivity() {
 

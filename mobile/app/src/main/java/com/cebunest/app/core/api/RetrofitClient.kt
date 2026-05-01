@@ -1,4 +1,4 @@
-package com.cebunest.app.api
+package com.cebunest.app.core.api
 
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -7,10 +7,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
-
-    // RetrofitClient.kt
     private const val BASE_URL = "http://10.0.2.2:8080/"
-
 
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
@@ -23,12 +20,15 @@ object RetrofitClient {
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
-    val apiService: ApiService by lazy {
+    // Expose the Retrofit instance directly
+    val retrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-            .create(ApiService::class.java)
     }
+
+    // Helper to easily create feature-specific API interfaces
+    inline fun <reified T> create(): T = retrofit.create(T::class.java)
 }

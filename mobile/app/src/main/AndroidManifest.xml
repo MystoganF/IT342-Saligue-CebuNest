@@ -14,7 +14,7 @@
         android:usesCleartextTraffic="true">
 
         <activity
-            android:name=".ui.login.LoginActivity"
+            android:name=".modules.auth.login.LoginActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -22,10 +22,10 @@
             </intent-filter>
         </activity>
 
-        <activity android:name=".ui.register.RegisterActivity"
+        <activity android:name=".modules.auth.register.RegisterActivity"
             android:exported="false"/>
 
-        <activity android:name=".ui.home.HomeActivity"
+        <activity android:name=".modules.tenant.home.HomeActivity"
             android:exported="false"/>
 
     </application>

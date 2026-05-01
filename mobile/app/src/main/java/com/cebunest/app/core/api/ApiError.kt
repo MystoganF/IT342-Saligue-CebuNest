@@ -1,4 +1,4 @@
-package com.cebunest.app.model
+package com.cebunest.app.core.api
 
 data class ApiError(
     val code: String?,

@@ -1,15 +1,14 @@
-package com.cebunest.app.ui.register
+package com.cebunest.app.modules.auth.register
 
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.cebunest.app.api.RetrofitClient
+import com.cebunest.app.core.api.RetrofitClient
 import com.cebunest.app.databinding.ActivityRegisterBinding
-import com.cebunest.app.model.RegisterRequest
-import com.cebunest.app.ui.home.HomeActivity
-import com.cebunest.app.util.SessionManager
+import com.cebunest.app.modules.tenant.home.HomeActivity
+import com.cebunest.app.core.session.SessionManager
 import kotlinx.coroutines.launch
 
 class RegisterActivity : AppCompatActivity() {
@@ -17,22 +16,21 @@ class RegisterActivity : AppCompatActivity() {
     private lateinit var binding: ActivityRegisterBinding
     private var selectedRole = "TENANT"
 
+    // Inject the specific Register API
+    private val registerApi = RetrofitClient.create<RegisterApi>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityRegisterBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         setupRoleToggle()
-
         binding.btnRegister.setOnClickListener { attemptRegister() }
-
         binding.tvGoToLogin.setOnClickListener { finish() }
     }
 
     private fun setupRoleToggle() {
-        // Tenant selected by default
         highlightRole("TENANT")
-
         binding.btnTenant.setOnClickListener {
             selectedRole = "TENANT"
             highlightRole("TENANT")
@@ -62,7 +60,6 @@ class RegisterActivity : AppCompatActivity() {
         val password        = binding.etPassword.text.toString().trim()
         val confirmPassword = binding.etConfirmPassword.text.toString().trim()
 
-        // Validation
         if (name.isEmpty())    { binding.etName.error = "Name is required"; return }
         if (phoneNumber.isEmpty()) { binding.etPhoneNumber.error = "Phone number is required"; return }
         if (email.isEmpty())   { binding.etEmail.error = "Email is required"; return }
@@ -78,36 +75,26 @@ class RegisterActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val response = RetrofitClient.apiService.register(
-                    RegisterRequest(
-                        name            = name,
-                        phoneNumber     = phoneNumber,
-                        email           = email,
-                        password        = password,
-                        confirmPassword = confirmPassword,
-                        role            = selectedRole
-                    )
+                // Call the localized API
+                val response = registerApi.register(
+                    RegisterRequest(name, email, password, confirmPassword, phoneNumber, selectedRole)
                 )
                 val body = response.body()
 
                 if (response.isSuccessful && body?.success == true) {
                     val data = body.data!!
-                    SessionManager.saveTokens(
-                        data.accessToken ?: "",
-                        data.refreshToken ?: ""
-                    )
+                    SessionManager.saveTokens(data.accessToken ?: "", data.refreshToken ?: "")
                     data.user?.let { SessionManager.saveUser(it) }
 
                     showSuccess()
                     kotlinx.coroutines.delay(1000)
                     goToHome()
                 } else {
-                    val msg = body?.error?.message
-                        ?: when (response.code()) {
-                            409  -> "An account with this email already exists."
-                            400  -> "Please check your information and try again."
-                            else -> "Registration failed. Please try again."
-                        }
+                    val msg = body?.error?.message ?: when (response.code()) {
+                        409  -> "An account with this email already exists."
+                        400  -> "Please check your information and try again."
+                        else -> "Registration failed. Please try again."
+                    }
                     showError(msg)
                 }
             } catch (e: Exception) {

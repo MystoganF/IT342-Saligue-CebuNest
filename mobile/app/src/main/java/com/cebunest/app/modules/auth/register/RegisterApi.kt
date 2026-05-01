@@ -1,15 +1,11 @@
-package com.cebunest.app.api
+package com.cebunest.app.modules.auth.register
 
-import com.cebunest.app.model.*
+import com.cebunest.app.modules.auth.shared.AuthResponse
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.POST
 
-interface ApiService {
-
+interface RegisterApi {
     @POST("api/auth/register")
     suspend fun register(@Body request: RegisterRequest): Response<AuthResponse>
-
-    @POST("api/auth/login")
-    suspend fun login(@Body request: LoginRequest): Response<AuthResponse>
 }
