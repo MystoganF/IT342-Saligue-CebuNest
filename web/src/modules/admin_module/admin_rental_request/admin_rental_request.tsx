@@ -103,7 +103,7 @@ const AdminRentalRequests: React.FC = () => {
       <div className={styles.main}>
         <div className={styles.pageHeader}>
           <div>
-            <h1 className={styles.pageTitle}>Pending Rental Requests</h1>
+            <h1 className={styles.pageTitle}>Pending Rental Property Requests</h1>
             <p className={styles.pageSub}>{loading ? "Loading..." : `${requests.length} property awaiting review`}</p>
           </div>
           <button className={styles.refreshBtn} onClick={fetchRequests} disabled={loading} type="button">

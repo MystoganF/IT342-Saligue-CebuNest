@@ -38,12 +38,16 @@ public class OwnerRentalService {
         if (!request.getProperty().getOwner().getId().equals(owner.getId())) throw new IllegalArgumentException("You do not own this property.");
         if (request.getStatus() != RentalRequest.RentalStatus.PENDING) throw new IllegalArgumentException("Only pending requests can be updated.");
 
-        RentalRequest.RentalStatus status = RentalRequest.RentalStatus.valueOf(newStatus);
+        // Intercept "APPROVED" and map it directly to "CONFIRMED"
+        RentalRequest.RentalStatus status = newStatus.equals("APPROVED")
+                ? RentalRequest.RentalStatus.CONFIRMED
+                : RentalRequest.RentalStatus.valueOf(newStatus);
+
         request.setStatus(status);
-        rentalRequestRepository.save(request);
         String propTitle = request.getProperty().getTitle();
 
-        if (status == RentalRequest.RentalStatus.APPROVED) {
+        if (status == RentalRequest.RentalStatus.CONFIRMED) {
+            // 1. Reject all other pending requests
             List<RentalRequest> otherPending = rentalRequestRepository.findAllByPropertyIdAndStatus(request.getProperty().getId(), RentalRequest.RentalStatus.PENDING);
             for (RentalRequest otherReq : otherPending) {
                 if (!otherReq.getId().equals(request.getId())) {
@@ -52,11 +56,37 @@ public class OwnerRentalService {
                     notificationService.send(otherReq.getTenant(), "REQUEST_REJECTED", "Your request for \"" + propTitle + "\" was not approved. Browse other listings.", otherReq.getId());
                 }
             }
-            notificationService.send(request.getTenant(), "REQUEST_APPROVED", "🎉 Your request for \"" + propTitle + "\" was approved! Tap to confirm your rental.", request.getId());
+
+            // 2. Mark property as unavailable
+            Property property = request.getProperty();
+            property.setStatus(Property.PropertyStatus.UNAVAILABLE);
+            propertyRepository.save(property);
+
+            // 3. Set a default payment plan
+            request.setPaymentPlan("MONTHLY");
+
+            // 4. Generate the initial rental payments instantly
+            double monthlyAmount = property.getPrice();
+            LocalDate startDate = request.getStartDate();
+            for (int i = 1; i <= request.getLeaseDurationMonths(); i++) {
+                RentalPayment p = RentalPayment.builder()
+                        .rentalRequest(request)
+                        .installmentNumber(i)
+                        .amount(monthlyAmount)
+                        .dueDate(startDate.plusMonths(i - 1))
+                        .status(RentalPayment.PaymentStatus.PENDING)
+                        .build();
+                rentalPaymentRepository.save(p);
+            }
+
+            // 5. Notify the tenant that the lease has started
+            notificationService.send(request.getTenant(), "LEASE_STARTED", "🎉 Your request for \"" + propTitle + "\" was approved! Your lease is now active.", request.getId());
+
         } else if (status == RentalRequest.RentalStatus.REJECTED) {
             notificationService.send(request.getTenant(), "REQUEST_REJECTED", "Your request for \"" + propTitle + "\" was not approved. Browse other listings.", request.getId());
         }
 
+        rentalRequestRepository.save(request);
         return RentalRequestDTO.from(request);
     }
 

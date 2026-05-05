@@ -587,7 +587,10 @@ const AddProperty: React.FC = () => {
                 <div className={styles.photoTipBody}>
                   Include clear photos of the actual property and supporting
                   documents such as your <strong>business permit</strong> or{" "}
-                  <strong>barangay certificate</strong>.
+                  <strong>barangay certificate</strong>. 
+The <strong>first photo</strong> uploaded will be used as the listing thumbnail.
+
+                  
                 </div>
               </div>
             </div>

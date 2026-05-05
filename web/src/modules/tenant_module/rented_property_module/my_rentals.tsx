@@ -81,8 +81,7 @@ const MyRentals: React.FC = () => {
   const [error, setError]       = useState<string | null>(null);
   const [tab, setTab]           = useState<Tab>("active");
 
-  const [confirming, setConfirming]     = useState<number | null>(null);
-  const [confirmError, setConfirmError] = useState<string | null>(null);
+ 
 
   const [banner, setBanner] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -109,22 +108,7 @@ const MyRentals: React.FC = () => {
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
-  // ── Confirm rental (always MONTHLY) ──
-  const handleConfirm = async (requestId: number) => {
-    setConfirming(requestId); setConfirmError(null);
-    try {
-      const data = await rentalsApi.confirmRental(requestId);
-      if (!data.success) {
-        setConfirmError(data?.error?.message ?? "Failed to confirm."); return;
-      }
-      await fetchRequests();
-      setTab("active");
-    } catch {
-      setConfirmError("Network error. Please try again.");
-    } finally {
-      setConfirming(null);
-    }
-  };
+
 
   const filtered = requests.filter((r) => {
     switch (tab) {
@@ -281,24 +265,6 @@ const MyRentals: React.FC = () => {
                     <span className={styles.cardStatus} style={statusBadgeStyle(req.status)}>
                       {statusLabel(req.status)}
                     </span>
-
-                    {req.status === "APPROVED" && (
-                      <button
-                        className={styles.actionBtn}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleConfirm(req.id);
-                        }}
-                        disabled={confirming === req.id}
-                        type="button"
-                      >
-                        {confirming === req.id ? "Confirming…" : "✓ Confirm Rental"}
-                      </button>
-                    )}
-
-                    {confirmError && confirming === null && (
-                      <span style={{ fontSize: "0.8rem", color: "#c0392b" }}>⚠ {confirmError}</span>
-                    )}
 
                     <span className={styles.viewHint}>View details →</span>
                   </div>

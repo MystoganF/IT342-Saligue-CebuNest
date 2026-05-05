@@ -468,11 +468,9 @@ const EditProperty: React.FC = () => {
     try {
       const data = await editPropertyApi.updateRentalRequestStatus(actionTarget.id, actionType);
       if (!data.success) { setActionError(data?.error?.message ?? "Action failed."); return; }
-      if (actionType === "APPROVED") {
-        setRequests((prev) => prev.map((r) => r.id === actionTarget.id ? { ...r, status: "APPROVED" } : r.status === "PENDING" ? { ...r, status: "REJECTED" } : r));
-      } else {
-        setRequests((prev) => prev.map((r) => r.id === actionTarget.id ? { ...r, status: actionType } : r));
-      }
+      
+      // Force a re-fetch so the UI populates the "Active Tenant" and "Payments" tabs immediately
+      fetchAllPropertyData(); 
       closeAction();
     } catch { setActionError("Network error. Please try again."); }
     finally { setActionSubmitting(false); }
