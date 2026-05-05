@@ -1,4 +1,4 @@
-package com.cebunest.app.model
+package com.cebunest.app.modules.auth.shared
 
 data class UserData(
     val id: String?,
