@@ -126,7 +126,7 @@ class RentalDetailActivity : AppCompatActivity() {
                 }
 
             } catch (e: Exception) {
-                Toast.makeText(this@RentalDetailActivity, "Failed to load data", Toast.LENGTH_SHORT).show()
+
             }
         }
     }

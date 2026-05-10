@@ -1,5 +1,6 @@
 package com.cebunest.app.modules.tenant.notifications
 
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.view.View
@@ -9,27 +10,25 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.cebunest.app.core.api.RetrofitClient
 import com.cebunest.app.databinding.LayoutNotificationDropdownBinding
+import com.cebunest.app.modules.tenant.my_rentals.RentalDetailActivity
 import kotlinx.coroutines.launch
 
-class NotificationDropdown(private val activity: AppCompatActivity) {
+class NotificationDropdown(private val activity: AppCompatActivity, private val onUnreadCountChanged: (Int) -> Unit) {
 
     private val binding = LayoutNotificationDropdownBinding.inflate(activity.layoutInflater)
     private val api = RetrofitClient.create<NotificationApi>()
     private lateinit var adapter: NotificationAdapter
 
-    // 1. Convert DP to exact Pixels so the popup doesn't squash the RecyclerView
     private val density = activity.resources.displayMetrics.density
-    private val widthPx = (350 * density).toInt()  // Was 320
-    private val heightPx = (450 * density).toInt() // Was 400
+    private val widthPx = (350 * density).toInt()
+    private val heightPx = (450 * density).toInt()
 
-    // 2. Force the explicit width and height instead of WRAP_CONTENT
     private val popupWindow = PopupWindow(
         binding.root,
         widthPx,
         heightPx,
         true
     ).apply {
-        // This makes the background transparent so the rounded corners of your CardView look good!
         setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         elevation = 10f
     }
@@ -47,15 +46,30 @@ class NotificationDropdown(private val activity: AppCompatActivity) {
 
     private fun setupRecyclerView() {
         adapter = NotificationAdapter(emptyList()) { notification ->
+
+            // 1. Mark as read on the backend if unread
             if (!notification.read) {
                 markAsRead(notification.id)
             }
+
+            // 2. Dismiss popup to prevent WindowLeaked crash
+            popupWindow.dismiss()
+
+            // 3. Navigate if there is a rental ID attached to this notification
+            if (notification.type != "ADMIN_BROADCAST" && notification.rentalRequestId != null) {
+                val intent = Intent(activity, RentalDetailActivity::class.java).apply {
+                    // We use "REQUEST_ID" here because that is what your RentalDetailActivity is looking for
+                    putExtra("REQUEST_ID", notification.rentalRequestId)
+                }
+                activity.startActivity(intent)
+            }
         }
+
         binding.rvNotifications.layoutManager = LinearLayoutManager(activity)
         binding.rvNotifications.adapter = adapter
     }
 
-    private fun fetchNotifications() {
+    fun fetchNotifications(){
         binding.progressBar.visibility = View.VISIBLE
         binding.tvEmptyState.visibility = View.GONE
         binding.rvNotifications.visibility = View.GONE
@@ -68,13 +82,14 @@ class NotificationDropdown(private val activity: AppCompatActivity) {
                     val body = response.body()
                     if (body?.success == true) {
                         val list = body.data?.notifications ?: emptyList()
+                        val unreadCount = list.count { !it.read }
+                        onUnreadCountChanged(unreadCount)
                         adapter.updateData(list)
 
                         if (list.isEmpty()) {
                             binding.tvEmptyState.text = "You have no notifications yet."
                             binding.tvEmptyState.visibility = View.VISIBLE
                         } else {
-                            // Because we forced the heightPx above, this will now display perfectly!
                             binding.rvNotifications.visibility = View.VISIBLE
                         }
                     } else {

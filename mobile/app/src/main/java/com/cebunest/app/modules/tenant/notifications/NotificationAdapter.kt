@@ -2,7 +2,6 @@ package com.cebunest.app.modules.tenant.notifications
 
 import android.graphics.Color
 import android.graphics.Typeface
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -17,7 +16,7 @@ class NotificationAdapter(
 ) : RecyclerView.Adapter<NotificationAdapter.ViewHolder>() {
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val iconContainer: View = view.findViewById(R.id.iconContainer) // <-- Add this line
+        val iconContainer: View = view.findViewById(R.id.iconContainer)
         val ivIcon: ImageView = view.findViewById(R.id.ivIcon)
         val tvMessage: TextView = view.findViewById(R.id.tvMessage)
         val tvDate: TextView = view.findViewById(R.id.tvDate)
@@ -25,7 +24,6 @@ class NotificationAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        // Use our sleek new custom layout!
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_notification, parent, false)
         return ViewHolder(view)
@@ -33,73 +31,58 @@ class NotificationAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val notification = notifications[position]
-        Log.d("NotificationDebug", "Received type: '${notification.type}'")
-
 
         holder.tvMessage.text = notification.message
         holder.tvDate.text = notification.createdAt.take(10)
 
+        // Safely uppercase the type
         val typeStr = notification.type.trim().uppercase()
 
-        when (typeStr) {
-            "RENTAL_REQUEST_APPROVED", "REQUEST_APPROVED" -> {
+// Use substring matching so it catches everything automatically!
+        when {
+            typeStr.contains("APPROVED") -> {
+                // Catches RENTAL_REQUEST_APPROVED, EXTENSION_APPROVED, etc.
                 holder.ivIcon.setImageResource(R.drawable.ic_check_circle)
-                holder.ivIcon.setColorFilter(Color.parseColor("#10B981")) // Emerald Green
-                holder.iconContainer.background.setTint(Color.parseColor("#D1FAE5")) // Light Green Bg
+                holder.ivIcon.setColorFilter(Color.parseColor("#10B981"))
+                holder.iconContainer.background.setTint(Color.parseColor("#D1FAE5"))
             }
-            "RENTAL_REQUEST_REJECTED", "REQUEST_REJECTED" -> {
+            typeStr.contains("REJECTED") || typeStr.contains("TERMINATED") -> {
+                // Catches RENTAL_REQUEST_REJECTED, EXTENSION_REJECTED, LEASE_TERMINATED
                 holder.ivIcon.setImageResource(R.drawable.ic_cancel)
-                holder.ivIcon.setColorFilter(Color.parseColor("#EF4444")) // Red
-                holder.iconContainer.background.setTint(Color.parseColor("#FEE2E2")) // Light Red Bg
+                holder.ivIcon.setColorFilter(Color.parseColor("#EF4444"))
+                holder.iconContainer.background.setTint(Color.parseColor("#FEE2E2"))
             }
-            "PAYMENT_DUE" -> {
+            typeStr.contains("DUE") || typeStr.contains("PENDING") -> {
+                // Catches PAYMENT_DUE, REQUEST_PENDING, EXTENSION_PENDING
                 holder.ivIcon.setImageResource(R.drawable.ic_payment)
-                holder.ivIcon.setColorFilter(Color.parseColor("#F59E0B")) // Amber/Orange
-                holder.iconContainer.background.setTint(Color.parseColor("#FEF3C7")) // Light Amber Bg
+                holder.ivIcon.setColorFilter(Color.parseColor("#F59E0B"))
+                holder.iconContainer.background.setTint(Color.parseColor("#FEF3C7"))
             }
-            "PAYMENT_SUCCESS", "PAYMENT_RECEIVED", "PAYMENT_PAID" -> {
+            typeStr.contains("SUCCESS") || typeStr.contains("RECEIVED") || typeStr.contains("PAID") -> {
+                // Catches PAYMENT_SUCCESS, PAYMENT_RECEIVED
                 holder.ivIcon.setImageResource(R.drawable.ic_check_circle)
-                holder.ivIcon.setColorFilter(Color.parseColor("#3B82F6")) // Blue
-                holder.iconContainer.background.setTint(Color.parseColor("#DBEAFE")) // Light Blue Bg
+                holder.ivIcon.setColorFilter(Color.parseColor("#3B82F6"))
+                holder.iconContainer.background.setTint(Color.parseColor("#DBEAFE"))
             }
-
-            // --- NEW TYPES FROM BACKEND ---
-
-            "ADMIN_BROADCAST" -> {
-                // Suggested: A megaphone or announcement icon if you have one
+            typeStr.contains("ADMIN") -> {
+                // Catches ADMIN_BROADCAST, ADMIN_MESSAGE
                 holder.ivIcon.setImageResource(R.drawable.ic_notifications)
-                holder.ivIcon.setColorFilter(Color.parseColor("#8B5CF6")) // Purple
-                holder.iconContainer.background.setTint(Color.parseColor("#EDE9FE")) // Light Purple Bg
+                holder.ivIcon.setColorFilter(Color.parseColor("#8B5CF6"))
+                holder.iconContainer.background.setTint(Color.parseColor("#EDE9FE"))
             }
-            "REQUEST_PENDING" -> {
-                // Suggested: A clock or hourglass icon
-                holder.ivIcon.setImageResource(R.drawable.ic_payment)
-                holder.ivIcon.setColorFilter(Color.parseColor("#F59E0B")) // Amber
-                holder.iconContainer.background.setTint(Color.parseColor("#FEF3C7")) // Light Amber Bg
-            }
-            "LEASE_STARTED" -> {
-                // Suggested: A home or key icon
+            typeStr.contains("STARTED") -> {
+                // Catches LEASE_STARTED
                 holder.ivIcon.setImageResource(R.drawable.ic_check_circle)
-                holder.ivIcon.setColorFilter(Color.parseColor("#059669")) // Darker Green
-                holder.iconContainer.background.setTint(Color.parseColor("#D1FAE5")) // Light Green Bg
+                holder.ivIcon.setColorFilter(Color.parseColor("#059669"))
+                holder.iconContainer.background.setTint(Color.parseColor("#D1FAE5"))
             }
-            "LEASE_TERMINATED" -> {
-                // Suggested: A block or document-off icon
-                holder.ivIcon.setImageResource(R.drawable.ic_cancel)
-                holder.ivIcon.setColorFilter(Color.parseColor("#9CA3AF")) // Slate/Gray
-                holder.iconContainer.background.setTint(Color.parseColor("#F3F4F6")) // Light Gray Bg
-            }
-
-            // ------------------------------
-
             else -> {
                 // Default System Alert (Bell)
                 holder.ivIcon.setImageResource(R.drawable.ic_notifications)
-                holder.ivIcon.setColorFilter(Color.parseColor("#64748B")) // Slate Gray
-                holder.iconContainer.background.setTint(Color.parseColor("#F1F5F9")) // Light Gray Bg
+                holder.ivIcon.setColorFilter(Color.parseColor("#64748B"))
+                holder.iconContainer.background.setTint(Color.parseColor("#F1F5F9"))
             }
         }
-
         // 2. STYLING FOR READ VS UNREAD
         if (notification.read) {
             holder.tvMessage.setTypeface(null, Typeface.NORMAL)
