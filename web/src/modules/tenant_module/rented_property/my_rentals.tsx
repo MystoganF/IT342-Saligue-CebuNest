@@ -2,9 +2,23 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams, useOutletContext } from "react-router-dom";
 import { rentalsApi } from "./rentals.api";
 import styles from "./my_rentals.module.css";
+import {
+  Home,
+  Clock,
+  XCircle,
+  History,
+  MapPin,
+  CalendarDays,
+  User,
+  CheckCircle2,
+  AlertTriangle,
+  ArrowRight,
+  Ban,
+  Building
+} from "lucide-react";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
-interface User {
+interface NavUser {
   id: number;
   name: string;
   email: string;
@@ -33,68 +47,67 @@ type Tab = "active" | "pending" | "rejected" | "past";
 // ─── Helpers ───────────────────────────────────────────────────────────────
 function formatPrice(amount: number): string {
   return new Intl.NumberFormat("en-PH", {
-    style: "currency", currency: "PHP",
-    minimumFractionDigits: 0, maximumFractionDigits: 0,
+    style: "currency",
+    currency: "PHP",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(amount);
 }
 
 function formatDate(dateStr: string): string {
   if (!dateStr) return "—";
   return new Date(dateStr).toLocaleDateString("en-PH", {
-    year: "numeric", month: "long", day: "numeric",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 }
 
 function statusLabel(status: string): string {
   switch (status) {
-    case "PENDING":    return " Awaiting Approval";
-    case "APPROVED":   return " Approved — Action Required";
-    case "REJECTED":   return " Rejected";
-    case "CONFIRMED":  return " Active Rental";
-    case "TERMINATED": return " Lease Terminated";
-    case "COMPLETED":  return " Completed";
+    case "PENDING":    return "Awaiting Approval";
+    case "APPROVED":   return "Approved — Action Required";
+    case "REJECTED":   return "Rejected";
+    case "CONFIRMED":  return "Active Rental";
+    case "TERMINATED": return "Lease Terminated";
+    case "COMPLETED":  return "Completed";
     default:           return status;
   }
 }
 
 function statusBadgeStyle(status: string): React.CSSProperties {
   switch (status) {
-    case "CONFIRMED":  return { background: "rgba(26,122,74,0.1)",   color: "#1a7a4a" };
-    case "APPROVED":   return { background: "rgba(31,93,113,0.1)",   color: "#1f5d71" };
-    case "REJECTED":   return { background: "rgba(192,57,43,0.1)",   color: "#c0392b" };
-    case "TERMINATED": return { background: "rgba(125,60,152,0.1)",  color: "#7d3c98" };
-    case "COMPLETED":  return { background: "rgba(110,112,113,0.1)", color: "#6e7071" };
-    default:           return { background: "rgba(183,142,66,0.1)",  color: "#b78e42" };
+    case "CONFIRMED":  return { background: "rgba(16, 185, 129, 0.1)", color: "#059669" };
+    case "APPROVED":   return { background: "rgba(14, 165, 233, 0.1)", color: "#0284c7" };
+    case "REJECTED":   return { background: "rgba(239, 68, 68, 0.1)", color: "#dc2626" };
+    case "TERMINATED": return { background: "rgba(139, 92, 246, 0.1)", color: "#7c3aed" };
+    case "COMPLETED":  return { background: "rgba(100, 116, 139, 0.1)", color: "#475569" };
+    default:           return { background: "rgba(245, 158, 11, 0.1)", color: "#d97706" };
   }
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────
 const MyRentals: React.FC = () => {
-  const navigate       = useNavigate();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Grab user from TenantLayout context instead of localStorage
-  const { user } = useOutletContext<{ user: User }>();
+  const { user } = useOutletContext<{ user: NavUser }>();
 
   const [requests, setRequests] = useState<RentalRequest[]>([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState<string | null>(null);
-  const [tab, setTab]           = useState<Tab>("active");
-
- 
-
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("active");
   const [banner, setBanner] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // ── PayMongo redirect banner ──
   useEffect(() => {
     const ps = searchParams.get("payment");
-    if (ps === "success")   setBanner({ type: "success", text: "Payment received! Open your rental to verify." });
-    if (ps === "cancelled") setBanner({ type: "error",   text: "Payment cancelled. You can try again from the rental detail page." });
+    if (ps === "success") setBanner({ type: "success", text: "Payment received! Open your rental to verify." });
+    if (ps === "cancelled") setBanner({ type: "error", text: "Payment cancelled. You can try again from the rental detail page." });
   }, [searchParams]);
 
-  // ── Fetch ──
   const fetchRequests = useCallback(async () => {
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     try {
       const data = await rentalsApi.getMyRentalRequests();
       if (!data.success) { setError("Failed to load rentals."); return; }
@@ -106,9 +119,9 @@ const MyRentals: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { fetchRequests(); }, [fetchRequests]);
-
-
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
 
   const filtered = requests.filter((r) => {
     switch (tab) {
@@ -127,36 +140,34 @@ const MyRentals: React.FC = () => {
     past:     requests.filter((r) => r.status === "COMPLETED" || r.status === "TERMINATED").length,
   };
 
-  const tabConfig: { key: Tab; label: string; icon: string }[] = [
-    { key: "active",   icon: "", label: "Active"   },
-    { key: "pending",  icon: "", label: "Pending"  },
-    { key: "rejected", icon: "", label: "Rejected" },
-    { key: "past",     icon: "",  label: "Past"     },
+  const tabConfig: { key: Tab; label: string; icon: React.ReactNode }[] = [
+    { key: "active",   icon: <Home size={16} strokeWidth={2.5} />,    label: "Active"   },
+    { key: "pending",  icon: <Clock size={16} strokeWidth={2.5} />,   label: "Pending"  },
+    { key: "rejected", icon: <XCircle size={16} strokeWidth={2.5} />, label: "Rejected" },
+    { key: "past",     icon: <History size={16} strokeWidth={2.5} />, label: "Past"     },
   ];
 
-  const emptyText: Record<Tab, string> = {
-    active:   "No active rentals yet.",
-    pending:  "No pending requests.",
-    rejected: "No rejected requests.",
-    past:     "No past rentals.",
+  const emptyConfig: Record<Tab, { text: string; icon: React.ReactNode }> = {
+    active:   { text: "No active rentals yet.", icon: <Home size={48} strokeWidth={1.5} /> },
+    pending:  { text: "No pending requests.", icon: <Clock size={48} strokeWidth={1.5} /> },
+    rejected: { text: "No rejected requests.", icon: <XCircle size={48} strokeWidth={1.5} /> },
+    past:     { text: "No past rentals.", icon: <History size={48} strokeWidth={1.5} /> },
   };
 
   return (
     <div className={styles.page}>
       
-      {/* ── Navbar removed (Handled by TenantLayout) ── */}
-
-      {/* Header */}
+      {/* Header spanning full width container */}
       <div className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>My Rentals</h1>
         <p className={styles.pageSub}>Track your rental requests and payment schedules.</p>
       </div>
 
-      {/* Banner */}
       {banner && (
         <div className={styles.bannerWrap}>
           <div className={`${styles.banner} ${banner.type === "success" ? styles.bannerSuccess : styles.bannerError}`}>
-            {banner.type === "success" ? "✓" : "⚠"} {banner.text}
+            {banner.type === "success" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />} 
+            <span>{banner.text}</span>
             <button className={styles.bannerClose} onClick={() => setBanner(null)} type="button">✕</button>
           </div>
         </div>
@@ -164,12 +175,14 @@ const MyRentals: React.FC = () => {
 
       <div className={styles.main}>
 
-        {/* Tabs */}
         <div className={styles.tabs}>
           {tabConfig.map(({ key, icon, label }) => (
-            <button key={key} type="button"
+            <button
+              key={key}
+              type="button"
               className={`${styles.tab} ${tab === key ? styles.tabActive : ""}`}
-              onClick={() => setTab(key)}>
+              onClick={() => setTab(key)}
+            >
               {icon} {label}
               {counts[key] > 0 && (
                 <span className={`${styles.tabBadge} ${tab === key ? styles.tabBadgeActive : ""}`}>
@@ -180,10 +193,10 @@ const MyRentals: React.FC = () => {
           ))}
         </div>
 
-        {/* Skeletons */}
+        {/* Skeletons now in Grid */}
         {loading && (
-          <div className={styles.skeletonList}>
-            {[1, 2, 3].map((i) => (
+          <div className={styles.rentalGrid}>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
               <div key={i} className={styles.skeletonCard}>
                 <div className={styles.skeletonImg} />
                 <div className={styles.skeletonBody}>
@@ -196,22 +209,28 @@ const MyRentals: React.FC = () => {
           </div>
         )}
 
-        {/* Error */}
         {!loading && error && (
           <div className={styles.stateBox}>
-            <span className={styles.stateIcon}>⚠️</span>
+            <div className={styles.stateIconWrap}>
+              <AlertTriangle size={48} className={styles.stateIconError} strokeWidth={1.5} />
+            </div>
+            <h3 className={styles.stateTitle}>Something went wrong</h3>
             <p className={styles.stateText}>{error}</p>
             <button className={styles.stateBtn} onClick={fetchRequests} type="button">Try Again</button>
           </div>
         )}
 
-        {/* Empty */}
         {!loading && !error && filtered.length === 0 && (
           <div className={styles.stateBox}>
-            <span className={styles.stateIcon}>
-              {tab === "active" ? "🏠" : tab === "pending" ? "⏳" : tab === "rejected" ? "❌" : "📋"}
-            </span>
-            <p className={styles.stateText}>{emptyText[tab]}</p>
+            <div className={styles.stateIconWrap}>
+              {React.cloneElement(emptyConfig[tab].icon as React.ReactElement, { className: styles.stateIconEmpty })}
+            </div>
+            <h3 className={styles.stateTitle}>{emptyConfig[tab].text}</h3>
+            <p className={styles.stateText}>
+              {tab === "active" 
+                ? "When your requests are approved and paid, they will appear here as active rentals."
+                : "You don't have any properties in this status right now."}
+            </p>
             {tab !== "rejected" && (
               <button className={styles.stateBtn} onClick={() => navigate("/home")} type="button">
                 Browse Properties
@@ -220,9 +239,9 @@ const MyRentals: React.FC = () => {
           </div>
         )}
 
-        {/* Cards */}
+        {/* CSS Grid for Cards */}
         {!loading && !error && filtered.length > 0 && (
-          <div className={styles.rentalList}>
+          <div className={styles.rentalGrid}>
             {filtered.map((req) => (
               <div
                 key={req.id}
@@ -232,23 +251,29 @@ const MyRentals: React.FC = () => {
                 tabIndex={0}
                 onKeyDown={(e) => e.key === "Enter" && navigate(`/my-rentals/${req.id}`)}
               >
-                {/* Thumbnail */}
                 <div className={styles.cardThumb}>
-                  {req.propertyImage
-                    ? <img src={req.propertyImage} alt={req.propertyTitle} className={styles.cardThumbImg} />
-                    : <div className={styles.cardThumbPlaceholder}>🏠</div>
-                  }
+                  {req.propertyImage ? (
+                    <img src={req.propertyImage} alt={req.propertyTitle} className={styles.cardThumbImg} />
+                  ) : (
+                    <div className={styles.cardThumbPlaceholder}>
+                      <Building size={32} className={styles.cardThumbPlaceholderIcon} strokeWidth={1.5} />
+                    </div>
+                  )}
                   {req.status === "TERMINATED" && (
-                    <div className={styles.terminatedOverlay}>🚫</div>
+                    <div className={styles.terminatedOverlay}>
+                      <Ban size={32} color="#fff" strokeWidth={2.5} />
+                    </div>
                   )}
                 </div>
 
-                {/* Info */}
                 <div className={styles.cardInfo}>
                   <div className={styles.cardTop}>
                     <div className={styles.cardTitleWrap}>
                       <h3 className={styles.cardTitle}>{req.propertyTitle}</h3>
-                      <div className={styles.cardLocation}>📍 {req.propertyLocation}</div>
+                      <div className={styles.cardLocation}>
+                        <MapPin size={14} className={styles.cardIconTeal} /> 
+                        {req.propertyLocation}
+                      </div>
                     </div>
                     <div className={styles.cardPrice}>
                       {formatPrice(req.propertyPrice)}<span>/mo</span>
@@ -256,17 +281,24 @@ const MyRentals: React.FC = () => {
                   </div>
 
                   <div className={styles.cardMeta}>
-                    <span>📅 Move in: {formatDate(req.startDate)}</span>
-                    <span>🗓 {req.leaseDurationMonths} month{req.leaseDurationMonths !== 1 ? "s" : ""}</span>
-                    <span>👤 {req.ownerName}</span>
+                    <span className={styles.metaItem}>
+                      <CalendarDays size={14} className={styles.metaIcon} /> Move in: {formatDate(req.startDate)}
+                    </span>
+                    <span className={styles.metaItem}>
+                      <Clock size={14} className={styles.metaIcon} /> {req.leaseDurationMonths} month{req.leaseDurationMonths !== 1 ? "s" : ""}
+                    </span>
+                    <span className={styles.metaItem}>
+                      <User size={14} className={styles.metaIcon} /> {req.ownerName}
+                    </span>
                   </div>
 
                   <div className={styles.cardFooter}>
                     <span className={styles.cardStatus} style={statusBadgeStyle(req.status)}>
                       {statusLabel(req.status)}
                     </span>
-
-                    <span className={styles.viewHint}>View details →</span>
+                    <span className={styles.viewHint}>
+                      View details <ArrowRight size={14} />
+                    </span>
                   </div>
                 </div>
               </div>

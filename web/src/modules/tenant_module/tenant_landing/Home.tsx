@@ -2,6 +2,14 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { landingApi } from "./landing.api";
 import styles from "./Home.module.css";
+import { 
+  Home as HomeIcon, 
+  MapPin, 
+  AlertTriangle, 
+  Building, 
+  Search, 
+  ArrowRight 
+} from "lucide-react";
 
 // ─── types ─────────────────────────────────────────────────────────────────
 
@@ -94,7 +102,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, animatio
           />
         ) : (
           <div className={styles.cardImagePlaceholder}>
-            <span className={styles.cardImagePlaceholderIcon}>🏠</span>
+            <HomeIcon size={36} className={styles.cardImagePlaceholderIcon} strokeWidth={1.5} />
             <span className={styles.cardImagePlaceholderText}>No photo yet</span>
           </div>
         )}
@@ -116,7 +124,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, animatio
       <div className={styles.cardBody}>
         <h3 className={styles.cardTitle}>{property.title}</h3>
         <div className={styles.cardLocation}>
-          <span className={styles.cardLocationIcon}>📍</span>
+          <MapPin size={14} className={styles.cardLocationIcon} />
           {property.location}
         </div>
         <p className={styles.cardDesc}>{property.description}</p>
@@ -127,7 +135,9 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, animatio
             <span className={styles.cardPriceAmount}>{formatPrice(property.price)}</span>
             <span className={styles.cardPriceLabel}>per month</span>
           </div>
-          <button className={styles.cardViewBtn}>View →</button>
+          <button className={styles.cardViewBtn}>
+            View <ArrowRight size={14} />
+          </button>
         </div>
       </div>
     </div>
@@ -138,7 +148,6 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, animatio
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
-
   // Auth state — retrieve user object from TenantLayout context wrapper
   const { user } = useOutletContext<{ user: User }>();
 
@@ -239,11 +248,9 @@ const Home: React.FC = () => {
           </h1>
 
           <p className={styles.heroSubtitle}>
-            Browse verified boarding houses, apartments, and condos across Cebu City.
-            Submit a rental request in minutes.
+            Browse verified boarding houses, apartments, and condos across Cebu City. Submit a rental request in minutes.
           </p>
 
-          {/* Stats (Search was removed from here) */}
           <div className={styles.heroStats}>
             {[
               { num: "240+",  label: "Active Listings" },
@@ -282,9 +289,8 @@ const Home: React.FC = () => {
         {/* ── Search & Filter Section ── */}
         <div className={styles.filterSection}>
           
-          {/* New Search Bar Position */}
           <form className={styles.mainSearch} onSubmit={handleSearchSubmit}>
-            <span className={styles.mainSearchIcon}>🔍</span>
+            <Search size={18} className={styles.mainSearchIcon} />
             <input
               className={styles.mainSearchInput}
               type="text"
@@ -352,7 +358,7 @@ const Home: React.FC = () => {
           {/* Error state */}
           {!loading && error && (
             <div className={styles.stateBox}>
-              <span className={styles.stateIcon}>⚠️</span>
+              <AlertTriangle size={48} className={styles.stateIcon} strokeWidth={1.5} />
               <h3 className={styles.stateTitle}>Something went wrong</h3>
               <p className={styles.stateBody}>{error}</p>
               <button className={styles.stateBtn} onClick={fetchProperties}>
@@ -364,7 +370,7 @@ const Home: React.FC = () => {
           {/* Empty state */}
           {!loading && !error && properties.length === 0 && (
             <div className={styles.stateBox}>
-              <span className={styles.stateIcon}>🏘️</span>
+              <Building size={48} className={styles.stateIcon} strokeWidth={1.5} />
               <h3 className={styles.stateTitle}>No properties found</h3>
               <p className={styles.stateBody}>
                 Try adjusting your search or filters to find available listings.

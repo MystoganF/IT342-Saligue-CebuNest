@@ -403,8 +403,8 @@
   color: var(--teal-aero);
 }
 .cardImagePlaceholderIcon {
-  font-size: 36px;
-  opacity: 0.5;
+  color: var(--teal-aero);
+  opacity: 0.6;
 }
 .cardImagePlaceholderText {
   font-size: 12px;
@@ -474,14 +474,15 @@
 .cardLocation {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   font-size: 13px;
   color: var(--slate);
   font-weight: 500;
   margin-bottom: 14px;
 }
 .cardLocationIcon {
-  font-size: 13px;
+  color: var(--teal-aero);
+  flex-shrink: 0;
 }
 .cardDesc {
   font-size: 13px;
@@ -521,6 +522,9 @@
   font-weight: 500;
 }
 .cardViewBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 9px 18px;
   background: var(--teal-deep);
   color: #fff;
@@ -592,8 +596,9 @@
   gap: 14px;
 }
 .stateIcon {
-  font-size: 52px;
-  opacity: 0.6;
+  color: var(--teal-aero);
+  opacity: 0.8;
+  margin-bottom: 8px;
 }
 .stateTitle {
   font-family: 'Playfair Display', serif;
@@ -679,11 +684,10 @@
 }
 
 .mainSearchIcon {
-  font-size: 16px;
-  opacity: 0.5;
+  color: #a0b0b5;
   margin-right: 8px;
+  flex-shrink: 0;
 }
-
 .mainSearchInput {
   flex: 1;
   border: none;
