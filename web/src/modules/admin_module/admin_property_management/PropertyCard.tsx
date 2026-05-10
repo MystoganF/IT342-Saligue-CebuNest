@@ -1,8 +1,8 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Home, MapPin, User, Bed, Bath, Maximize, Edit } from "lucide-react";
 import styles from "./admin_properties.module.css";
 
-// ─── Types (mirror what AdminProperties uses) ─────────────────────────────
+// ─── Types ─────────────────────────────────────────────────────────────
 interface ActiveTenant {
   tenantId: number;
   tenantName: string;
@@ -22,13 +22,13 @@ export interface PropertyEntry {
   createdAt: string;
   hasActiveTenant: boolean;
   activeTenant?: ActiveTenant;
-  images: { id: number; imageUrl: string }[];
   adminDisabled?: boolean;
   isAdminDisabled?: boolean;
   adminNote?: string;
   beds?: number;
   baths?: number;
   sqm?: number;
+  images: { id: number; imageUrl: string; thumbnailUrl?: string }[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -65,18 +65,18 @@ function getStatusLabel(status: string, hasActiveTenant: boolean): string {
   );
 }
 
-// ─── Image with blur-up loading ───────────────────────────────────────────
-const LazyImage: React.FC<{ src: string; alt: string }> = ({ src, alt }) => {
+// ─── Image with blur-up loading (Tip 2: Prioritization added) ─────────────
+const LazyImage: React.FC<{ src: string; alt: string; isPriority?: boolean }> = ({ src, alt, isPriority }) => {
   const [loaded, setLoaded] = useState(false);
-
   return (
     <>
-      {/* Shimmer shown until image fires onLoad */}
       {!loaded && <div className={styles.imgShimmer} aria-hidden="true" />}
       <img
         src={src}
         alt={alt}
-        loading="lazy"
+        loading={isPriority ? "eager" : "lazy"} // Eager load if it's a priority image
+        // @ts-expect-error - fetchpriority is a modern HTML attribute not fully typed in older React versions
+        fetchpriority={isPriority ? "high" : "auto"}
         decoding="async"
         className={`${styles.cardImage} ${loaded ? styles.cardImageLoaded : styles.cardImagePending}`}
         onLoad={() => setLoaded(true)}
@@ -85,51 +85,27 @@ const LazyImage: React.FC<{ src: string; alt: string }> = ({ src, alt }) => {
   );
 };
 
-// ─── PropertyCard ─────────────────────────────────────────────────────────
+// ─── PropertyCard (Tip 1: Removed JS Observer, used CSS animation) ────────
 interface Props {
   property: PropertyEntry;
   index: number;
+  isPriority?: boolean;
   onClick: (p: PropertyEntry) => void;
 }
 
-const PropertyCard: React.FC<Props> = ({ property: p, index, onClick }) => {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-
-  // Reveal card when it scrolls into view, with a small per-card stagger
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          // Stagger: each card waits 40ms × its position (max 400ms)
-          const delay = Math.min(index * 40, 400);
-          const timer = setTimeout(() => setVisible(true), delay);
-          observer.disconnect();
-          return () => clearTimeout(timer);
-        }
-      },
-      { threshold: 0.08 }
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [index]);
-
-  const img = p.images?.[0]?.imageUrl;
+const PropertyCard: React.FC<Props> = ({ property: p, index, isPriority, onClick }) => {
+  const img = p.images?.[0]?.thumbnailUrl || p.images?.[0]?.imageUrl;
 
   return (
     <div
-      ref={ref}
-      className={`${styles.card} ${visible ? styles.cardVisible : styles.cardHidden}`}
+      className={styles.card}
+      // Staggers the entrance animation based on the card's index natively
+      style={{ animationDelay: `${Math.min(index * 40, 400)}ms` }} 
       onClick={() => onClick(p)}
     >
-      {/* ── Image area ── */}
       <div className={styles.cardImageWrap}>
         {img ? (
-          <LazyImage src={img} alt={p.title} />
+          <LazyImage src={img} alt={p.title} isPriority={isPriority} />
         ) : (
           <div className={styles.cardImagePlaceholder}>
             <span className={styles.cardImagePlaceholderIcon}>
@@ -152,7 +128,6 @@ const PropertyCard: React.FC<Props> = ({ property: p, index, onClick }) => {
         {p.type && <span className={styles.cardTypeBadge}>{p.type}</span>}
       </div>
 
-      {/* ── Card body ── */}
       <div className={styles.cardBody}>
         <h3 className={styles.cardTitle}>{p.title}</h3>
 

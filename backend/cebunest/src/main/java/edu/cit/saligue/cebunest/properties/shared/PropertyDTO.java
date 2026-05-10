@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 import java.util.ArrayList;
 import java.util.List;
 
-
 @Data
 @Builder
 @NoArgsConstructor
@@ -48,6 +47,7 @@ public class PropertyDTO {
     public static class ImageDTO {
         private Long   id;
         private String imageUrl;
+        private String thumbnailUrl; // <-- NEW FIELD ADDED HERE
     }
 
     @Data
@@ -73,7 +73,8 @@ public class PropertyDTO {
     }
 
     public static PropertyDTO fromWithCover(Property p, Long coverImageId) {
-        List<PropertyImage> raw = p.getImages() == null ? List.of() : new ArrayList<>(p.getImages());
+        List<PropertyImage> raw = p.getImages() == null ?
+                List.of() : new ArrayList<>(p.getImages());
 
         if (coverImageId != null) {
             raw.sort((a, b) -> {
@@ -83,8 +84,21 @@ public class PropertyDTO {
             });
         }
 
+        // <-- CLOUDINARY THUMBNAIL LOGIC ADDED HERE -->
+        // Inside PropertyDTO.java, update the fromWithCover method: [cite: 248]
+
         List<ImageDTO> images = raw.stream()
-                .map(i -> new ImageDTO(i.getId(), i.getImageUrl()))
+                .map(i -> {
+                    String originalUrl = i.getImageUrl();
+                    String thumbUrl = originalUrl;
+
+                    // More aggressive Cloudinary optimization for maximum speed
+                    if (originalUrl != null && originalUrl.contains("/upload/")) {
+                        thumbUrl = originalUrl.replace("/upload/", "/upload/w_300,c_fill,q_auto:eco,f_auto,fl_progressive/");
+                    }
+
+                    return new ImageDTO(i.getId(), originalUrl, thumbUrl);
+                })
                 .toList();
 
         return PropertyDTO.builder()
@@ -96,8 +110,8 @@ public class PropertyDTO {
                 .typeId(p.getType() != null ? p.getType().getId() : null)
                 .type(p.getType() != null ? p.getType().getName() : null)
                 .status(p.getStatus().name())
-                .isAdminDisabled(p.isAdminDisabled()) // Map the new field
-                .adminNote(p.getAdminNote())           // Map the new field
+                .isAdminDisabled(p.isAdminDisabled())
+                .adminNote(p.getAdminNote())
                 .beds(p.getBeds())
                 .baths(p.getBaths())
                 .sqm(p.getSqm())
