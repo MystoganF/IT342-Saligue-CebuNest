@@ -1,0 +1,69 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap');
+
+.page {
+  --teal-deep:  #1f5d71;
+  --teal-aero:  #53a4a3;
+  --teal-soft:  #98c1c1;
+  --gold:       #b78e42;
+  --gold-dark:  #a37435;
+  --gold-light: #d4ab6a;
+  --cloud:      #dcdddd;
+  --slate:      #6e7071;
+  --bg:         #f0f4f5;
+
+  position: fixed; inset: 0; display: flex; width: 100vw; height: 100vh;
+  font-family: 'DM Sans', sans-serif; font-size: 16px; overflow: hidden; background: var(--bg);
+}
+
+.page * { box-sizing: border-box; }
+
+/* ── LEFT PANEL ── */
+.leftPanel {
+  position: relative; width: 42%; background: var(--teal-deep); display: flex; flex-direction: column;
+  justify-content: center; align-items: center; text-align: center; padding: 60px 56px; overflow: hidden;
+}
+
+.deco { position: absolute; border-radius: 50%; border: 1px solid rgba(83, 164, 163, 0.18); pointer-events: none; }
+.deco1 { width: 420px; height: 420px; top: -120px; right: -140px; }
+.deco2 { width: 260px; height: 260px; bottom: -60px; left: -80px; border-color: rgba(183, 142, 66, 0.2); }
+.deco3 { width: 150px; height: 150px; bottom: 80px; right: 40px; border-color: rgba(83, 164, 163, 0.1); }
+
+.accentLine {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 2px; height: 80px; background: linear-gradient(to bottom, var(--gold), transparent);
+}
+
+.brandLogo { display: flex; justify-content: center; margin-bottom: 56px; animation: fadeUp 0.7s ease both; }
+.logoImg { width: 160px; height: 160px; object-fit: contain; margin-bottom: -30px; }
+
+.brandInfo { animation: fadeUp 0.7s 0.15s ease both; }
+.brandEyebrow { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 18px; }
+.eyebrowLine { width: 28px; height: 1.5px; background: var(--gold); }
+.eyebrowText { font-size: 13px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--gold-light); }
+.brandHeading { font-family: 'Playfair Display', serif; font-size: 42px; font-weight: 700; line-height: 1.25; color: #fff; margin-bottom: 20px; }
+.brandBody { font-size: 17px; line-height: 1.75; color: var(--teal-soft); font-weight: 500; max-width: 500px; margin: 0 auto; text-align: center; }
+
+.stats {
+  display: flex; justify-content: center; gap: 36px; margin-top: 48px; padding-top: 36px;
+  border-top: 1px solid rgba(83, 164, 163, 0.2); animation: fadeUp 0.7s 0.3s ease both;
+}
+.statItem { display: flex; flex-direction: column; gap: 6px; }
+.statNumber { font-family: 'Playfair Display', serif; font-size: 34px; font-weight: 800; color: var(--gold-light); }
+.statLabel { font-size: 13px; color: var(--teal-soft); font-weight: 500; letter-spacing: 0.5px; }
+
+/* ── RIGHT PANEL (Fixed for centering) ── */
+.rightPanel {
+  flex: 1; display: flex; flex-direction: column; 
+  padding: 40px; background: transparent; position: relative; overflow-y: auto;
+}
+.rightPanel::before {
+  content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle, rgba(31, 93, 113, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px; pointer-events: none; z-index: -1;
+}
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (max-width: 768px) {
+  .leftPanel { display: none; }
+  .rightPanel { padding: 24px; }
+}

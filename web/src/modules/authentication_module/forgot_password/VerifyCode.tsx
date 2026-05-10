@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
+import { AlertTriangle, CheckCircle, ArrowLeft } from "lucide-react";
 import styles from "./ForgotPassword.module.css";
-import logo from "../../../assets/images/cebunest-logo.png";
-
 import { passwordApi } from "./password.api";
 
 const VerifyCode: React.FC = () => {
@@ -72,12 +71,10 @@ const VerifyCode: React.FC = () => {
 
     try {
       const data = await passwordApi.verifyCode(email, code);
-
       if (!data.success) {
         setError(data?.error?.message ?? "Invalid or expired code. Please try again.");
         return;
       }
-
       setSuccess(true);
       setTimeout(() => {
         navigate("/forgot-password/reset", { state: { email, code } });
@@ -98,12 +95,10 @@ const VerifyCode: React.FC = () => {
 
     try {
       const data = await passwordApi.requestReset(email);
-
       if (!data.success) {
         setResendMsg("Failed to resend. Please try again.");
         return;
       }
-
       setResendMsg("A new code has been sent to your email.");
       setCanResend(false);
       setResendCooldown(60);
@@ -118,154 +113,97 @@ const VerifyCode: React.FC = () => {
   };
 
   return (
-    <div className={styles.page}>
-      {/* ── Left Panel ── */}
-      <div className={styles.leftPanel}>
-        <div className={`${styles.deco} ${styles.deco1}`} />
-        <div className={`${styles.deco} ${styles.deco2}`} />
-        <div className={`${styles.deco} ${styles.deco3}`} />
-        <div className={styles.accentLine} />
-
-        <div className={styles.brandLogo}>
-          <img src={logo} alt="CebuNest Logo" className={styles.logoImg} />
+    <div className={styles.formCard}>
+      <div className={styles.formHeader}>
+        <div className={styles.formEyebrow}>
+          <div className={styles.headerDot} />
+          <span className={styles.headerEyebrowText}>Step 2 of 3</span>
         </div>
-
-        <div className={styles.brandInfo}>
-          <div className={styles.brandEyebrow}>
-            <div className={styles.eyebrowLine} />
-            <span className={styles.eyebrowText}>Account Recovery</span>
-          </div>
-          <h2 className={styles.brandHeading}>Check Your Email</h2>
-          <p className={styles.brandBody}>
-            We've sent a 6-digit verification code to{" "}
-            <strong style={{ color: "#d4ab6a" }}>{email}</strong>. Enter it below
-            to continue. The code expires in 15 minutes.
-          </p>
-        </div>
-
-        <div className={styles.steps}>
-          <div className={styles.step}>
-            <div className={`${styles.stepNum} ${styles.stepDone}`}>✓</div>
-            <div className={styles.stepText}>
-              <span className={styles.stepTitle}>Enter Email</span>
-              <span className={styles.stepDesc}>Done</span>
-            </div>
-          </div>
-          <div className={styles.stepConnector} />
-          <div className={`${styles.step} ${styles.stepActive}`}>
-            <div className={styles.stepNum}>2</div>
-            <div className={styles.stepText}>
-              <span className={styles.stepTitle}>Verify Code</span>
-              <span className={styles.stepDesc}>6-digit code from email</span>
-            </div>
-          </div>
-          <div className={styles.stepConnector} />
-          <div className={styles.step}>
-            <div className={styles.stepNum}>3</div>
-            <div className={styles.stepText}>
-              <span className={styles.stepTitle}>New Password</span>
-              <span className={styles.stepDesc}>Set your new credentials</span>
-            </div>
-          </div>
-        </div>
+        <h2 className={styles.formHeading}>Enter Your Code</h2>
+        <p className={styles.formSubheading}>
+          We sent a 6-digit code to <strong>{email}</strong>
+        </p>
       </div>
 
-      {/* ── Right Panel ── */}
-      <div className={styles.rightPanel}>
-        <div className={styles.formCard}>
-          <div className={styles.formHeader}>
-            <div className={styles.formEyebrow}>
-              <div className={styles.headerDot} />
-              <span className={styles.headerEyebrowText}>Step 2 of 3</span>
-            </div>
-            <h2 className={styles.formHeading}>Enter Your Code</h2>
-            <p className={styles.formSubheading}>
-              We sent a 6-digit code to <strong>{email}</strong>
-            </p>
-          </div>
-
-          <form className={styles.formFields} onSubmit={handleSubmit}>
-            <div className={styles.otpGroup} onPaste={handlePaste}>
-              {digits.map((digit, i) => (
-                <input
-                  key={i}
-                  ref={(el) => { inputRefs.current[i] = el; }}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  className={`${styles.otpInput} ${digit ? styles.otpInputFilled : ""} ${error ? styles.otpInputError : ""}`}
-                  value={digit}
-                  onChange={(e) => handleDigitChange(i, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(i, e)}
-                  disabled={loading || success}
-                  autoFocus={i === 0}
-                />
-              ))}
-            </div>
-
-            <button
-              type="submit"
-              className={`${styles.submitBtn} ${success ? styles.submitBtnSuccess : ""}`}
-              disabled={loading || success || !isComplete}
-            >
-              {loading ? (
-                <span className={styles.spinner} />
-              ) : success ? (
-                <span className={styles.btnSuccessContent}>
-                  <span className={styles.successCheck}>✓</span> Verified!
-                </span>
-              ) : (
-                "Verify Code"
-              )}
-            </button>
-
-            {error && (
-              <div className={`${styles.message} ${styles.messageError}`}>
-                <span>⚠</span> {error}
-              </div>
-            )}
-
-            {success && (
-              <div className={`${styles.message} ${styles.messageSuccess}`}>
-                <span>✓</span> Code verified! Redirecting…
-              </div>
-            )}
-          </form>
-
-          <div className={styles.resendWrap}>
-            <span className={styles.resendText}>Didn't receive the code?</span>
-            <button
-              type="button"
-              className={styles.resendBtn}
-              onClick={handleResend}
-              disabled={!canResend || resendLoading}
-            >
-              {resendLoading ? (
-                <span className={`${styles.spinner} ${styles.spinnerDark}`} />
-              ) : canResend ? (
-                "Resend Code"
-              ) : (
-                `Resend in ${resendCooldown}s`
-              )}
-            </button>
-          </div>
-
-          {resendMsg && (
-            <div className={`${styles.message} ${resendMsg.includes("sent") ? styles.messageSuccess : styles.messageError}`}
-              style={{ marginTop: "8px" }}>
-              <span>{resendMsg.includes("sent") ? "✓" : "⚠"}</span> {resendMsg}
-            </div>
-          )}
-
-          <div className={styles.links}>
-            <Link to="/forgot-password" className={styles.link}>
-              ← Change Email
-            </Link>
-            <Link to="/" className={`${styles.link} ${styles.linkSignup}`}>
-              Back to Sign In
-            </Link>
-          </div>
+      <form className={styles.formFields} onSubmit={handleSubmit}>
+        <div className={styles.otpGroup} onPaste={handlePaste}>
+          {digits.map((digit, i) => (
+            <input
+              key={i}
+              ref={(el) => { inputRefs.current[i] = el; }}
+              type="text"
+              inputMode="numeric"
+              maxLength={1}
+              className={`${styles.otpInput} ${digit ? styles.otpInputFilled : ""} ${error ? styles.otpInputError : ""}`}
+              value={digit}
+              onChange={(e) => handleDigitChange(i, e.target.value)}
+              onKeyDown={(e) => handleKeyDown(i, e)}
+              disabled={loading || success}
+              autoFocus={i === 0}
+            />
+          ))}
         </div>
+
+        <button
+          type="submit"
+          className={`${styles.submitBtn} ${success ? styles.submitBtnSuccess : ""}`}
+          disabled={loading || success || !isComplete}
+        >
+          {loading ? (
+            <span className={styles.spinner} />
+          ) : success ? (
+            <>
+              <CheckCircle size={18} /> Verified!
+            </>
+          ) : (
+            "Verify Code"
+          )}
+        </button>
+
+        {error && (
+          <div className={`${styles.message} ${styles.messageError}`}>
+            <span className={styles.messageIcon}><AlertTriangle size={18} /></span> {error}
+          </div>
+        )}
+
+        {success && (
+          <div className={`${styles.message} ${styles.messageSuccess}`}>
+            <span className={styles.messageIcon}><CheckCircle size={18} /></span> Code verified! Redirecting…
+          </div>
+        )}
+      </form>
+
+      <div className={styles.resendWrap}>
+        <span className={styles.resendText}>Didn't receive the code?</span>
+        <button
+          type="button"
+          className={styles.resendBtn}
+          onClick={handleResend}
+          disabled={!canResend || resendLoading}
+        >
+          {resendLoading ? (
+            <span className={`${styles.spinner} ${styles.spinnerDark}`} />
+          ) : canResend ? (
+            "Resend Code"
+          ) : (
+            `Resend in ${resendCooldown}s`
+          )}
+        </button>
+      </div>
+
+      {resendMsg && (
+        <div className={`${styles.message} ${resendMsg.includes("sent") ? styles.messageSuccess : styles.messageError}`} style={{ marginTop: "8px" }}>
+          <span className={styles.messageIcon}>{resendMsg.includes("sent") ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}</span> {resendMsg}
+        </div>
+      )}
+
+      <div className={styles.links}>
+        <Link to="/forgot-password" className={styles.link}>
+          <ArrowLeft size={16} /> Change Email
+        </Link>
+        <Link to="/" className={styles.link}>
+          Back to Sign In
+        </Link>
       </div>
     </div>
   );

@@ -22,21 +22,22 @@ import AdminNotifications from "./modules/admin_module/admin_notification/Admin_
 import TenantLayout from "./modules/tenant_module/TenantLayout";
 import OwnerLayout from "./modules/owner_module/OwnerLayout";
 import AdminLayout from "./modules/admin_module/AdminLayout";
+
 import ForgotPassword from "./modules/authentication_module/forgot_password/ForgotPassword";
 import VerifyCode from "./modules/authentication_module/forgot_password/VerifyCode";
 import ResetPassword from "./modules/authentication_module/forgot_password/ResetPassword";
-
+import AuthLayout from "./modules/authentication_module/Auth_Layout";
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Auth (Public Routes) */}
-        <Route path="/"           element={<Login />}           />
-        <Route path="/register"   element={<Register />}        />
-
-        <Route path="/forgot-password"        element={<ForgotPassword />} />
-        <Route path="/forgot-password/verify" element={<VerifyCode />} />
-        <Route path="/forgot-password/reset"  element={<ResetPassword />} />
+        <Route element={<AuthLayout />}>
+          <Route path="/"                   element={<Login />} />
+          <Route path="/register"           element={<Register />} />
+          <Route path="/forgot-password"        element={<ForgotPassword />} />
+          <Route path="/forgot-password/verify" element={<VerifyCode />} />
+          <Route path="/forgot-password/reset"  element={<ResetPassword />} />
+        </Route>
      
         <Route element={<ProtectedRoute allowedRoles={["TENANT"]}><TenantLayout /></ProtectedRoute>}>
           <Route path="/home" element={<Home />} />
