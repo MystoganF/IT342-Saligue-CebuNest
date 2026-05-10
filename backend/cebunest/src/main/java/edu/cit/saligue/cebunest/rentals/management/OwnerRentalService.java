@@ -80,7 +80,7 @@ public class OwnerRentalService {
             }
 
             // 5. Notify the tenant that the lease has started
-            notificationService.send(request.getTenant(), "LEASE_STARTED", "🎉 Your request for \"" + propTitle + "\" was approved! Your lease is now active.", request.getId());
+            notificationService.send(request.getTenant(), "LEASE_STARTED", "Your request for \"" + propTitle + "\" was approved! Your lease is now active.", request.getId());
 
         } else if (status == RentalRequest.RentalStatus.REJECTED) {
             notificationService.send(request.getTenant(), "REQUEST_REJECTED", "Your request for \"" + propTitle + "\" was not approved. Browse other listings.", request.getId());

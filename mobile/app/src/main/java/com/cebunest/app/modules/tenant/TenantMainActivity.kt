@@ -1,11 +1,14 @@
 package com.cebunest.app.modules.tenant
 
+import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.cebunest.app.R
 import com.cebunest.app.databinding.ActivityTenantMainBinding
 import com.cebunest.app.modules.tenant.home.HomeFragment
+
 
 class TenantMainActivity : AppCompatActivity() {
 
@@ -16,12 +19,16 @@ class TenantMainActivity : AppCompatActivity() {
         binding = ActivityTenantMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Add Notification Bell to the Top Toolbar
-        binding.topToolbar.inflateMenu(R.menu.top_bar_menu) // We'll create this menu next!
+        binding.topToolbar.inflateMenu(R.menu.top_bar_menu)
         binding.topToolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.action_notifications -> {
-                    // TODO: Open Notifications BottomSheet
+                    // Find the actual bell icon view in the toolbar
+                    val anchorView = findViewById<View>(R.id.action_notifications)
+
+                    // Show the dropdown!
+                    val dropdown = com.cebunest.app.modules.tenant.notifications.NotificationDropdown(this)
+                    dropdown.show(anchorView)
                     true
                 }
                 else -> false
