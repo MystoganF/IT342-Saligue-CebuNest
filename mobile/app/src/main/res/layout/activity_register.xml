@@ -75,49 +75,37 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:layout_marginBottom="20dp"
-                    android:text="Fill in your details to get started."
+                    android:layout_marginBottom="24dp"
+                    android:text="Register as a Tenant to get started."
                     android:textColor="@color/slate"
                     android:textSize="13sp" />
 
-                <!-- Role Toggle -->
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="I AM A"
-                    android:textColor="@color/teal_deep"
-                    android:textSize="11sp"
-                    android:textStyle="bold"
-                    android:letterSpacing="0.1"
-                    android:layout_marginBottom="8dp"/>
-
+                <!-- Owner Web Info Banner -->
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="wrap_content"
+                    android:background="#F0F9FA"
                     android:orientation="horizontal"
-                    android:background="@drawable/bg_role_toggle"
-                    android:padding="4dp"
-                    android:layout_marginBottom="20dp">
+                    android:padding="16dp"
+                    android:layout_marginBottom="24dp">
 
-                    <Button
-                        android:id="@+id/btnTenant"
-                        android:layout_width="0dp"
-                        android:layout_height="match_parent"
-                        android:layout_weight="1"
-                        android:text="🏡 Tenant"
-                        android:textSize="13sp"
-                        android:elevation="0dp"
-                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="ℹ️"
+                        android:textSize="18sp"
+                        android:layout_gravity="top"
+                        android:layout_marginEnd="12dp" />
 
-                    <Button
-                        android:id="@+id/btnOwner"
+                    <TextView
                         android:layout_width="0dp"
-                        android:layout_height="match_parent"
+                        android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="🔑 Owner"
+                        android:text="Are you a Property Owner?\nThe mobile app is exclusively for Tenants. To list and manage properties, please use our web platform."
+                        android:textColor="#1F5D71"
                         android:textSize="13sp"
-                        android:elevation="0dp"
-                        style="@style/Widget.MaterialComponents.Button.UnelevatedButton" />
+                        android:paddingBottom="4dp"
+                        android:lineSpacingExtra="4dp"/>
                 </LinearLayout>
 
                 <!-- Name -->
@@ -296,13 +284,44 @@
                     android:textStyle="bold"
                     android:visibility="gone" />
 
+                <!-- OR Divider -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:layout_marginTop="24dp"
+                    android:layout_marginBottom="20dp">
+
+                    <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" android:background="#E5E7EB" />
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="OR" android:textColor="#9CA3AF" android:textSize="12sp" android:layout_marginHorizontal="12dp" />
+                    <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1" android:background="#E5E7EB" />
+                </LinearLayout>
+
+                <!-- Google Auth Section -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnGoogleLogin"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:backgroundTint="@color/white"
+                    android:text="Continue with Google"
+                    android:textColor="#374151"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    app:strokeColor="#D1D5DB"
+                    app:strokeWidth="1dp"
+                    app:icon="@drawable/ic_google"
+                    app:iconTint="@null"
+                    app:iconGravity="textStart"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
                 <!-- Go to Login -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:orientation="horizontal"
-                    android:layout_marginTop="20dp">
+                    android:layout_marginTop="24dp">
 
                     <TextView
                         android:layout_width="wrap_content"

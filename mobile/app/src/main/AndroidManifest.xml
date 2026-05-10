@@ -6,12 +6,13 @@
     <application
         android:name=".CebuNestApp"
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/cebunest_logo"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@drawable/cebunest_logo"
         android:supportsRtl="true"
         android:theme="@style/Theme.CebuNest"
         android:usesCleartextTraffic="true">
+
 
         <activity
             android:name=".modules.auth.login.LoginActivity"
@@ -25,8 +26,14 @@
         <activity android:name=".modules.auth.register.RegisterActivity"
             android:exported="false"/>
 
-        <activity android:name=".modules.tenant.home.HomeActivity"
+        <activity
+            android:name=".modules.tenant.TenantMainActivity"
             android:exported="false"/>
+
+        <activity android:name=".modules.tenant.renting_property.PropertyDetailActivity" />
+        <activity
+            android:name=".modules.tenant.my_rentals.RentalDetailActivity"
+            android:exported="false" />
 
     </application>
 </manifest>

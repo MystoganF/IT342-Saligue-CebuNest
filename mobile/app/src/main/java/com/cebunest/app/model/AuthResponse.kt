@@ -1,4 +1,4 @@
-package com.cebunest.app.modules.auth.shared
+package com.cebunest.app.model
 
 import com.cebunest.app.core.api.ApiError
 
