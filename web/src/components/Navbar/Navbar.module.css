@@ -299,9 +299,14 @@
   color: var(--slate);
 }
 .notifEmptyIcon {
-  font-size: 32px;
-  opacity: 0.4;
+  color: var(--slate);
+  opacity: 0.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
 }
+
 .notifEmptyText {
   font-size: 14px;
   font-weight: 700;
@@ -356,15 +361,14 @@
 }
 
 .notifItemIcon {
-  font-size: 20px;
   flex-shrink: 0;
   width: 36px;
   height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(31, 93, 113, 0.06);
   border-radius: 10px;
+  /* Background and color are injected via inline styles in React */
 }
 
 .notifItemBody {
@@ -554,8 +558,9 @@
 .dropdownItem {
   display: flex;
   align-items: center;
+  gap: 10px;
   margin-left: 5px;
-  width: 100%;
+  width: calc(100% - 10px);
   padding: 10px 12px;
   border: none;
   background: none;
@@ -566,9 +571,7 @@
   color: var(--slate);
   cursor: pointer;
   text-decoration: none;
-  transition:
-    background 0.15s,
-    color 0.15s;
+  transition: background 0.15s, color 0.15s;
   text-align: left;
   line-height: 1.4;
   box-sizing: border-box;
@@ -591,9 +594,8 @@
   margin: 4px 6px;
 }
 .dropdownItemIcon {
-  font-size: 16px;
-  width: 20px;
-  text-align: center;
+  flex-shrink: 0;
+  opacity: 0.8;
 }
 
 /* ─────────────────────────────────────
@@ -627,9 +629,10 @@
   animation: modalIn 0.25s ease both;
 }
 .modalIcon {
-  font-size: 44px;
   animation: modalBounce 0.5s ease both;
+  margin-bottom: -4px;
 }
+
 .modalTitle {
   font-family: "Playfair Display", serif;
   font-size: 22px;

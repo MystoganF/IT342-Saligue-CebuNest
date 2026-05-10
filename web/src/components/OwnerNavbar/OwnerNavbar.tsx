@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom"; // <-- Added Link
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import styles from "./OwnerNavbar.module.css";
 import logo from "../../assets/images/cebunest-logo.png";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+import { ownerNavbarApi } from "./ownerNavbarApi"; // <-- Imported from your new Owner API file
 
 interface NavUser {
   id: number; name: string; email: string; role: string; avatarUrl?: string | null;
@@ -102,12 +101,9 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
   }, []);
 
   const fetchNotifications = useCallback(async () => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
     setNotifLoading(true);
     try {
-      const res  = await fetch(`${API_BASE}/api/notifications`, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
+      const data = await ownerNavbarApi.getNotifications();
       if (data.success) setNotifications(data.data.notifications ?? []);
     } catch { /* silent */ } finally { setNotifLoading(false); }
   }, []);
@@ -122,11 +118,8 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
 
   const markRead = async (notif: AppNotification) => {
     if (!notif.read) {
-      const token = localStorage.getItem("accessToken");
       try {
-        await fetch(`${API_BASE}/api/notifications/${notif.id}/read`, {
-          method: "PATCH", headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
+        await ownerNavbarApi.markNotificationRead(notif.id);
         setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
       } catch { /* silent */ }
     }
@@ -136,12 +129,9 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
   };
 
   const markAllRead = async () => {
-    const token = localStorage.getItem("accessToken");
     setMarkingAll(true);
     try {
-      await fetch(`${API_BASE}/api/notifications/read-all`, {
-        method: "PATCH", headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
+      await ownerNavbarApi.markAllNotificationsRead();
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     } catch { /* silent */ } finally { setMarkingAll(false); }
   };
@@ -313,7 +303,7 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
       {showLogoutModal && (
         <div className={styles.modalOverlay} onClick={() => setShowLogoutModal(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-           
+            
             <h3 className={styles.modalTitle}>Sign Out?</h3>
             <p className={styles.modalBody}>
               You'll be logged out of your owner account and returned to the login page.

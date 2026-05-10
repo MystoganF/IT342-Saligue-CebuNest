@@ -1,9 +1,27 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom"; // <-- Added Link here
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import styles from "./Navbar.module.css";
 import logo from "../../assets/images/cebunest-logo.png";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+import { navbarApi } from "./navbarApi";
+import {
+  Bell,
+  BellOff,
+  CheckCircle,
+  XCircle,
+  Home,
+  Ban,
+  CreditCard,
+  Star,
+  LogOut,
+  User,
+  ChevronDown,
+  Megaphone,
+  Wrench,
+  FileText,
+  AlertTriangle,
+  CalendarClock,
+  Send
+} from "lucide-react";
 
 // ─── types ─────────────────────────────────────────────────────────────────
 
@@ -22,7 +40,7 @@ interface NavbarProps {
 
 interface AppNotification {
   id: number;
-  type: string;           // e.g. "REQUEST_APPROVED", "REQUEST_REJECTED", "PAYMENT_DUE"
+  type: string;
   message: string;
   rentalRequestId: number | null;
   read: boolean;
@@ -33,44 +51,62 @@ interface AppNotification {
 
 function timeAgo(isoStr: string): string {
   const diff = Date.now() - new Date(isoStr).getTime();
-  const mins  = Math.floor(diff / 60_000);
+  const mins = Math.floor(diff / 60_000);
   const hours = Math.floor(diff / 3_600_000);
-  const days  = Math.floor(diff / 86_400_000);
-  if (mins  < 1)  return "just now";
-  if (mins  < 60) return `${mins}m ago`;
+  const days = Math.floor(diff / 86_400_000);
+
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
   if (hours < 24) return `${hours}h ago`;
-  if (days  < 7)  return `${days}d ago`;
-  return new Date(isoStr).toLocaleDateString("en-PH", { month: "short", day: "numeric" });
+  if (days < 7) return `${days}d ago`;
+
+  return new Date(isoStr).toLocaleDateString("en-PH", {
+    month: "short",
+    day: "numeric",
+  });
 }
 
-function notifIcon(type: string): string {
-  if (type.includes("APPROVED"))   return "✅";
-  if (type.includes("REJECTED"))   return "❌";
-  if (type.includes("CONFIRMED"))  return "🏠";
-  if (type.includes("TERMINATED")) return "🚫";
-  if (type.includes("PAYMENT"))    return "💳";
-  if (type.includes("REVIEW"))     return "⭐";
-  return "🔔";
+// Map notification types to a clean Lucide icon and color scheme
+function getNotifConfig(type: string) {
+  // Admin Broadcasts
+  if (type === "EMERGENCY") return { icon: <AlertTriangle size={18} />, color: "#c0392b", bg: "rgba(192,57,43,0.12)" };
+  if (type === "MAINTENANCE") return { icon: <Wrench size={18} />, color: "#b78e42", bg: "rgba(183,142,66,0.12)" };
+  if (type === "POLICY_UPDATE") return { icon: <FileText size={18} />, color: "#1f5d71", bg: "rgba(31,93,113,0.12)" };
+  if (type === "ADMIN_BROADCAST") return { icon: <Megaphone size={18} />, color: "#1f5d71", bg: "rgba(31,93,113,0.12)" };
+
+  // Lease / Request Actions
+  if (type.includes("EXTENSION")) return { icon: <CalendarClock size={18} />, color: "#1f5d71", bg: "rgba(31,93,113,0.12)" };
+  if (type.includes("SUBMITTED") || type.includes("REQUESTED")) return { icon: <Send size={18} />, color: "#53a4a3", bg: "rgba(83,164,163,0.12)" };
+
+  // Existing Standard Actions
+  if (type.includes("APPROVED")) return { icon: <CheckCircle size={18} />, color: "#2d8c6a", bg: "rgba(45,140,106,0.12)" };
+  if (type.includes("REJECTED")) return { icon: <XCircle size={18} />, color: "#c0392b", bg: "rgba(192,57,43,0.12)" };
+  if (type.includes("CONFIRMED")) return { icon: <Home size={18} />, color: "#53a4a3", bg: "rgba(83,164,163,0.12)" };
+  if (type.includes("TERMINATED")) return { icon: <Ban size={18} />, color: "#c0392b", bg: "rgba(192,57,43,0.12)" };
+  if (type.includes("PAYMENT")) return { icon: <CreditCard size={18} />, color: "#b78e42", bg: "rgba(183,142,66,0.12)" };
+  if (type.includes("REVIEW")) return { icon: <Star size={18} />, color: "#b78e42", bg: "rgba(183,142,66,0.12)" };
+  
+  // Fallback
+  return { icon: <Bell size={18} />, color: "#1f5d71", bg: "rgba(31,93,113,0.1)" };
 }
 
 // ─── component ─────────────────────────────────────────────────────────────
 
 const Navbar: React.FC<NavbarProps> = ({ user }) => {
-  const navigate  = useNavigate();
-  const location  = useLocation();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const [menuOpen, setMenuOpen]               = useState(false);
-  const [notifOpen, setNotifOpen]             = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const [notifications, setNotifications]   = useState<AppNotification[]>([]);
-  const [notifLoading, setNotifLoading]     = useState(false);
-  const [markingAll, setMarkingAll]         = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [markingAll, setMarkingAll] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const notifRef    = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
 
-  // ── Close on outside click ──────────────────────────────────────────────
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -84,19 +120,11 @@ const Navbar: React.FC<NavbarProps> = ({ user }) => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // ── Fetch notifications ─────────────────────────────────────────────────
   const fetchNotifications = useCallback(async () => {
-    const token = localStorage.getItem("accessToken");
-    if (!token) return;
     setNotifLoading(true);
     try {
-      const res  = await fetch(`${API_BASE}/api/notifications`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (data.success) {
-        setNotifications(data.data.notifications ?? []);
-      }
+      const data = await navbarApi.getNotifications();
+      if (data.success) setNotifications(data.data.notifications ?? []);
     } catch {
       // silent — badge will just show 0
     } finally {
@@ -104,58 +132,40 @@ const Navbar: React.FC<NavbarProps> = ({ user }) => {
     }
   }, []);
 
-  // Fetch on mount + poll every 30 s
   useEffect(() => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30_000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
-  // Refetch when dropdown opens
   useEffect(() => {
     if (notifOpen) fetchNotifications();
   }, [notifOpen, fetchNotifications]);
 
-  // ── Mark one as read ────────────────────────────────────────────────────
   const markRead = async (notif: AppNotification) => {
     if (!notif.read) {
-      const token = localStorage.getItem("accessToken");
       try {
-        await fetch(`${API_BASE}/api/notifications/${notif.id}/read`, {
-          method: "PATCH",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        setNotifications(prev =>
-          prev.map(n => n.id === notif.id ? { ...n, read: true } : n)
+        await navbarApi.markNotificationRead(notif.id);
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === notif.id ? { ...n, read: true } : n))
         );
       } catch { /* silent */ }
     }
-
     setNotifOpen(false);
-
-    if (notif.rentalRequestId) {
-      navigate(`/my-rentals/${notif.rentalRequestId}`);
-    } else {
-      navigate("/my-rentals");
-    }
+    if (notif.rentalRequestId) navigate(`/my-rentals/${notif.rentalRequestId}`);
+    else navigate("/my-rentals");
   };
 
-  // ── Mark all as read ────────────────────────────────────────────────────
   const markAllRead = async () => {
-    const token = localStorage.getItem("accessToken");
     setMarkingAll(true);
     try {
-      await fetch(`${API_BASE}/api/notifications/read-all`, {
-        method: "PATCH",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      await navbarApi.markAllNotificationsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch { /* silent */ } finally {
       setMarkingAll(false);
     }
   };
 
-  // ── Logout ──────────────────────────────────────────────────────────────
   const confirmLogout = () => {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
@@ -163,60 +173,44 @@ const Navbar: React.FC<NavbarProps> = ({ user }) => {
     navigate("/");
   };
 
-  const isActive = (path: string) =>
-    location.pathname === path ? styles.navLinkActive : "";
-
-  const initials = user.name
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const isActive = (path: string) => location.pathname === path ? styles.navLinkActive : "";
+  const initials = user.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <>
       <nav className={styles.navbar}>
         <div className={styles.inner}>
-
-          {/* ── Brand (CHANGED FROM <a> TO <Link>) ── */}
+          {/* ── Brand ── */}
           <Link to="/home" className={styles.brand}>
             <img src={logo} alt="CebuNest" className={styles.brandLogo} />
             <span className={styles.brandName}>CebuNest</span>
             <span className={styles.brandDot} />
           </Link>
 
-          {/* ── Nav Links (CHANGED FROM <a> TO <Link>) ── */}
+          {/* ── Nav Links ── */}
           <div className={styles.navLinks}>
             <Link to="/home" className={`${styles.navLink} ${isActive("/home")}`}>
-           
               Browse
             </Link>
-
             <Link to="/my-rentals" className={`${styles.navLink} ${isActive("/my-rentals")}`}>
-            
               My Rentals
             </Link>
           </div>
 
           {/* ── Right Actions ── */}
           <div className={styles.actions}>
-
+            
             {/* ── Notification Bell ── */}
             <div className={styles.notifWrap} ref={notifRef}>
               <button
                 className={`${styles.notifBtn} ${notifOpen ? styles.notifBtnActive : ""}`}
-                onClick={() => setNotifOpen(prev => !prev)}
+                onClick={() => setNotifOpen((prev) => !prev)}
                 aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ""}`}
                 aria-expanded={notifOpen}
               >
                 <span className={styles.notifBellIcon}>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-                    strokeLinecap="round" strokeLinejoin="round" width="20" height="20">
-                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                  </svg>
+                  <Bell size={20} strokeWidth={2} />
                 </span>
                 {unreadCount > 0 && (
                   <span className={styles.notifBadge}>
@@ -231,12 +225,7 @@ const Navbar: React.FC<NavbarProps> = ({ user }) => {
                   <div className={styles.notifDropdownHeader}>
                     <span className={styles.notifDropdownTitle}>Notifications</span>
                     {unreadCount > 0 && (
-                      <button
-                        className={styles.markAllBtn}
-                        onClick={markAllRead}
-                        disabled={markingAll}
-                        type="button"
-                      >
+                      <button className={styles.markAllBtn} onClick={markAllRead} disabled={markingAll} type="button">
                         {markingAll ? "Marking…" : "Mark all read"}
                       </button>
                     )}
@@ -250,38 +239,47 @@ const Navbar: React.FC<NavbarProps> = ({ user }) => {
                       </div>
                     ) : notifications.length === 0 ? (
                       <div className={styles.notifEmpty}>
-                        <span className={styles.notifEmptyIcon}>🔔</span>
+                        <span className={styles.notifEmptyIcon}>
+                          <BellOff size={32} strokeWidth={1.5} />
+                        </span>
                         <span className={styles.notifEmptyText}>All caught up!</span>
                         <span className={styles.notifEmptySubtext}>No notifications yet.</span>
                       </div>
                     ) : (
-                      notifications.map(notif => (
-                        <button
-                          key={notif.id}
-                          className={`${styles.notifItem} ${!notif.read ? styles.notifItemUnread : ""}`}
-                          onClick={() => markRead(notif)}
-                          type="button"
-                        >
-                          <span className={styles.notifItemIcon}>
-                            {notifIcon(notif.type)}
-                          </span>
-                          <div className={styles.notifItemBody}>
-                            <p className={styles.notifItemMsg}>{notif.message}</p>
-                            <span className={styles.notifItemTime}>
-                              {timeAgo(notif.createdAt)}
+                      notifications.map((notif) => {
+                        const { icon, color, bg } = getNotifConfig(notif.type);
+                        return (
+                          <button
+                            key={notif.id}
+                            className={`${styles.notifItem} ${!notif.read ? styles.notifItemUnread : ""}`}
+                            onClick={() => markRead(notif)}
+                            type="button"
+                          >
+                            <span 
+                              className={styles.notifItemIcon} 
+                              style={{ color: color, backgroundColor: bg }}
+                            >
+                              {icon}
                             </span>
-                          </div>
-                          {!notif.read && <span className={styles.notifDot} aria-hidden="true" />}
-                        </button>
-                      ))
+                            <div className={styles.notifItemBody}>
+                              <p className={styles.notifItemMsg}>{notif.message}</p>
+                              <span className={styles.notifItemTime}>{timeAgo(notif.createdAt)}</span>
+                            </div>
+                            {!notif.read && <span className={styles.notifDot} aria-hidden="true" />}
+                          </button>
+                        );
+                      })
                     )}
                   </div>
 
                   {notifications.length > 0 && (
                     <div className={styles.notifDropdownFooter}>
-                      <button
+                     <button
                         className={styles.viewAllBtn}
-                        onClick={() => { setNotifOpen(false); navigate("/my-rentals"); }}
+                        onClick={() => {
+                          setNotifOpen(false);
+                          navigate("/my-rentals");
+                        }}
                         type="button"
                       >
                         View all rentals →
@@ -306,7 +304,9 @@ const Navbar: React.FC<NavbarProps> = ({ user }) => {
                   <div className={styles.avatarPlaceholder}>{initials}</div>
                 )}
                 <span className={styles.profileName}>{user.name.split(" ")[0]}</span>
-                <span className={`${styles.chevron} ${menuOpen ? styles.chevronOpen : ""}`}>▼</span>
+                <span className={`${styles.chevron} ${menuOpen ? styles.chevronOpen : ""}`}>
+                  <ChevronDown size={14} strokeWidth={2.5} />
+                </span>
               </button>
 
               {menuOpen && (
@@ -316,23 +316,34 @@ const Navbar: React.FC<NavbarProps> = ({ user }) => {
                     <span className={styles.dropdownEmail}>{user.email}</span>
                     <span className={styles.dropdownRole}>{user.role}</span>
                   </div>
-                 <div className={styles.dropdownItems}>
+                  <div className={styles.dropdownItems}>
                     <button
                       className={styles.dropdownItem}
                       role="menuitem"
-                      onClick={() => { setMenuOpen(false); navigate("/tenant/profile"); }}
-                    >Profile</button>
+                      onClick={() => {
+                        setMenuOpen(false);
+                        navigate("/tenant/profile");
+                      }}
+                    >
+                      <User size={16} className={styles.dropdownItemIcon} />
+                      Profile
+                    </button>
                     <div className={styles.dropdownDivider} />
                     <button
                       className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`}
                       role="menuitem"
-                      onClick={() => { setMenuOpen(false); setShowLogoutModal(true); }}
-                    >Logout</button>
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setShowLogoutModal(true);
+                      }}
+                    >
+                      <LogOut size={16} className={styles.dropdownItemIcon} />
+                      Logout
+                    </button>
                   </div>
                 </div>
               )}
             </div>
-
           </div>
         </div>
       </nav>
@@ -341,7 +352,7 @@ const Navbar: React.FC<NavbarProps> = ({ user }) => {
       {showLogoutModal && (
         <div className={styles.modalOverlay} onClick={() => setShowLogoutModal(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-         
+            <LogOut size={40} color="#c0392b" className={styles.modalIcon} />
             <h3 className={styles.modalTitle}>Sign Out?</h3>
             <p className={styles.modalBody}>
               You'll be logged out of your account and returned to the login page.
