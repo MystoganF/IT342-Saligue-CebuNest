@@ -13,6 +13,12 @@ import com.cebunest.app.modules.tenant.notifications.NotificationDropdown
 import com.google.android.material.badge.BadgeDrawable
 import com.google.android.material.badge.BadgeUtils
 import com.google.android.material.badge.ExperimentalBadgeUtils
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import com.cebunest.app.core.api.RetrofitClient
+import com.cebunest.app.modules.tenant.notifications.NotificationApi
 
 class TenantMainActivity : AppCompatActivity() {
 
@@ -75,6 +81,7 @@ class TenantMainActivity : AppCompatActivity() {
             binding.bottomNavigation.selectedItemId = R.id.nav_home
         }
         notificationDropdown.fetchNotifications()
+        startNotificationPolling()
     }
 
     private fun loadFragment(fragment: Fragment) {
@@ -108,6 +115,33 @@ class TenantMainActivity : AppCompatActivity() {
             notificationBadge?.let { badge ->
                 badge.isVisible = false
                 BadgeUtils.detachBadgeDrawable(badge, binding.topToolbar, menuItemId)
+            }
+        }
+    }
+
+    private fun startNotificationPolling() {
+        val api = RetrofitClient.create<NotificationApi>()
+
+        // lifecycleScope ensures this loop automatically stops when the Activity is destroyed,
+        // preventing memory leaks and saving battery!
+        lifecycleScope.launch {
+            while (isActive) {
+                try {
+                    // Silently fetch notifications
+                    val response = api.getMyNotifications()
+                    if (response.isSuccessful) {
+                        val list = response.body()?.data?.notifications ?: emptyList()
+                        val unreadCount = list.count { !it.read }
+
+                        // Update the red badge dynamically
+                        updateNotificationBadge(unreadCount)
+                    }
+                } catch (e: Exception) {
+                    // Silently ignore network errors so it doesn't crash if they lose WiFi
+                }
+
+                // Wait 15 seconds before checking again
+                delay(3000)
             }
         }
     }

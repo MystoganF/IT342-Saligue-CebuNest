@@ -3,6 +3,7 @@ package com.cebunest.app.modules.tenant.profile
 import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.PUT
@@ -22,4 +23,13 @@ interface ProfileApi {
         @Path("id") userId: Int,
         @Body data: ProfileUpdatePayload
     ): Response<ProfileUpdateResponse>
+
+    @GET("api/auth/me")
+    suspend fun getCurrentUser(): Response<MeResponse>
+
+    data class MeResponse(
+        val success: Boolean,
+        val data: UserDataWrapper?,
+        val error: ErrorDetail?
+    )
 }

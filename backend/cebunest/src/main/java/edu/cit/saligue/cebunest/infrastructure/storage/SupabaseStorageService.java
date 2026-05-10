@@ -43,15 +43,39 @@ public class SupabaseStorageService {
         String uploadUrl = supabaseUrl + "/storage/v1/object/" + bucket + "/" + fileName;
 
         HttpHeaders headers = new HttpHeaders();
-        headers.set("apikey",        supabaseAnonKey);
+        // 1. You MUST use the service_role key for server-side uploads to bypass RLS policies
         headers.set("Authorization", "Bearer " + supabaseServiceKey);
-        headers.setContentType(MediaType.parseMediaType(file.getContentType()));
-        headers.set("x-upsert", "true");
 
-        HttpEntity<byte[]> entity = new HttpEntity<>(file.getBytes(), headers);
-        restTemplate.exchange(uploadUrl, HttpMethod.POST, entity, String.class);
+        // 2. Crucial: Do NOT manually set Content-Type to the image type here.
+        // Let Spring's RestTemplate handle the multipart boundary automatically!
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.set("x-upsert", "true"); // Overwrite if it exists
 
-        return supabaseUrl + "/storage/v1/object/public/" + bucket + "/" + fileName;
+        // 3. Wrap the bytes in a Spring Resource so RestTemplate knows how to stream it
+        org.springframework.core.io.ByteArrayResource resource =
+                new org.springframework.core.io.ByteArrayResource(file.getBytes()) {
+                    @Override
+                    public String getFilename() {
+                        return file.getOriginalFilename(); // Required for Supabase to recognize the file
+                    }
+                };
+
+        // 4. Build the multipart body
+        org.springframework.util.MultiValueMap<String, Object> body =
+                new org.springframework.util.LinkedMultiValueMap<>();
+        body.add("file", resource);
+
+        HttpEntity<org.springframework.util.MultiValueMap<String, Object>> requestEntity =
+                new HttpEntity<>(body, headers);
+
+        try {
+            restTemplate.exchange(uploadUrl, HttpMethod.POST, requestEntity, String.class);
+            return supabaseUrl + "/storage/v1/object/public/" + bucket + "/" + fileName;
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            // This will print the EXACT reason Supabase is rejecting it to your backend console
+            System.err.println("Supabase Error Details: " + e.getResponseBodyAsString());
+            throw new IOException("Supabase rejected the upload: " + e.getStatusCode());
+        }
     }
 
     private String getExtension(MultipartFile file) {

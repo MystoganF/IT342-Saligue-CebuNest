@@ -23,8 +23,8 @@ import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
 import java.io.File
 import java.io.FileOutputStream
-import java.text.SimpleDateFormat
-import java.util.Locale
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+
 
 class ProfileFragment : Fragment() {
 
@@ -179,5 +179,51 @@ class ProfileFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Every time this screen becomes visible, fetch the freshest data!
+        fetchLatestProfileData()
+    }
+
+    private fun fetchLatestProfileData() {
+        val api = RetrofitClient.create<ProfileApi>()
+
+        lifecycleScope.launch {
+            try {
+                val response = api.getCurrentUser()
+                if (response.isSuccessful && response.body()?.success == true) {
+
+                    val freshUser = response.body()?.data?.user
+
+                    if (freshUser != null) {
+                        // 1. Update the local session so the rest of the app knows!
+                        SessionManager.saveUser(freshUser)
+                        currentUser = freshUser // Also update the local variable!
+
+                        // 2. Load the fresh avatar using Glide
+                        if (!freshUser.avatarUrl.isNullOrEmpty()) {
+                            Glide.with(requireContext())
+                                .load(freshUser.avatarUrl)
+                                .skipMemoryCache(true)
+                                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                                .into(binding.ivAvatar) // Fixed: Changed from ivProfilePicture
+                        }
+
+                        // 3. Keep the UI in perfect sync with the web
+                        binding.tvName.text = freshUser.name ?: "No Name"
+                        binding.tvInitials.text = freshUser.name?.split(" ")?.take(2)?.mapNotNull { it.firstOrNull()?.uppercaseChar() }?.joinToString("") ?: "UN"
+                        binding.etName.setText(freshUser.name ?: "")
+                        binding.etPhone.setText(freshUser.phoneNumber ?: "")
+                        binding.etFb.setText(freshUser.facebookUrl ?: "")
+                        binding.etIg.setText(freshUser.instagramUrl ?: "")
+                        binding.etTw.setText(freshUser.twitterUrl ?: "")
+                    }
+                }
+            } catch (e: Exception) {
+                // Silently ignore network errors
+            }
+        }
     }
 }

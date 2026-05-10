@@ -70,7 +70,7 @@ class HomeFragment : Fragment() {
             val intent = Intent(requireContext(), PropertyDetailActivity::class.java)
             intent.putExtra("PROPERTY_ID", propertyId)
             startActivity(intent)
-            Toast.makeText(requireContext(), "Clicked property $propertyId", Toast.LENGTH_SHORT).show()
+
         }
         binding.rvProperties.adapter = propertyAdapter
     }
