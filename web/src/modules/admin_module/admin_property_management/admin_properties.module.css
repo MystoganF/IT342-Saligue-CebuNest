@@ -152,7 +152,7 @@
   transition: transform 0.2s, box-shadow 0.2s;
   display: flex;
   flex-direction: column;
-  animation: fadeUp 0.5s ease both;
+
   cursor: pointer;
 }
 .card:hover {
@@ -483,3 +483,60 @@
   .filterBar { flex-direction: column; align-items: stretch; }
   .filterPrice { width: 100%; }
 }
+
+.imgShimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    #dde9eb 25%,
+    #cce0e3 50%,
+    #dde9eb 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.3s ease-in-out infinite;
+  z-index: 1;
+}
+ 
+/* Image starts blurred/invisible while loading */
+.cardImagePending {
+  opacity: 0;
+  filter: blur(6px);
+  transform: scale(1.02);
+  transition: none;
+  position: relative;
+  z-index: 2;
+}
+ 
+/* Smooth reveal once onLoad fires */
+.cardImageLoaded {
+  opacity: 1;
+  filter: blur(0);
+  transform: scale(1);
+  transition:
+    opacity 0.35s ease,
+    filter 0.35s ease,
+    transform 0.35s ease;
+  position: relative;
+  z-index: 2;
+}
+ 
+/* Keep hover zoom working on the loaded image */
+.card:hover .cardImageLoaded {
+  transform: scale(1.04);
+}
+ 
+/* Initial hidden state — cards start invisible and shifted down */
+.cardHidden {
+  opacity: 0;
+  transform: translateY(18px);
+}
+ 
+/* Revealed state — IntersectionObserver adds this once card is in view */
+.cardVisible {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
+}
+ 
