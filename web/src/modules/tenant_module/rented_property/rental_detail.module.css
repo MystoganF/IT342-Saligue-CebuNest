@@ -31,47 +31,12 @@
   color: var(--teal-aero);
   padding: 0;
   transition: color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .backBtn:hover {
   color: var(--teal-deep);
-}
-
-/* ── Banner ── */
-.bannerWrap {
-  max-width: 1200px;
-  margin: 14px auto 0;
-  padding: 0 40px;
-}
-.banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 600;
-}
-.bannerSuccess {
-  background: rgba(26, 122, 74, 0.08);
-  border: 1.5px solid rgba(26, 122, 74, 0.25);
-  color: #1a7a4a;
-}
-.bannerError {
-  background: rgba(192, 57, 43, 0.07);
-  border: 1.5px solid rgba(192, 57, 43, 0.2);
-  color: #c0392b;
-}
-.bannerClose {
-  margin-left: auto;
-  background: none;
-  border: none;
-  font-size: 14px;
-  cursor: pointer;
-  color: inherit;
-  opacity: 0.6;
-}
-.bannerClose:hover {
-  opacity: 1;
 }
 
 /* ── Main layout ── */
@@ -126,14 +91,14 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
   color: var(--teal-soft);
   font-size: 14px;
   font-weight: 600;
 }
-.galleryPlaceholder span:first-child {
-  font-size: 48px;
+.galleryPlaceholderIcon {
   opacity: 0.5;
+  display: flex;
 }
 .galleryNav {
   position: absolute;
@@ -145,6 +110,7 @@
   border: none;
   border-radius: 50%;
   font-size: 16px;
+  color: #1a2a2e;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -229,6 +195,13 @@
 .infoLocation {
   font-size: 14px;
   color: var(--slate);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.infoLocationIcon {
+  color: var(--slate);
+  display: flex;
 }
 .typeBadge {
   padding: 4px 12px;
@@ -258,8 +231,9 @@
 .infoStat:last-child {
   border-right: none;
 }
-.infoStat span {
-  font-size: 20px;
+.infoStatIcon {
+  display: flex;
+  color: var(--teal-aero);
 }
 .infoStat strong {
   font-size: 16px;
@@ -289,7 +263,7 @@
   font-size: 15px;
   color: var(--slate);
   line-height: 1.75;
-   white-space: pre-wrap;
+  white-space: pre-wrap;
 }
 .ownerRow {
   display: flex;
@@ -313,34 +287,6 @@
   justify-content: center;
   flex-shrink: 0;
 }
-.ownerLabel {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--teal-aero);
-  text-transform: uppercase;
-}
-.ownerName {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--teal-deep);
-}
-.contactBtn {
-  margin-left: auto;
-  padding: 8px 14px;
-  background: #fff;
-  color: var(--teal-deep);
-  border: 1.5px solid #e5eced;
-  border-radius: 8px;
-  font-family: "DM Sans", sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  text-decoration: none;
-  transition: background 0.15s;
-  flex-shrink: 0;
-}
-.contactBtn:hover {
-  background: #f0f4f5;
-}
 
 /* ── Map ── */
 .mapCard {
@@ -355,6 +301,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.mapHeaderIcon {
+  display: flex;
+  color: var(--teal-aero);
 }
 .mapTitle {
   font-size: 14px;
@@ -475,190 +425,14 @@
   background: rgba(31, 93, 113, 0.06);
   color: var(--teal-deep);
   border: 1.5px solid rgba(31, 93, 113, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .nextDueOverdue {
   background: rgba(192, 57, 43, 0.06);
   color: #c0392b;
   border-color: rgba(192, 57, 43, 0.2);
-}
-
-/* ── Payments card ── */
-.paymentsCard {
-  background: #fff;
-  border-radius: 20px;
-  padding: 22px 24px;
-  box-shadow: 0 2px 8px rgba(31, 93, 113, 0.06);
-}
-.paymentsTitle {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--teal-deep);
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  margin-bottom: 14px;
-}
-.paymentsList {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.paymentRow {
-  padding: 12px 14px;
-  background: #f8fafb;
-  border: 1.5px solid #e5eced;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.paymentRowOverdue {
-  border-color: rgba(192, 57, 43, 0.3);
-  background: rgba(192, 57, 43, 0.03);
-}
-.paymentInfo {
-  flex: 1;
-}
-.paymentLabel {
-  font-size: 13px;
-  font-weight: 700;
-  color: #1a2a2e;
-}
-.paymentDates {
-  font-size: 11px;
-  color: var(--slate);
-  margin-top: 2px;
-}
-.paymentPaidDate {
-  color: #1a7a4a;
-}
-.paymentAmount {
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--teal-deep);
-}
-.paymentActions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.paymentStatus {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 20px;
-  border: 1.5px solid;
-}
-.payBtn {
-  padding: 7px 16px;
-  background: var(--teal-deep);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-family: "DM Sans", sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: background 0.15s;
-}
-.payBtn:hover:not(:disabled) {
-  background: #174d5e;
-}
-.payBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.verifyBtn {
-  padding: 7px 14px;
-  background: #fff;
-  color: var(--teal-aero);
-  border: 1.5px solid var(--teal-aero);
-  border-radius: 8px;
-  font-family: "DM Sans", sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.verifyBtn:hover:not(:disabled) {
-  background: rgba(83, 164, 163, 0.08);
-}
-.verifyBtn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-.btnSpinner {
-  width: 12px;
-  height: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  display: inline-block;
-}
-
-/* ── History card ── */
-.historyCard {
-  background: #fff;
-  border-radius: 20px;
-  padding: 22px 24px;
-  box-shadow: 0 2px 8px rgba(31, 93, 113, 0.06);
-}
-.historyTitle {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--teal-deep);
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  margin-bottom: 14px;
-}
-.historyList {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.historyRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: rgba(26, 122, 74, 0.05);
-  border: 1.5px solid rgba(26, 122, 74, 0.15);
-}
-.historyIcon {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: #1a7a4a;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-.historyInfo {
-  flex: 1;
-}
-.historyLabel {
-  font-size: 13px;
-  font-weight: 700;
-  color: #1a2a2e;
-}
-.historyDate {
-  font-size: 11px;
-  color: var(--slate);
-}
-.historyAmount {
-  font-size: 14px;
-  font-weight: 800;
-  color: #1a7a4a;
-  white-space: nowrap;
 }
 
 /* ── Loading / Error ── */
@@ -683,26 +457,29 @@
 .errorWrap {
   text-align: center;
   padding: 80px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
-.errorWrap span {
-  font-size: 48px;
-  display: block;
-  margin-bottom: 12px;
+.errorIcon {
+  display: flex;
   opacity: 0.5;
+  color: var(--teal-soft);
+  margin-bottom: 8px;
 }
 .errorWrap h2 {
   font-family: "Playfair Display", serif;
   font-size: 22px;
   font-weight: 700;
   color: var(--teal-deep);
-  margin-bottom: 8px;
 }
 .errorWrap p {
   font-size: 14px;
   color: var(--slate);
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
-.errorWrap button {
+.btnIconWrapper {
   padding: 10px 22px;
   background: var(--teal-deep);
   color: #fff;
@@ -712,12 +489,15 @@
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .overduePill {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   font-size: 10px;
   font-weight: 700;
   padding: 2px 7px;
@@ -733,6 +513,7 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
 }
+
 /* ═══════════════════════════════════════
    REVIEW CARD
 ═══════════════════════════════════════ */
@@ -800,7 +581,7 @@
   color: #475569;
   line-height: 1.65;
   margin: 0;
-  padding-left: 52px; /* aligns under the name, past the avatar */
+  padding-left: 52px;
 }
 
 .reviewCard {
@@ -863,14 +644,13 @@
 .starBtn {
   background: none;
   border: none;
-  font-size: 28px;
   cursor: pointer;
   color: #ddd;
   padding: 0 2px;
-  line-height: 1;
-  transition:
-    color 0.12s,
-    transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s;
 }
 
 .starBtn:hover,
@@ -1018,8 +798,8 @@
 /* Star display (read-only) */
 .starDisplay {
   display: inline-flex;
-  gap: 1px;
-  font-size: 18px;
+  align-items: center;
+  gap: 2px;
   line-height: 1;
 }
 .starFilled {
@@ -1059,7 +839,6 @@
 
 /* ═══════════════════════════════════════════════════════════════════════
    RENTAL DETAIL — PAYMENT SCHEDULE ADDITIONS
-   Append these rules to rental_detail.module.css
 ════════════════════════════════════════════════════════════════════════ */
 
 /* ── Auto-verify banner ──────────────────────────────────────────────── */
@@ -1095,10 +874,9 @@
 }
 
 .verifyBannerIcon {
-  font-size: 15px;
-  flex-shrink: 0;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .verifyBannerText {
@@ -1109,7 +887,6 @@
 .verifyBannerDismiss {
   background: none;
   border: none;
-  font-size: 13px;
   cursor: pointer;
   opacity: 0.5;
   padding: 2px 4px;
@@ -1117,6 +894,9 @@
   color: inherit;
   flex-shrink: 0;
   transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .verifyBannerDismiss:hover {
   opacity: 1;
@@ -1124,8 +904,8 @@
 
 .verifySpinner {
   display: inline-block;
-  width: 13px;
-  height: 13px;
+  width: 14px;
+  height: 14px;
   border: 2px solid rgba(31, 93, 113, 0.2);
   border-top-color: #53a4a3;
   border-radius: 50%;
@@ -1168,10 +948,9 @@
 }
 
 .yearAccordionChevron {
-  font-size: 9px;
+  display: flex;
   color: #53a4a3;
   transition: transform 0.22s ease;
-  display: inline-block;
 }
 
 .yearAccordionLabel {
@@ -1211,9 +990,7 @@
   animation: slideDown 0.18s ease;
 }
 
-/* ── Payment rows (replace old flat paymentRow styles) ───────────────── */
-
-/* Override the old .paymentRow to support the new design */
+/* ── Payment rows ────────────────────────────────────────────────────── */
 .paymentRow {
   display: flex;
   align-items: center;
@@ -1227,7 +1004,6 @@
   border-bottom: none;
 }
 
-/* Status variants */
 .paymentRowPaid {
   background: rgba(26, 122, 74, 0.03);
 }
@@ -1238,7 +1014,6 @@
   opacity: 0.5;
 }
 
-/* Left side */
 .paymentRowLeft {
   display: flex;
   align-items: center;
@@ -1267,7 +1042,6 @@
 .paymentMonthBadgePaid {
   background: rgba(26, 122, 74, 0.12);
   color: #1a7a4a;
-  font-size: 15px;
 }
 
 .paymentMonthBadgeNext {
@@ -1283,7 +1057,6 @@
   min-width: 0;
 }
 
-/* Right side */
 .paymentRowRight {
   display: flex;
   align-items: center;
@@ -1366,14 +1139,25 @@
   box-shadow: 0 3px 10px rgba(192, 57, 43, 0.22);
 }
 
-.payBtnSpinner {
-  display: inline-block;
-  width: 11px;
-  height: 11px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+.requestsEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 0;
+  color: var(--slate);
+  font-size: 14px;
+}
+.requestsEmptyIcon {
+  display: flex;
+  color: var(--teal-soft);
+  opacity: 0.5;
+}
+.requestsLoading {
+  padding: 40px 0;
+  text-align: center;
+  color: var(--slate);
+  font-size: 14px;
 }
 
 /* ── Animations ──────────────────────────────────────────────────────── */
@@ -1452,7 +1236,6 @@
 .modalClose {
   background: none;
   border: none;
-  font-size: 20px;
   cursor: pointer;
   color: #94a3b8;
   display: flex;
@@ -1505,12 +1288,8 @@
 }
 
 @keyframes fadeInModal {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slideUpModal {
