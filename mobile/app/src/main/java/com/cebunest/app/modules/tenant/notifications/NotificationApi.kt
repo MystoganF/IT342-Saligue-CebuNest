@@ -2,8 +2,9 @@ package com.cebunest.app.modules.tenant.notifications
 
 import retrofit2.Response
 import retrofit2.http.GET
-import retrofit2.http.PUT
+import retrofit2.http.PATCH // <-- Change import from PUT to PATCH
 import retrofit2.http.Path
+
 
 interface NotificationApi {
 
@@ -11,9 +12,11 @@ interface NotificationApi {
     @GET("api/notifications")
     suspend fun getMyNotifications(): Response<NotificationResponse>
 
-    @PUT("api/notifications/{id}/read")
+    // Change @PUT to @PATCH
+    @PATCH("api/notifications/{id}/read")
     suspend fun markAsRead(@Path("id") id: Int): Response<GenericResponse>
 
-    @PUT("api/notifications/read-all")
+    // Change @PUT to @PATCH
+    @PATCH("api/notifications/read-all")
     suspend fun markAllAsRead(): Response<GenericResponse>
 }
