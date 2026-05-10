@@ -1,6 +1,5 @@
 package com.cebunest.app.modules.tenant.my_rentals
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -12,7 +11,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.cebunest.app.R
 import com.cebunest.app.core.api.RetrofitClient
 import com.cebunest.app.databinding.FragmentRentalsBinding
-import com.cebunest.app.modules.tenant.my_rentals.RentalDetailActivity
 import kotlinx.coroutines.launch
 
 class RentalsFragment : Fragment() {
@@ -43,9 +41,21 @@ class RentalsFragment : Fragment() {
     private fun setupRecyclerView() {
         adapter = RentalsAdapter(emptyList(),
             onItemClick = { requestId ->
-                val intent = Intent(requireContext(), RentalDetailActivity::class.java)
-                intent.putExtra("REQUEST_ID", requestId)
-                startActivity(intent)
+
+                // 1. Create the new fragment and pass the ID
+                val detailFragment = RentalDetailFragment().apply {
+                    arguments = Bundle().apply {
+                        putInt("REQUEST_ID", requestId)
+                    }
+                }
+
+                // 2. THIS IS THE MAGIC CONNECTION!
+                // It tells TenantMainActivity to swap the view inside the container,
+                // keeping your top bar and bottom navigation perfectly visible!
+                requireActivity().supportFragmentManager.beginTransaction()
+                    .replace(R.id.fragmentContainer, detailFragment)
+                    .addToBackStack(null) // Allows the user's phone back-button to work
+                    .commit()
             },
             onConfirmClick = { requestId ->
                 confirmRental(requestId)

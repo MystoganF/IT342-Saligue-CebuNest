@@ -10,7 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.cebunest.app.core.api.RetrofitClient
 import com.cebunest.app.databinding.LayoutNotificationDropdownBinding
-import com.cebunest.app.modules.tenant.my_rentals.RentalDetailActivity
+import com.cebunest.app.modules.tenant.my_rentals.RentalDetailFragment
 import kotlinx.coroutines.launch
 
 class NotificationDropdown(private val activity: AppCompatActivity, private val onUnreadCountChanged: (Int) -> Unit) {
@@ -57,7 +57,7 @@ class NotificationDropdown(private val activity: AppCompatActivity, private val 
 
             // 3. Navigate if there is a rental ID attached to this notification
             if (notification.type != "ADMIN_BROADCAST" && notification.rentalRequestId != null) {
-                val intent = Intent(activity, RentalDetailActivity::class.java).apply {
+                val intent = Intent(activity, RentalDetailFragment::class.java).apply {
                     // We use "REQUEST_ID" here because that is what your RentalDetailActivity is looking for
                     putExtra("REQUEST_ID", notification.rentalRequestId)
                 }

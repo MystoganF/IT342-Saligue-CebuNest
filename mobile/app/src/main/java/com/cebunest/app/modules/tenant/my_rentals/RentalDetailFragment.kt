@@ -7,22 +7,22 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.WebChromeClient
 import android.webkit.WebViewClient
 import android.widget.Button
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.cebunest.app.R
 import com.cebunest.app.core.api.RetrofitClient
 import com.cebunest.app.core.session.SessionManager
-import com.cebunest.app.databinding.ActivityRentalDetailBinding
+import com.cebunest.app.databinding.ActivityRentalDetailBinding // Keeping this as your XML name for now
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -35,25 +35,44 @@ import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-class RentalDetailActivity : AppCompatActivity() {
+// 1. EXTENDS FRAGMENT
+class RentalDetailFragment : Fragment() {
 
-    private lateinit var binding: ActivityRentalDetailBinding
+    // 2. FRAGMENT VIEW BINDING SETUP
+    private var _binding: ActivityRentalDetailBinding? = null
+    private val binding get() = _binding!!
+
     private val api = RetrofitClient.create<RentalsApi>()
     private var requestId: Int = -1
     private var propertyId: Int = -1
     private var currentRating = 0
     private var loggedInUserId = -1
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        binding = ActivityRentalDetailBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+    // For auto-verifying payments when returning from the browser
+    private var pendingVerificationPaymentId: Int? = null
+
+    // 3. ON CREATE VIEW
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = ActivityRentalDetailBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+
+    // 4. ON VIEW CREATED
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
         loggedInUserId = SessionManager.getUser()?.id ?: -1
-        requestId = intent.getIntExtra("REQUEST_ID", -1)
-        if (requestId == -1) { finish(); return }
 
-        binding.toolbar.setNavigationOnClickListener { finish() }
+        // Use arguments instead of intent
+        requestId = arguments?.getInt("REQUEST_ID", -1) ?: -1
+
+        if (requestId == -1) {
+            parentFragmentManager.popBackStack()
+            return
+        }
 
         setupReviewPicker()
         setupAccordions()
@@ -71,7 +90,28 @@ class RentalDetailActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (requestId != -1) fetchData()
+        if (requestId != -1) {
+            val paymentToVerify = pendingVerificationPaymentId
+            if (paymentToVerify != null) {
+                pendingVerificationPaymentId = null
+                binding.pbPaymentProgress.visibility = View.VISIBLE
+                viewLifecycleOwner.lifecycleScope.launch {
+                    try {
+                        api.verifyPayment(paymentToVerify)
+                    } catch (e: Exception) {
+                    } finally {
+                        fetchData()
+                    }
+                }
+            } else {
+                fetchData()
+            }
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 
     private fun setupAccordions() {
@@ -89,7 +129,7 @@ class RentalDetailActivity : AppCompatActivity() {
     }
 
     private fun fetchData() {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val reqRes = api.getMyRentalRequests()
                 val request = reqRes.body()?.data?.requests?.find { it.id == requestId } ?: return@launch
@@ -102,7 +142,7 @@ class RentalDetailActivity : AppCompatActivity() {
                 if (propRes.isSuccessful) {
                     val images = propRes.body()?.data?.property?.images
                     if (!images.isNullOrEmpty()) {
-                        Glide.with(this@RentalDetailActivity).load(images[0].imageUrl).into(binding.ivPropertyImage)
+                        Glide.with(requireContext()).load(images[0].imageUrl).into(binding.ivPropertyImage)
                         binding.tvNoImage.visibility = View.GONE
                     } else {
                         binding.tvNoImage.visibility = View.VISIBLE
@@ -124,10 +164,7 @@ class RentalDetailActivity : AppCompatActivity() {
                     if (extsRes.isSuccessful) populateExtensions(extsRes.body()?.data?.extensionRequests ?: emptyList())
                     if (revsRes.isSuccessful) populateReviews(revsRes.body()?.data?.reviews ?: emptyList())
                 }
-
-            } catch (e: Exception) {
-
-            }
+            } catch (e: Exception) {}
         }
     }
 
@@ -158,7 +195,6 @@ class RentalDetailActivity : AppCompatActivity() {
         val format = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
         val yearFormat = SimpleDateFormat("yyyy", Locale.getDefault())
 
-        // --- WEB PARITY: Sequential Locking Logic ---
         val unpaid = payments.filter { it.status == "PENDING" || it.status == "OVERDUE" || it.status == "FAILED" }
             .sortedBy { it.installmentNumber }
         val nextPayablePaymentId = unpaid.firstOrNull()?.id
@@ -172,18 +208,17 @@ class RentalDetailActivity : AppCompatActivity() {
             } else "Unknown"
         }.toSortedMap()
 
-        // Build Accordion Schedule
         if (scheduleByYear.isEmpty()) {
-            binding.containerPaymentSchedule.addView(TextView(this).apply { text = "All payments complete."; setPadding(16,16,16,16); setTextColor(Color.GRAY) })
+            binding.containerPaymentSchedule.addView(TextView(requireContext()).apply { text = "All payments complete."; setPadding(16,16,16,16); setTextColor(Color.GRAY) })
         } else {
             scheduleByYear.forEach { (year, yearPayments) ->
-                val yearHeader = TextView(this).apply {
+                val yearHeader = TextView(requireContext()).apply {
                     text = "▼ Year $year"
                     setTypeface(null, Typeface.BOLD)
                     setTextColor(Color.parseColor("#1F5D71"))
                     setPadding(16, 24, 16, 16)
                 }
-                val yearBody = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+                val yearBody = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
 
                 yearPayments.forEach { p ->
                     val isNext = p.id == nextPayablePaymentId
@@ -203,9 +238,8 @@ class RentalDetailActivity : AppCompatActivity() {
             }
         }
 
-        // Build History List
         if (historyPayments.isEmpty()) {
-            binding.containerPaymentHistory.addView(TextView(this).apply { text = "No past payments."; setTextColor(Color.GRAY) })
+            binding.containerPaymentHistory.addView(TextView(requireContext()).apply { text = "No past payments."; setTextColor(Color.GRAY) })
         } else {
             historyPayments.forEach { p ->
                 paidCount++
@@ -223,32 +257,31 @@ class RentalDetailActivity : AppCompatActivity() {
     }
 
     private fun buildPaymentRow(p: Payment, isHistory: Boolean, req: RentalRequest, isNext: Boolean, isLocked: Boolean): View {
-        val row = LinearLayout(this).apply {
+        val row = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.HORIZONTAL
             setPadding(16, 24, 16, 24)
             gravity = Gravity.CENTER_VERTICAL
 
-            // Web parity coloring
             if (!isHistory) {
-                if (isNext) setBackgroundColor(Color.parseColor("#0A53A4A3")) // Light Aero
-                else if (p.status == "OVERDUE" || p.status == "FAILED") setBackgroundColor(Color.parseColor("#08C0392B")) // Light Red
+                if (isNext) setBackgroundColor(Color.parseColor("#0A53A4A3"))
+                else if (p.status == "OVERDUE" || p.status == "FAILED") setBackgroundColor(Color.parseColor("#08C0392B"))
                 if (isLocked) alpha = 0.6f
             }
         }
 
-        val infoLayout = LinearLayout(this).apply {
+        val infoLayout = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
 
-        val info = TextView(this).apply {
+        val info = TextView(requireContext()).apply {
             text = "Month ${p.installmentNumber}"
             setTypeface(null, Typeface.BOLD)
             setTextColor(Color.parseColor("#1A2A2E"))
             textSize = 14f
         }
 
-        val dateInfo = TextView(this).apply {
+        val dateInfo = TextView(requireContext()).apply {
             text = if (isHistory) "Paid: ${formatDate(p.paidAt)}" else "Due: ${formatDate(p.dueDate)}"
             setTextColor(Color.parseColor("#6E7071"))
             textSize = 12f
@@ -257,9 +290,8 @@ class RentalDetailActivity : AppCompatActivity() {
         infoLayout.addView(info)
         infoLayout.addView(dateInfo)
 
-        // Reset Link for expired PayMongo checkouts
         if (!isHistory && !isLocked && p.status == "PENDING" && p.checkoutUrl != null) {
-            val resetLink = TextView(this).apply {
+            val resetLink = TextView(requireContext()).apply {
                 text = "Link expired? Click to reset"
                 textSize = 11f
                 setTextColor(Color.parseColor("#B78E42"))
@@ -270,11 +302,11 @@ class RentalDetailActivity : AppCompatActivity() {
             infoLayout.addView(resetLink)
         }
 
-        val actionLayout = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        val actionLayout = LinearLayout(requireContext()).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
 
         if (isHistory) {
-            val amountTv = TextView(this).apply { text = NumberFormat.getCurrencyInstance(Locale("en", "PH")).format(p.amount); setTypeface(null, Typeface.BOLD); setPadding(0,0,16,0); setTextColor(Color.parseColor("#1F5D71")) }
-            val btnReceipt = Button(this, null, android.R.attr.buttonStyleSmall).apply {
+            val amountTv = TextView(requireContext()).apply { text = NumberFormat.getCurrencyInstance(Locale("en", "PH")).format(p.amount); setTypeface(null, Typeface.BOLD); setPadding(0,0,16,0); setTextColor(Color.parseColor("#1F5D71")) }
+            val btnReceipt = Button(requireContext(), null, android.R.attr.buttonStyleSmall).apply {
                 text = "Receipt"
                 setTextColor(Color.parseColor("#1F5D71"))
                 setBackgroundColor(Color.TRANSPARENT)
@@ -284,18 +316,18 @@ class RentalDetailActivity : AppCompatActivity() {
             actionLayout.addView(btnReceipt)
         } else {
             if (isLocked) {
-                actionLayout.addView(TextView(this).apply {
-                    text = "🔒 Locked"
+                actionLayout.addView(TextView(requireContext()).apply {
+                    text = "Locked"
                     setTextColor(Color.parseColor("#94A3B8"))
                     textSize = 12f
                     setTypeface(null, Typeface.BOLD)
                     setPadding(16, 8, 16, 8)
-                    setBackgroundColor(Color.parseColor("#176E7071")) // Light Gray
+                    setBackgroundColor(Color.parseColor("#176E7071"))
                 })
             } else {
                 val hasError = p.status == "OVERDUE" || p.status == "FAILED"
                 if (hasError) {
-                    val warningTv = TextView(this).apply {
+                    val warningTv = TextView(requireContext()).apply {
                         text = if (p.status == "FAILED") "Failed" else "⚠ Overdue"
                         setTextColor(Color.parseColor("#C0392B"))
                         textSize = 11f
@@ -305,7 +337,7 @@ class RentalDetailActivity : AppCompatActivity() {
                     actionLayout.addView(warningTv)
                 }
 
-                val btnPay = Button(this, null, android.R.attr.buttonStyleSmall).apply {
+                val btnPay = Button(requireContext(), null, android.R.attr.buttonStyleSmall).apply {
                     text = "Pay Now"
                     setBackgroundColor(if (hasError) Color.parseColor("#C0392B") else Color.parseColor("#1F5D71"))
                     setTextColor(Color.WHITE)
@@ -318,9 +350,9 @@ class RentalDetailActivity : AppCompatActivity() {
         row.addView(infoLayout)
         row.addView(actionLayout)
 
-        val divider = View(this).apply { layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 2); setBackgroundColor(Color.parseColor("#F0F4F5")) }
+        val divider = View(requireContext()).apply { layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 2); setBackgroundColor(Color.parseColor("#F0F4F5")) }
 
-        val wrapper = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val wrapper = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL }
         wrapper.addView(row)
         wrapper.addView(divider)
         return wrapper
@@ -336,7 +368,7 @@ class RentalDetailActivity : AppCompatActivity() {
             Status: ✓ COMPLETED
         """.trimIndent()
 
-        AlertDialog.Builder(this)
+        AlertDialog.Builder(requireContext())
             .setTitle("Transaction Receipt")
             .setMessage(message)
             .setPositiveButton("Close", null)
@@ -344,21 +376,22 @@ class RentalDetailActivity : AppCompatActivity() {
     }
 
     private fun initiatePayment(paymentId: Int, isReset: Boolean) {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 if (isReset) {
-                    Toast.makeText(this@RentalDetailActivity, "Resetting payment link...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "Resetting payment link...", Toast.LENGTH_SHORT).show()
                     api.cancelPayment(paymentId)
                 }
                 val res = api.initiatePayment(paymentId)
                 val url = res.body()?.data?.payment?.checkoutUrl
                 if (res.isSuccessful && url != null) {
+                    pendingVerificationPaymentId = paymentId
                     startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                 } else {
-                    Toast.makeText(this@RentalDetailActivity, "Failed to load payment link.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "Failed to load payment link.", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(this@RentalDetailActivity, "Network error. Please try again.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "Network error. Please try again.", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -369,14 +402,12 @@ class RentalDetailActivity : AppCompatActivity() {
         exts.forEach { ext ->
             if (ext.status == "PENDING") hasPending = true
 
-            // Create a wrapper LinearLayout for the extension item
-            val extView = LinearLayout(this).apply {
+            val extView = LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(0, 16, 0, 16)
             }
 
-            // The main text (Months and Status)
-            val headerTxt = TextView(this).apply {
+            val headerTxt = TextView(requireContext()).apply {
                 text = "+${ext.requestedMonths} months [${ext.status}]"
                 textSize = 14f
                 setTypeface(null, Typeface.BOLD)
@@ -390,9 +421,8 @@ class RentalDetailActivity : AppCompatActivity() {
             }
             extView.addView(headerTxt)
 
-            // Add the reason if it exists (Web Parity)
             if (!ext.reason.isNullOrEmpty()) {
-                val reasonTxt = TextView(this).apply {
+                val reasonTxt = TextView(requireContext()).apply {
                     text = "\"${ext.reason}\""
                     textSize = 12f
                     setTextColor(Color.parseColor("#6E7071"))
@@ -413,21 +443,20 @@ class RentalDetailActivity : AppCompatActivity() {
     private fun submitExtension() {
         val months = binding.etExtMonths.text.toString().toIntOrNull() ?: 1
 
-        // WEB PARITY: Validation for months
         if (months < 1) {
-            Toast.makeText(this, "Extension must be at least 1 month.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), "Extension must be at least 1 month.", Toast.LENGTH_SHORT).show()
             return
         }
 
         val reason = binding.etExtReason.text.toString().trim()
 
         binding.btnSubmitExtension.isEnabled = false
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val payload = ExtensionPayload(requestId, months, reason.ifEmpty { null })
                 val res = api.submitLeaseExtension(payload)
                 if (res.isSuccessful) {
-                    Toast.makeText(this@RentalDetailActivity, "Extension Requested!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "Extension Requested!", Toast.LENGTH_SHORT).show()
                     binding.layoutExtensionForm.visibility = View.GONE
                     val extsRes = api.getLeaseExtensions(requestId)
                     populateExtensions(extsRes.body()?.data?.extensionRequests ?: emptyList())
@@ -446,11 +475,11 @@ class RentalDetailActivity : AppCompatActivity() {
             binding.tvReviewsSummary.text = "⭐ %.1f Average Rating (${reviews.size} reviews)".format(avg)
 
             reviews.take(3).forEach { rev ->
-                val v = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, 16, 0, 16) }
-                val header = TextView(this).apply { text = "${rev.tenantName}  •  ${"★".repeat(rev.rating)}"; setTypeface(null, Typeface.BOLD); setTextColor(Color.parseColor("#1F5D71")) }
+                val v = LinearLayout(requireContext()).apply { orientation = LinearLayout.VERTICAL; setPadding(0, 16, 0, 16) }
+                val header = TextView(requireContext()).apply { text = "${rev.tenantName}  •  ${"★".repeat(rev.rating)}"; setTypeface(null, Typeface.BOLD); setTextColor(Color.parseColor("#1F5D71")) }
                 v.addView(header)
                 if (!rev.comment.isNullOrEmpty()) {
-                    v.addView(TextView(this).apply { text = rev.comment; setTextColor(Color.DKGRAY); setPadding(0, 8, 0, 0) })
+                    v.addView(TextView(requireContext()).apply { text = rev.comment; setTextColor(Color.DKGRAY); setPadding(0, 8, 0, 0) })
                 }
                 binding.containerPublicReviews.addView(v)
             }
@@ -478,15 +507,15 @@ class RentalDetailActivity : AppCompatActivity() {
     }
 
     private fun submitReview() {
-        if (currentRating == 0) { Toast.makeText(this, "Select a rating", Toast.LENGTH_SHORT).show(); return }
+        if (currentRating == 0) { Toast.makeText(requireContext(), "Select a rating", Toast.LENGTH_SHORT).show(); return }
         val comment = binding.etReviewComment.text.toString().trim()
         binding.btnSubmitReview.isEnabled = false
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val res = api.submitPropertyReview(ReviewPayload(requestId, currentRating, comment.ifEmpty { null }))
                 if (res.isSuccessful) {
-                    Toast.makeText(this@RentalDetailActivity, "Review Submitted!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "Review Submitted!", Toast.LENGTH_SHORT).show()
                     val revsRes = api.getPropertyReviews(propertyId)
                     populateReviews(revsRes.body()?.data?.reviews ?: emptyList())
                 }
@@ -495,9 +524,8 @@ class RentalDetailActivity : AppCompatActivity() {
         }
     }
 
-    // --- WEB PARITY: Robust Map Loader with Leaflet ---
     private fun fetchMap(location: String) {
-        lifecycleScope.launch(Dispatchers.IO) {
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val enc = URLEncoder.encode(location, "UTF-8")
                 val url = URL("https://nominatim.openstreetmap.org/search?q=$enc&format=json&limit=1")
@@ -515,15 +543,14 @@ class RentalDetailActivity : AppCompatActivity() {
                         val lat = arr.getJSONObject(0).getDouble("lat")
                         val lon = arr.getJSONObject(0).getDouble("lon")
 
-                        // We construct a simple HTML page using Leaflet.js
                         val htmlContent = """
                             <!DOCTYPE html>
                             <html>
                             <head>
                                 <title>Map</title>
                                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-                                <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-                                <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+                                <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+                                <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
                                 <style>
                                     body { padding: 0; margin: 0; }
                                     html, body, #map { height: 100%; width: 100vw; }
@@ -550,8 +577,6 @@ class RentalDetailActivity : AppCompatActivity() {
                                 settings.domStorageEnabled = true
                                 webChromeClient = WebChromeClient()
                                 webViewClient = WebViewClient()
-
-                                // Load the HTML string directly
                                 loadDataWithBaseURL("https://www.openstreetmap.org/", htmlContent, "text/html", "UTF-8", null)
                             }
                             binding.tvMapLoading.visibility = View.GONE

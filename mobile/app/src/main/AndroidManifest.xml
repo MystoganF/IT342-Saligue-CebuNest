@@ -30,15 +30,12 @@
             android:name=".modules.tenant.TenantMainActivity"
             android:exported="false"/>
 
-        <activity android:name=".modules.tenant.renting_property.PropertyDetailActivity" />
-        <activity
-            android:name=".modules.tenant.my_rentals.RentalDetailActivity"
-            android:exported="false" />
 
         <activity
-            android:name=".modules.tenant.notifications.NotificationsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.CebuNest" />
+            android:name=".modules.tenant.my_rentals.RentalDetailFragment"
+            android:exported="false" />
+
+
 
     </application>
 </manifest>
