@@ -534,7 +534,7 @@ const RentalDetail: React.FC = () => {
   return (
     <div className={styles.page}>
 
-     
+      
 
       <div className={styles.main}>
         {/* ══ LEFT ══ */}
@@ -678,7 +678,7 @@ const RentalDetail: React.FC = () => {
 
           {/* Public Reviews Summary & List */}
           <div className={styles.card} style={{ padding: '28px 32px' }}>
-            <div className={styles.cardTitle} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: '20px' }}>
+            <div className={styles.cardTitle} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: '0 0 20px 0' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#1f5d71', letterSpacing: '1px', textTransform: 'uppercase' }}>
                 <Star size={16} fill="currentColor" /> Tenant Reviews
               </div>
@@ -827,7 +827,7 @@ const RentalDetail: React.FC = () => {
 
           {/* ── Action Dropdowns Container ── */}
           {isConfirmed && payments.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginTop: "16px" }} ref={paymentSectionRef}>
+            <div className={styles.actionDropdownsContainer} ref={paymentSectionRef}>
 
               {/* Verify / Overdue Banner */}
               {verifyBanner && (
@@ -847,11 +847,11 @@ const RentalDetail: React.FC = () => {
               )}
 
               {/* 1. Payment Schedule */}
-              <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", background: "#fff" }}>
-                <div style={{ padding: "16px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", fontWeight: "700", color: "#1f5d71" }}>
+              <div className={styles.actionCard}>
+                <div className={styles.actionHeaderStatic}>
                   Payment Schedule
                 </div>
-                <div className={styles.yearAccordionList} style={{ padding: "8px 16px" }}>
+                <div className={styles.yearAccordionList}>
                   {Object.keys(paymentsByYear).sort().map((year) => {
                     const isExpanded   = expandedYears[year] === true;
                     const yearPayments = paymentsByYear[year];
@@ -863,7 +863,7 @@ const RentalDetail: React.FC = () => {
                           onClick={() => toggleYear(year)} aria-expanded={isExpanded}>
                           <div className={styles.yearAccordionLeft}>
                             <span className={styles.yearAccordionChevron} style={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)" }}>
-                              <ChevronDown size={14} />
+                              <ChevronDown size={16} strokeWidth={2.5} />
                             </span>
                             <span className={styles.yearAccordionLabel}>{year}</span>
                             <span className={styles.yearAccordionCount}>{yearPaid}/{yearPayments.length} paid</span>
@@ -876,7 +876,7 @@ const RentalDetail: React.FC = () => {
                         {isExpanded && (
                           <div className={styles.yearAccordionBody}>
                             {schedulePayments.length === 0 ? (
-                              <div style={{ padding: "12px 0", color: "#64748b", fontSize: "13px", textAlign: "center" }}>All payments for this year are complete.</div>
+                              <div className={styles.emptyStateText}>All payments for this year are complete.</div>
                             ) : (
                               schedulePayments.map((p) => {
                                 const isNext          = p.id === nextPayablePaymentId;
@@ -907,10 +907,7 @@ const RentalDetail: React.FC = () => {
                                           </span>
                                         )}
                                         {p.status === "PENDING" && p.checkoutUrl && !isLocked && (
-                                          <div
-                                            style={{ fontSize: "11px", color: "#b78e42", textDecoration: "underline", cursor: "pointer", marginTop: "4px" }}
-                                            onClick={() => handleResetPayment(p.id)}
-                                          >
+                                          <div className={styles.paymentResetLink} onClick={() => handleResetPayment(p.id)}>
                                             Link expired? Click to reset
                                           </div>
                                         )}
@@ -952,43 +949,32 @@ const RentalDetail: React.FC = () => {
               </div>
 
               {/* 2. Payment History */}
-              <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", background: "#fff" }}>
-                <button
-                  type="button"
-                  onClick={() => setHistoryExpanded(!historyExpanded)}
-                  style={{ width: "100%", padding: "16px", display: "flex", justifyContent: "space-between", background: "#f8fafc", border: "none", cursor: "pointer", fontWeight: "700", color: "#1f5d71", fontSize: "15px" }}
-                >
+              <div className={styles.actionCard}>
+                <button type="button" onClick={() => setHistoryExpanded(!historyExpanded)} className={styles.actionHeaderBtn}>
                   <span>Payment History</span>
-                  <span style={{ transition: 'transform 0.2s', transform: historyExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                  <span style={{ transition: 'transform 0.2s', transform: historyExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'flex' }}>
                     <ChevronDown size={18} />
                   </span>
                 </button>
 
                 {historyExpanded && (
-                  <div style={{ padding: "0 16px" }}>
+                  <div className={styles.actionBody}>
                     {payments.filter(p => p.status === "PAID").length === 0 ? (
-                      <div style={{ padding: "16px 0", color: "#64748b", fontSize: "14px", textAlign: "center" }}>No past payments found.</div>
+                      <div className={styles.emptyStateText}>No past payments found.</div>
                     ) : (
                       payments.filter(p => p.status === "PAID").map((payment) => (
-                        <div key={payment.id} style={{ padding: "16px 0", borderTop: "1px solid #f1f5f9" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <div>
-                              <strong style={{ display: "block", color: "#1e293b", marginBottom: "4px" }}>
-                                Month {payment.installmentNumber}
-                              </strong>
-                              <div style={{ fontSize: "13px", color: "#10b981", fontWeight: "600", display: "flex", alignItems: "center", gap: "4px" }}>
-                                <Check size={14} /> Paid on {formatDate(payment.paidAt || payment.dueDate)}
-                              </div>
+                        <div key={payment.id} className={styles.historyRow}>
+                          <div className={styles.historyInfo}>
+                            <strong className={styles.historyTitle}>Month {payment.installmentNumber}</strong>
+                            <div className={styles.historyDate}>
+                              <Check size={14} /> Paid on {formatDate(payment.paidAt || payment.dueDate)}
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                              <span style={{ fontWeight: "600", color: "#1e293b" }}>{formatPrice(payment.amount)}</span>
-                              <button
-                                onClick={() => setViewingReceiptId(payment.id)}
-                                className={styles.receiptBtn}
-                              >
-                                Receipt
-                              </button>
-                            </div>
+                          </div>
+                          <div className={styles.historyActions}>
+                            <span className={styles.historyAmount}>{formatPrice(payment.amount)}</span>
+                            <button onClick={() => setViewingReceiptId(payment.id)} className={styles.receiptBtn}>
+                              Receipt
+                            </button>
                           </div>
                         </div>
                       ))
@@ -998,106 +984,73 @@ const RentalDetail: React.FC = () => {
               </div>
 
               {/* 3. Lease Extension */}
-              <div style={{ border: "1px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", background: "#fff" }}>
-                <button
-                  type="button"
-                  onClick={() => setExtensionExpanded(!extensionExpanded)}
-                  style={{ width: "100%", padding: "16px", display: "flex", justifyContent: "space-between", background: "#f8fafc", border: "none", cursor: "pointer", fontWeight: "700", color: "#1f5d71", fontSize: "15px" }}
-                >
+              <div className={styles.actionCard}>
+                <button type="button" onClick={() => setExtensionExpanded(!extensionExpanded)} className={styles.actionHeaderBtn}>
                   <span>Lease Extension Requests</span>
-                  <span style={{ transition: 'transform 0.2s', transform: extensionExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                  <span style={{ transition: 'transform 0.2s', transform: extensionExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'flex' }}>
                     <ChevronDown size={18} />
                   </span>
                 </button>
 
                 {extensionExpanded && (
-                  <div style={{ padding: "16px", borderTop: "1px solid #e2e8f0" }}>
+                  <div className={styles.actionBody}>
                     {extensions.length > 0 && (
-                      <div style={{ marginBottom: "16px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <div className={styles.extensionList}>
                         {extensions.map((ext) => (
-                          <div key={ext.id} style={{
-                            padding: "10px 12px", borderRadius: "10px", fontSize: "13px",
-                            background: ext.status === "APPROVED" ? "rgba(26,122,74,0.07)"
-                              : ext.status === "REJECTED" ? "rgba(192,57,43,0.07)"
-                              : "rgba(183,142,66,0.07)",
-                            border: `1px solid ${ext.status === "APPROVED" ? "rgba(26,122,74,0.2)"
-                              : ext.status === "REJECTED" ? "rgba(192,57,43,0.2)"
-                              : "rgba(183,142,66,0.2)"}`,
-                          }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <span style={{ fontWeight: "600", color: "#1e293b" }}>
+                          <div key={ext.id} className={`${styles.extensionItem} ${styles[`extensionItem_${ext.status}`]}`}>
+                            <div className={styles.extensionItemHeader}>
+                              <span className={styles.extensionItemDuration}>
                                 {ext.requestedMonths} month{ext.requestedMonths !== 1 ? "s" : ""} requested
                               </span>
-                              <span style={{
-                                fontSize: "11px", fontWeight: "700", padding: "4px 8px", borderRadius: "20px", display: "flex", alignItems: "center", gap: "4px",
-                                color: ext.status === "APPROVED" ? "#1a7a4a" : ext.status === "REJECTED" ? "#c0392b" : "#b78e42",
-                                background: ext.status === "APPROVED" ? "rgba(26,122,74,0.12)" : ext.status === "REJECTED" ? "rgba(192,57,43,0.12)" : "rgba(183,142,66,0.12)",
-                              }}>
-                                {ext.status === "APPROVED" ? <><Check size={12} /> Approved</> 
-                                  : ext.status === "REJECTED" ? <><X size={12} /> Rejected</> 
-                                  : <><Clock size={12} /> Pending</>}
+                              <span className={`${styles.extensionItemStatus} ${styles[`extensionItemStatus_${ext.status}`]}`}>
+                                {ext.status === "APPROVED" ? <><Check size={12} strokeWidth={3} /> Approved</> 
+                                  : ext.status === "REJECTED" ? <><X size={12} strokeWidth={3} /> Rejected</> 
+                                  : <><Clock size={12} strokeWidth={3} /> Pending</>}
                               </span>
                             </div>
-                            {ext.reason && <div style={{ color: "#64748b", marginTop: "4px", fontSize: "12px" }}>"{ext.reason}"</div>}
+                            {ext.reason && <div className={styles.extensionItemReason}>"{ext.reason}"</div>}
                           </div>
                         ))}
                       </div>
                     )}
 
                     {extMsg && (
-                      <div style={{
-                        padding: "10px 12px", borderRadius: "10px", fontSize: "13px", fontWeight: "600", marginBottom: "10px",
-                        display: "flex", alignItems: "center", gap: "6px",
-                        background: extMsg.type === "success" ? "rgba(45,140,106,0.08)" : "rgba(192,57,43,0.06)",
-                        border: `1px solid ${extMsg.type === "success" ? "rgba(45,140,106,0.2)" : "rgba(192,57,43,0.2)"}`,
-                        color: extMsg.type === "success" ? "#2d8c6a" : "#c0392b",
-                      }}>
+                      <div className={`${styles.extensionMsg} ${styles[`extensionMsg_${extMsg.type}`]}`}>
                         {extMsg.type === "success" ? <CheckCircle size={16} /> : <AlertCircle size={16} />} 
                         {extMsg.text}
                       </div>
                     )}
 
                     {!hasPendingExt && !showExtForm && (
-                      <button
-                        type="button"
-                        onClick={() => { setShowExtForm(true); setExtMsg(null); }}
-                        style={{
-                          width: "100%", padding: "11px", borderRadius: "11px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
-                          background: "rgba(31,93,113,0.07)", border: "1.5px dashed rgba(31,93,113,0.25)",
-                          color: "#1f5d71", fontWeight: "600", fontSize: "14px", cursor: "pointer",
-                          transition: "background 0.2s, border-color 0.2s",
-                        }}
-                      >
+                      <button type="button" onClick={() => { setShowExtForm(true); setExtMsg(null); }} className={styles.extensionAddBtn}>
                         <Plus size={16} /> Request New Extension
                       </button>
                     )}
 
                     {hasPendingExt && !showExtForm && (
-                      <p style={{ fontSize: "12px", color: "#b78e42", fontWeight: "600", textAlign: "center", margin: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: "4px" }}>
+                      <p className={styles.extensionPendingNotice}>
                         <Clock size={14} /> You have a pending extension request.
                       </p>
                     )}
 
                     {showExtForm && (
-                      <form onSubmit={handleExtensionSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                        <div>
-                          <label style={{ fontSize: "11px", fontWeight: "700", color: "#1f5d71", textTransform: "uppercase", letterSpacing: "0.8px", display: "block", marginBottom: "6px" }}>
-                            Additional Months
-                          </label>
-                          <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "10px 14px", background: "#f8fbfb", borderRadius: "10px", border: "1.5px solid #e5eced" }}>
-                            <button type="button"
-                              style={{ width: 30, height: 30, borderRadius: "50%", border: "1.5px solid #e5eced", background: "#fff", cursor: "pointer", color: "#1f5d71", display: "flex", alignItems: "center", justifyContent: "center" }}
-                              onClick={() => setExtMonths((m) => Math.max(1, m - 1))}><Minus size={16} strokeWidth={3} /></button>
-                            <span style={{ fontSize: 22, fontWeight: 800, color: "#1f5d71", minWidth: 36, textAlign: "center" }}>{extMonths}</span>
-                            <button type="button"
-                              style={{ width: 30, height: 30, borderRadius: "50%", border: "1.5px solid #e5eced", background: "#fff", cursor: "pointer", color: "#1f5d71", display: "flex", alignItems: "center", justifyContent: "center" }}
-                              onClick={() => setExtMonths((m) => m + 1)}><Plus size={16} strokeWidth={3} /></button>
-                            <span style={{ fontSize: 13, color: "#6e7071" }}>month{extMonths !== 1 ? "s" : ""}</span>
+                      <form onSubmit={handleExtensionSubmit} className={styles.extensionForm}>
+                        <div className={styles.extensionFormField}>
+                          <label className={styles.extensionFormLabel}>Additional Months</label>
+                          <div className={styles.extensionStepper}>
+                            <button type="button" className={styles.extensionStepperBtn} onClick={() => setExtMonths((m) => Math.max(1, m - 1))}>
+                              <Minus size={16} strokeWidth={3} />
+                            </button>
+                            <span className={styles.extensionStepperValue}>{extMonths}</span>
+                            <button type="button" className={styles.extensionStepperBtn} onClick={() => setExtMonths((m) => m + 1)}>
+                              <Plus size={16} strokeWidth={3} />
+                            </button>
+                            <span className={styles.extensionStepperUnit}>month{extMonths !== 1 ? "s" : ""}</span>
                           </div>
                         </div>
-                        <div>
-                          <label style={{ fontSize: "11px", fontWeight: "700", color: "#1f5d71", textTransform: "uppercase", letterSpacing: "0.8px", display: "block", marginBottom: "6px" }}>
-                            Reason <span style={{ fontWeight: 400, color: "#6e7071", textTransform: "none", letterSpacing: 0 }}>(optional)</span>
+                        <div className={styles.extensionFormField}>
+                          <label className={styles.extensionFormLabel}>
+                            Reason <span className={styles.extensionOptional}>(optional)</span>
                           </label>
                           <textarea
                             value={extReason}
@@ -1105,16 +1058,14 @@ const RentalDetail: React.FC = () => {
                             placeholder="Why are you requesting an extension?"
                             rows={3}
                             maxLength={300}
-                            style={{ width: "100%", padding: "10px 12px", borderRadius: "10px", border: "1.5px solid #e5eced", fontFamily: "inherit", fontSize: "14px", resize: "vertical", outline: "none", boxSizing: "border-box" }}
+                            className={styles.extensionTextarea}
                           />
                         </div>
-                        <div style={{ display: "flex", gap: "8px" }}>
-                          <button type="button" onClick={() => { setShowExtForm(false); setExtMsg(null); }}
-                            style={{ flex: 1, padding: "10px", borderRadius: "10px", border: "1.5px solid #e5eced", background: "#f8fbfb", color: "#6e7071", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}>
+                        <div className={styles.extensionFormActions}>
+                          <button type="button" onClick={() => { setShowExtForm(false); setExtMsg(null); }} className={styles.extensionCancelBtn}>
                             Cancel
                           </button>
-                          <button type="submit" disabled={extSubmitting}
-                            style={{ flex: 2, padding: "10px", borderRadius: "10px", border: "none", background: "#1f5d71", color: "#fff", fontWeight: "700", fontSize: "13px", cursor: extSubmitting ? "not-allowed" : "pointer", opacity: extSubmitting ? 0.6 : 1 }}>
+                          <button type="submit" disabled={extSubmitting} className={styles.extensionSubmitBtn}>
                             {extSubmitting ? "Sending…" : `Request +${extMonths} month${extMonths !== 1 ? "s" : ""}`}
                           </button>
                         </div>

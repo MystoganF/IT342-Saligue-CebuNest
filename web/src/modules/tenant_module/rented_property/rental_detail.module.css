@@ -838,8 +838,63 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   RENTAL DETAIL — PAYMENT SCHEDULE ADDITIONS
+   ACTION DROPDOWNS (Payment Schedule, History, Extensions)
 ════════════════════════════════════════════════════════════════════════ */
+
+.actionDropdownsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.actionCard {
+  border: 1.5px solid #e5eced;
+  border-radius: 14px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(31, 93, 113, 0.04);
+}
+
+.actionHeaderStatic {
+  padding: 18px 20px;
+  background: #f8fbfb;
+  border-bottom: 1.5px solid #e5eced;
+  font-weight: 700;
+  color: var(--teal-deep);
+  font-size: 15px;
+}
+
+.actionHeaderBtn {
+  width: 100%;
+  padding: 18px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fbfb;
+  border: none;
+  cursor: pointer;
+  font-family: "DM Sans", sans-serif;
+  font-weight: 700;
+  color: var(--teal-deep);
+  font-size: 15px;
+  transition: background 0.2s;
+}
+
+.actionHeaderBtn:hover {
+  background: #f0f4f5;
+}
+
+.actionBody {
+  padding: 0 20px;
+}
+
+.emptyStateText {
+  padding: 24px 0;
+  color: var(--slate);
+  font-size: 14px;
+  text-align: center;
+}
 
 /* ── Auto-verify banner ──────────────────────────────────────────────── */
 .verifyBanner {
@@ -917,6 +972,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding: 8px 16px;
 }
 
 .yearAccordion {
@@ -1057,11 +1113,35 @@
   min-width: 0;
 }
 
+.paymentLabel {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--teal-deep);
+}
+.paymentDates {
+  font-size: 12px;
+  color: var(--slate);
+  margin-top: 2px;
+}
+.paymentResetLink {
+  font-size: 11px;
+  color: var(--gold);
+  text-decoration: underline;
+  cursor: pointer;
+  margin-top: 4px;
+  font-weight: 600;
+}
+
 .paymentRowRight {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+.paymentAmount {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--teal-deep);
 }
 
 .paymentRowActions {
@@ -1139,25 +1219,296 @@
   box-shadow: 0 3px 10px rgba(192, 57, 43, 0.22);
 }
 
-.requestsEmpty {
+.payBtnSpinner {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Payment History Styles ── */
+.historyRow {
+  padding: 18px 0;
+  border-bottom: 1px solid #f0f4f5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.historyRow:last-child {
+  border-bottom: none;
+}
+.historyInfo {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 40px 0;
-  color: var(--slate);
-  font-size: 14px;
+  gap: 4px;
 }
-.requestsEmptyIcon {
+.historyTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--teal-deep);
+}
+.historyDate {
+  font-size: 13px;
+  color: #1a7a4a;
+  font-weight: 600;
   display: flex;
-  color: var(--teal-soft);
-  opacity: 0.5;
+  align-items: center;
+  gap: 6px;
 }
-.requestsLoading {
-  padding: 40px 0;
-  text-align: center;
-  color: var(--slate);
+.historyActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.historyAmount {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--teal-deep);
+}
+
+/* ── Lease Extension Styles ── */
+.extensionList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 0;
+}
+.extensionItem {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1.5px solid;
+}
+.extensionItem_APPROVED {
+  background: rgba(26, 122, 74, 0.05);
+  border-color: rgba(26, 122, 74, 0.15);
+}
+.extensionItem_REJECTED {
+  background: rgba(192, 57, 43, 0.04);
+  border-color: rgba(192, 57, 43, 0.15);
+}
+.extensionItem_PENDING {
+  background: rgba(183, 142, 66, 0.05);
+  border-color: rgba(183, 142, 66, 0.15);
+}
+
+.extensionItemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.extensionItemDuration {
+  font-weight: 700;
+  color: var(--teal-deep);
   font-size: 14px;
+}
+.extensionItemStatus {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.extensionItemStatus_APPROVED { color: #1a7a4a; background: rgba(26, 122, 74, 0.12); }
+.extensionItemStatus_REJECTED { color: #c0392b; background: rgba(192, 57, 43, 0.12); }
+.extensionItemStatus_PENDING  { color: var(--gold); background: rgba(183, 142, 66, 0.12); }
+
+.extensionItemReason {
+  color: var(--slate);
+  margin-top: 8px;
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+.extensionAddBtn {
+  width: 100%;
+  padding: 14px;
+  margin: 20px 0;
+  border-radius: 12px;
+  background: rgba(83, 164, 163, 0.08);
+  border: 1.5px dashed rgba(83, 164, 163, 0.3);
+  color: var(--teal-deep);
+  font-family: "DM Sans", sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+.extensionAddBtn:hover {
+  background: rgba(83, 164, 163, 0.15);
+  border-color: var(--teal-aero);
+}
+
+.extensionPendingNotice {
+  font-size: 13px;
+  color: var(--gold);
+  font-weight: 700;
+  text-align: center;
+  margin: 20px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.extensionMsg {
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1.5px solid;
+}
+.extensionMsg_success {
+  background: rgba(45, 140, 106, 0.08);
+  border-color: rgba(45, 140, 106, 0.2);
+  color: #2d8c6a;
+}
+.extensionMsg_error {
+  background: rgba(192, 57, 43, 0.06);
+  border-color: rgba(192, 57, 43, 0.2);
+  color: #c0392b;
+}
+
+/* ── Form elements for Extension ── */
+.extensionForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 0;
+}
+.extensionFormField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.extensionFormLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--teal-deep);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+.extensionOptional {
+  font-weight: 400;
+  color: var(--slate);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 4px;
+}
+.extensionStepper {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background: #f8fbfb;
+  border-radius: 12px;
+  border: 1.5px solid #e5eced;
+}
+.extensionStepperBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid #e5eced;
+  background: #fff;
+  cursor: pointer;
+  color: var(--teal-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+.extensionStepperBtn:hover {
+  background: #f0f4f5;
+}
+.extensionStepperValue {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--teal-deep);
+  min-width: 36px;
+  text-align: center;
+}
+.extensionStepperUnit {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--slate);
+  margin-left: auto;
+}
+.extensionTextarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1.5px solid #e5eced;
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  color: #1a2a2e;
+  background: #fafcfc;
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+  transition: all 0.2s;
+}
+.extensionTextarea:focus {
+  border-color: var(--teal-aero);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(83, 164, 163, 0.1);
+}
+.extensionFormActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+.extensionCancelBtn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1.5px solid #e5eced;
+  background: #f8fbfb;
+  color: var(--slate);
+  font-family: "DM Sans", sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.extensionCancelBtn:hover {
+  background: #f0f4f5;
+  color: var(--teal-deep);
+}
+.extensionSubmitBtn {
+  flex: 2;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: var(--teal-deep);
+  color: #fff;
+  font-family: "DM Sans", sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+.extensionSubmitBtn:hover:not(:disabled) {
+  background: #174d5e;
+  transform: translateY(-1px);
+}
+.extensionSubmitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* ── Animations ──────────────────────────────────────────────────────── */
