@@ -1,6 +1,5 @@
 /* ─────────────────────────────────────
    TAB NAVIGATION
-   owner_edit_property_tabs.module.css
 ───────────────────────────────────── */
 
 .tabNav {
@@ -35,7 +34,7 @@
   padding: 18px 4px;
   background: transparent;
   border: none;
-  color: #6e7071; /* slate */
+  color: #6e7071;
   font-family: "DM Sans", sans-serif;
   font-size: 15px;
   font-weight: 600;
@@ -45,7 +44,7 @@
 }
 
 .tabBtn:hover {
-  color: #1f5d71; /* teal-deep */
+  color: #1f5d71; 
 }
 
 .tabBtnActive {
@@ -54,11 +53,9 @@
 }
 
 .tabIcon {
-  font-size: 18px;
-}
-
-.tabLabel {
-  /* Inherits typography from .tabBtn */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tabBadge {
@@ -73,16 +70,16 @@
 }
 
 .tabBadgeDanger {
-  background: #c0392b; /* Red for overdue/errors */
+  background: #c0392b;
 }
 
 .tabBadgeWarn {
-  background: #b78e42; /* Gold for pending requests */
+  background: #b78e42;
 }
 
 .tabActiveLine {
   position: absolute;
-  bottom: -1.5px; /* Overlaps the container's bottom border */
+  bottom: -1.5px;
   left: 0;
   right: 0;
   height: 3px;
@@ -114,9 +111,5 @@
   .tabBtn {
     padding: 14px 2px;
     font-size: 14px;
-  }
-  
-  .tabIcon {
-    font-size: 16px;
   }
 }

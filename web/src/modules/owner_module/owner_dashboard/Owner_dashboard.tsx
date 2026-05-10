@@ -2,6 +2,23 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { dashboardApi } from "./dashboard.api";
 import styles from "./Owner_dashboard.module.css";
+import {
+  Home,
+  CheckCircle2,
+  Clock,
+  Key,
+  AlertTriangle,
+  Search,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  Star,
+  ThumbsUp,
+  XCircle,
+  Ban,
+  ArrowRight
+} from "lucide-react";
 
 const PAGE_SIZE = 8;
 
@@ -81,10 +98,10 @@ interface Analytics {
 
 type DrawerStatus = "paid" | "pending" | "overdue";
 
-const DRAWER_META: Record<DrawerStatus, { label: string; color: string; bg: string; icon: string; entriesKey: keyof Analytics }> = {
-  paid:    { label: "Paid Payments",    color: "#2d8c6a", bg: "rgba(45,140,106,0.08)",  icon: "✓",  entriesKey: "paidPayments"    },
-  pending: { label: "Pending Payments", color: "#b78e42", bg: "rgba(183,142,66,0.08)",  icon: "⏳", entriesKey: "pendingPayments" },
-  overdue: { label: "Overdue Payments", color: "#c0392b", bg: "rgba(192,57,43,0.08)",   icon: "⚠️", entriesKey: "overduePayments" },
+const DRAWER_META: Record<DrawerStatus, { label: string; color: string; bg: string; icon: React.ReactNode; entriesKey: keyof Analytics }> = {
+  paid:    { label: "Paid Payments",    color: "#2d8c6a", bg: "rgba(45,140,106,0.08)",  icon: <CheckCircle2 size={24} />,  entriesKey: "paidPayments"    },
+  pending: { label: "Pending Payments", color: "#b78e42", bg: "rgba(183,142,66,0.08)",  icon: <Clock size={24} />,         entriesKey: "pendingPayments" },
+  overdue: { label: "Overdue Payments", color: "#c0392b", bg: "rgba(192,57,43,0.08)",   icon: <AlertTriangle size={24} />, entriesKey: "overduePayments" },
 };
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -220,11 +237,13 @@ function PaymentDrawer({
               </p>
             </div>
           </div>
-          <button className={styles.drawerClose} onClick={onClose} type="button" aria-label="Close">✕</button>
+          <button className={styles.drawerClose} onClick={onClose} type="button" aria-label="Close">
+            <X size={18} />
+          </button>
         </div>
 
         <div className={styles.drawerSearch}>
-          <span className={styles.drawerSearchIcon}>🔍</span>
+          <Search size={16} className={styles.drawerSearchIcon} />
           <input
             className={styles.drawerSearchInput}
             type="text"
@@ -234,14 +253,16 @@ function PaymentDrawer({
             autoFocus
           />
           {search && (
-            <button className={styles.drawerSearchClear} onClick={() => setSearch("")} type="button">✕</button>
+            <button className={styles.drawerSearchClear} onClick={() => setSearch("")} type="button">
+              <X size={14} />
+            </button>
           )}
         </div>
 
         <div className={styles.drawerBody}>
           {pageEntries.length === 0 ? (
             <div className={styles.drawerEmpty}>
-              <span className={styles.drawerEmptyIcon}>🔍</span>
+              <Search size={48} className={styles.drawerEmptyIcon} />
               <p>No payments match your search.</p>
             </div>
           ) : (
@@ -267,7 +288,9 @@ function PaymentDrawer({
                     </td>
                     <td>
                       <div className={styles.drawerCellTitle}>{entry.propertyTitle}</div>
-                      <div className={styles.drawerCellSub}>📍 {entry.propertyLocation}</div>
+                      <div className={styles.drawerCellSub}>
+                        <MapPin size={12} className={styles.inlineIcon} /> {entry.propertyLocation}
+                      </div>
                     </td>
                     <td>
                       <div className={styles.drawerCellTitle}>{entry.tenantName}</div>
@@ -303,7 +326,9 @@ function PaymentDrawer({
           <div className={styles.drawerPager}>
             <button className={styles.drawerPagerBtn}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1} type="button">← Prev</button>
+              disabled={currentPage === 1} type="button">
+              <ChevronLeft size={16} /> Prev
+            </button>
             <div className={styles.drawerPagerPages}>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
                 <button key={pg}
@@ -313,7 +338,9 @@ function PaymentDrawer({
             </div>
             <button className={styles.drawerPagerBtn}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages} type="button">Next →</button>
+              disabled={currentPage === totalPages} type="button">
+              Next <ChevronRight size={16} />
+            </button>
           </div>
         )}
 
@@ -334,10 +361,7 @@ function PaymentDrawer({
 
 const OwnerDashboard: React.FC = () => {
   const navigate = useNavigate();
-
-  // Grab user from OwnerLayout context instead of localStorage
   const { user } = useOutletContext<{ user: User }>();
-
   const [analytics, setAnalytics]               = useState<Analytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const [drawerStatus, setDrawerStatus]         = useState<DrawerStatus | null>(null);
@@ -359,15 +383,11 @@ const OwnerDashboard: React.FC = () => {
     ? ((a?.[DRAWER_META[drawerStatus].entriesKey] ?? []) as PaymentEntry[])
     : [];
 
-  // Ratings derived
   const allDist = a?.propertyRatings?.flatMap((p) => p.distribution ?? []) ?? [];
   const overallTotal = a?.overallRating?.total ?? 0;
 
   return (
     <div className={styles.page}>
-      {/* ── OwnerNavbar removed (Handled by OwnerLayout) ── */}
-
-      {/* ── Hero ── */}
       <section className={styles.hero}>
         <div className={`${styles.heroDeco} ${styles.heroDeco1}`} />
         <div className={`${styles.heroDeco} ${styles.heroDeco2}`} />
@@ -387,16 +407,14 @@ const OwnerDashboard: React.FC = () => {
         </div>
       </section>
 
-      {/* ── Main ── */}
       <main className={styles.main}>
-
         {/* Stats Row */}
         <div className={styles.statsRow}>
           {[
-            { icon: "🏠", value: a?.propertyStats.total,        label: "Total Listings", cls: styles.statIconTeal  },
-            { icon: "✅", value: a?.propertyStats.available,     label: "Available",      cls: styles.statIconGreen },
-            { icon: "⏳", value: a?.propertyStats.pendingReview, label: "Pending Review", cls: styles.statIconGold  },
-            { icon: "🔑", value: a?.occupancy.occupied,          label: "Occupied",       cls: styles.statIconBlue  },
+            { icon: <Home size={28} />, value: a?.propertyStats.total,        label: "Total Listings", cls: styles.statIconTeal  },
+            { icon: <CheckCircle2 size={28} />, value: a?.propertyStats.available,     label: "Available",      cls: styles.statIconGreen },
+            { icon: <Clock size={28} />, value: a?.propertyStats.pendingReview, label: "Pending Review", cls: styles.statIconGold  },
+            { icon: <Key size={28} />, value: a?.occupancy.occupied,       label: "Occupied",       cls: styles.statIconBlue  },
           ].map(({ icon, value, label, cls }) => (
             <div key={label} className={styles.statCard}>
               <div className={`${styles.statIconWrap} ${cls}`}>{icon}</div>
@@ -410,7 +428,6 @@ const OwnerDashboard: React.FC = () => {
 
         {/* Analytics Grid */}
         <div className={styles.analyticsGrid}>
-
           {/* Revenue */}
           <div className={styles.analyticCard} style={{ gridColumn: "span 2" }}>
             <div className={styles.analyticCardHeader}>
@@ -479,18 +496,18 @@ const OwnerDashboard: React.FC = () => {
             </div>
             <div className={styles.funnelList}>
               {[
-                { label: "Pending",    key: "pending",    color: "#b78e42", icon: "⏳" },
-                { label: "Approved",   key: "approved",   color: "#53a4a3", icon: "👍" },
-                { label: "Confirmed",  key: "confirmed",  color: "#2d8c6a", icon: "🔑" },
-                { label: "Rejected",   key: "rejected",   color: "#c0392b", icon: "✗"  },
-                { label: "Terminated", key: "terminated", color: "#6e7071", icon: "🚫" },
+                { label: "Pending",    key: "pending",    color: "#b78e42", icon: <Clock size={14} /> },
+                { label: "Approved",   key: "approved",   color: "#53a4a3", icon: <ThumbsUp size={14} /> },
+                { label: "Confirmed",  key: "confirmed",  color: "#2d8c6a", icon: <Key size={14} /> },
+                { label: "Rejected",   key: "rejected",   color: "#c0392b", icon: <XCircle size={14} /> },
+                { label: "Terminated", key: "terminated", color: "#6e7071", icon: <Ban size={14} /> },
               ].map(({ label, key, color, icon }) => {
                 const count = al ? 0 : (a?.requestStats as any)?.[key] ?? 0;
                 const total = al ? 1 : Math.max(a?.requestStats.total ?? 1, 1);
                 return (
                   <div key={key} className={styles.funnelRow}>
                     <div className={styles.funnelMeta}>
-                      <span className={styles.funnelIcon}>{icon}</span>
+                      <span className={styles.funnelIcon} style={{ color }}>{icon}</span>
                       <span className={styles.funnelLabel}>{label}</span>
                       <span className={styles.funnelCount}>{al ? "—" : count}</span>
                     </div>
@@ -518,9 +535,9 @@ const OwnerDashboard: React.FC = () => {
 
             <div className={styles.paymentList}>
               {([
-                { key: "paid"    as DrawerStatus, label: "Paid",    count: a?.paymentStats.paidCount,    amount: a?.paymentStats.totalRevenue,  color: "#2d8c6a", bg: "rgba(45,140,106,0.08)",  icon: "✓"  },
-                { key: "pending" as DrawerStatus, label: "Pending", count: a?.paymentStats.pendingCount, amount: a?.paymentStats.pendingAmount, color: "#b78e42", bg: "rgba(183,142,66,0.08)",  icon: "⏳" },
-                { key: "overdue" as DrawerStatus, label: "Overdue", count: a?.paymentStats.overdueCount, amount: a?.paymentStats.overdueAmount, color: "#c0392b", bg: "rgba(192,57,43,0.08)",   icon: "⚠️" },
+                { key: "paid"    as DrawerStatus, label: "Paid",    count: a?.paymentStats.paidCount,    amount: a?.paymentStats.totalRevenue,  color: "#2d8c6a", bg: "rgba(45,140,106,0.08)",  icon: <CheckCircle2 size={20} /> },
+                { key: "pending" as DrawerStatus, label: "Pending", count: a?.paymentStats.pendingCount, amount: a?.paymentStats.pendingAmount, color: "#b78e42", bg: "rgba(183,142,66,0.08)",  icon: <Clock size={20} /> },
+                { key: "overdue" as DrawerStatus, label: "Overdue", count: a?.paymentStats.overdueCount, amount: a?.paymentStats.overdueAmount, color: "#c0392b", bg: "rgba(192,57,43,0.08)",   icon: <AlertTriangle size={20} /> },
               ]).map(({ key, label, count, amount, color, bg, icon }) => {
                 const hasEntries = !al && (count ?? 0) > 0;
                 return (
@@ -546,7 +563,9 @@ const OwnerDashboard: React.FC = () => {
                         {al ? "—" : formatPrice(amount ?? 0)}
                       </div>
                       {hasEntries && (
-                        <span className={styles.paymentArrow} style={{ color }}>→</span>
+                        <span className={styles.paymentArrow} style={{ color }}>
+                          <ArrowRight size={16} />
+                        </span>
                       )}
                     </div>
                   </button>
@@ -555,7 +574,7 @@ const OwnerDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* ── Ratings Overview ── */}
+          {/* Ratings Overview */}
           <div className={styles.analyticCard}>
             <div className={styles.analyticCardHeader}>
               <div>
@@ -581,20 +600,21 @@ const OwnerDashboard: React.FC = () => {
               <div className={styles.chartSkeleton} style={{ height: "120px" }} />
             ) : overallTotal === 0 ? (
               <div style={{ padding: "32px 0", textAlign: "center", color: "#94a3b8" }}>
-                <div style={{ fontSize: "32px", marginBottom: "8px" }}>⭐</div>
-                <div style={{ fontSize: "13px" }}>No reviews yet across your properties</div>
+                <div style={{ marginBottom: "12px", display: "flex", justifyContent: "center" }}>
+                   <Star size={40} strokeWidth={1.5} color="#cbd5e1" />
+                </div>
+                <div style={{ fontSize: "14px", fontWeight: 500 }}>No reviews yet across your properties</div>
               </div>
             ) : (
               <>
-                {/* Star distribution */}
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "16px" }}>
                   {[5,4,3,2,1].map((star) => {
                     const count = allDist.filter((d) => d.star === star).reduce((s, d) => s + d.count, 0);
                     const pct   = overallTotal > 0 ? Math.round((count / overallTotal) * 100) : 0;
                     return (
                       <div key={star} style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <span style={{ fontSize: "12px", fontWeight: 600, color: "#64748b", width: "22px", textAlign: "right" }}>
-                          {star}★
+                        <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px", fontWeight: 600, color: "#64748b", width: "26px", textAlign: "right" }}>
+                          {star} <Star size={10} fill="currentColor" />
                         </span>
                         <div style={{ flex: 1, height: "8px", background: "#f0f4f5", borderRadius: "4px", overflow: "hidden" }}>
                           <div style={{
@@ -609,7 +629,6 @@ const OwnerDashboard: React.FC = () => {
                   })}
                 </div>
 
-                {/* Top rated properties */}
                 {a!.propertyRatings && a!.propertyRatings.filter((p) => p.reviewCount > 0).length > 0 && (
                   <>
                     <div style={{
@@ -631,8 +650,8 @@ const OwnerDashboard: React.FC = () => {
                           >
                             <span className={styles.ratingPropertyTitle}>{p.propertyTitle}</span>
                             <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-                              <span style={{ fontSize: "13px", fontWeight: 800, color: "#f59e0b" }}>
-                                ★ {p.avgRating.toFixed(1)}
+                              <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "13px", fontWeight: 800, color: "#f59e0b" }}>
+                                <Star size={12} fill="currentColor" /> {p.avgRating.toFixed(1)}
                               </span>
                               <span style={{ fontSize: "11px", color: "#94a3b8" }}>({p.reviewCount})</span>
                             </div>
@@ -644,11 +663,9 @@ const OwnerDashboard: React.FC = () => {
               </>
             )}
           </div>
-
         </div>
       </main>
 
-      {/* ── Slide-in Drawer ── */}
       {drawerStatus && (
         <PaymentDrawer
           status={drawerStatus}

@@ -2,6 +2,22 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useOutletContext, Link } from "react-router-dom";
 import { propertiesApi } from "./properties.api";
 import styles from "./Owner_properties.module.css";
+import {
+  Search,
+  Plus,
+  Trash2,
+  AlertTriangle,
+  Home,
+  MapPin,
+  Bed,
+  Bath,
+  Maximize,
+  Edit,
+  Eye,
+  XCircle,
+  Loader2,
+  UserPlus
+} from "lucide-react";
 
 // ─── types ─────────────────────────────────────────────────────────────────
 interface User {
@@ -26,6 +42,7 @@ interface Property {
   images: { imageUrl: string }[];
   hasActiveTenant: boolean;
   rejectionReason?: string | null;
+  pendingRequestsCount?: number;
 }
 
 // ─── helpers ───────────────────────────────────────────────────────────────
@@ -55,8 +72,6 @@ function getStatusLabel(status: string, hasActiveTenant: boolean): string {
 // ─── component ─────────────────────────────────────────────────────────────
 const OwnerProperties: React.FC = () => {
   const navigate = useNavigate();
-  
-  // Grab user from OwnerLayout context
   const { user } = useOutletContext<{ user: User }>();
 
   const [properties, setProperties] = useState<Property[]>([]);
@@ -135,12 +150,11 @@ const OwnerProperties: React.FC = () => {
 
   return (
     <div className={styles.page}>
-
       {/* ── Delete Confirmation Modal ── */}
       {deleteTarget && (
         <div className={styles.modalOverlay} onClick={() => !deleting && setDeleteTarget(null)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalIcon}>🗑️</div>
+            <div className={styles.modalIcon}><Trash2 size={40} strokeWidth={1.5} color="#c0392b" /></div>
             <h3 className={styles.modalTitle}>Delete Property?</h3>
             <p className={styles.modalBody}>
               Are you sure you want to delete{" "}
@@ -149,17 +163,22 @@ const OwnerProperties: React.FC = () => {
             </p>
             {deleteTarget.hasActiveTenant && (
               <p className={styles.modalTenantWarning}>
-                ⚠️ This property has an active tenant. You must end the lease before deleting.
+                <AlertTriangle size={16} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }}/> 
+                This property has an active tenant. You must end the lease before deleting.
               </p>
             )}
             {deleteError && (
-              <p className={styles.modalDeleteError}>⚠ {deleteError}</p>
+              <p className={styles.modalDeleteError}>
+                <AlertTriangle size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }}/> 
+                {deleteError}
+              </p>
             )}
             <div className={styles.modalActions}>
               <button
                 className={styles.modalCancelBtn}
                 onClick={() => { setDeleteTarget(null); setDeleteError(null); }}
                 disabled={deleting}
+                type="button"
               >
                 Cancel
               </button>
@@ -167,9 +186,10 @@ const OwnerProperties: React.FC = () => {
                 className={styles.modalDeleteBtn}
                 onClick={handleDelete}
                 disabled={deleting || deleteTarget.hasActiveTenant}
+                type="button"
               >
                 {deleting
-                  ? <><span className={styles.modalSpinner} /> Deleting…</>
+                  ? <><Loader2 size={16} className={styles.modalSpinnerIcon} /> Deleting…</>
                   : "Yes, Delete"}
               </button>
             </div>
@@ -193,7 +213,7 @@ const OwnerProperties: React.FC = () => {
             onClick={() => navigate("/owner/properties/new")}
             type="button"
           >
-            + Add Property
+            <Plus size={18} /> Add Property
           </button>
         </div>
       </div>
@@ -204,14 +224,15 @@ const OwnerProperties: React.FC = () => {
         {/* Filter bar */}
         <div className={styles.filterBar}>
           
-          {/* Isolated Form for Search Input */}
           <form 
             className={styles.searchWrap} 
             style={{ display: 'flex', flexDirection: 'row' }} 
             onSubmit={handleSearchSubmit}
           >
             <div style={{ position: 'relative', width: '100%' }}>
-              <span className={styles.searchIcon}>🔍</span>
+              <span className={styles.searchIcon}>
+                <Search size={16} />
+              </span>
               <input
                 type="text"
                 className={styles.searchInput}
@@ -225,7 +246,6 @@ const OwnerProperties: React.FC = () => {
             </button>
           </form>
           
-          {/* Dropdown Filter */}
           <select 
             className={styles.filterSelect}
             value={statusFilter}
@@ -238,7 +258,6 @@ const OwnerProperties: React.FC = () => {
             <option value="REJECTED">Rejected</option>
           </select>
 
-          {/* Price Filters */}
           <div className={styles.filterPrice}>
             <input
               type="number"
@@ -278,7 +297,7 @@ const OwnerProperties: React.FC = () => {
           {/* Error */}
           {!loading && error && (
             <div className={styles.stateBox}>
-              <span className={styles.stateIcon}>⚠️</span>
+              <span className={styles.stateIcon}><AlertTriangle size={48} /></span>
               <h3 className={styles.stateTitle}>Failed to load</h3>
               <p className={styles.stateBody}>{error}</p>
               <button className={styles.stateBtn} onClick={fetchProperties}>Try Again</button>
@@ -288,7 +307,7 @@ const OwnerProperties: React.FC = () => {
           {/* Empty / No Results */}
           {!loading && !error && properties.length === 0 && (
             <div className={styles.stateBox}>
-              <span className={styles.stateIcon}>🏘️</span>
+              <span className={styles.stateIcon}><Home size={48} /></span>
               <h3 className={styles.stateTitle}>No properties found</h3>
               <p className={styles.stateBody}>
                 {searchQuery || statusFilter || minPrice || maxPrice
@@ -319,6 +338,7 @@ const OwnerProperties: React.FC = () => {
           {!loading && !error && properties.map((p, i) => {
             const img        = p.images?.[0]?.imageUrl;
             const isRejected = p.status?.toUpperCase() === "REJECTED";
+            const hasPending = (p.pendingRequestsCount ?? 0) > 0;
 
             return (
               <div
@@ -332,10 +352,19 @@ const OwnerProperties: React.FC = () => {
                     <img src={img} alt={p.title} className={styles.cardImage} loading="lazy" />
                   ) : (
                     <div className={styles.cardImagePlaceholder}>
-                      <span className={styles.cardImagePlaceholderIcon}>🏠</span>
+                      <span className={styles.cardImagePlaceholderIcon}><Home size={32} /></span>
                       <span className={styles.cardImagePlaceholderText}>No photo</span>
                     </div>
                   )}
+
+                  {/* ── Pending Requests Badge ── */}
+                  {hasPending && (
+                    <div className={styles.pendingRequestBadge} title={`${p.pendingRequestsCount} Pending Request(s)`}>
+                      <UserPlus size={14} className={styles.pendingRequestIcon} />
+                      <span className={styles.pendingRequestCount}>{p.pendingRequestsCount} New</span>
+                    </div>
+                  )}
+
                   <span className={`${styles.cardStatusBadge} ${getStatusBadge(p.status, p.hasActiveTenant, styles)}`}>
                     {getStatusLabel(p.status, p.hasActiveTenant)}
                   </span>
@@ -347,7 +376,7 @@ const OwnerProperties: React.FC = () => {
                 {/* Rejection notice inline on card */}
                 {isRejected && (
                   <div className={styles.cardRejectedBanner}>
-                    <span>❌</span>
+                    <XCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }}/>
                     <span>Rejected by admin{p.rejectionReason ? ` — "${p.rejectionReason}"` : ""}. Cannot be deleted.</span>
                   </div>
                 )}
@@ -355,13 +384,13 @@ const OwnerProperties: React.FC = () => {
                 {/* Body */}
                 <div className={styles.cardBody}>
                   <h3 className={styles.cardTitle}>{p.title}</h3>
-                  <div className={styles.cardLocation}>📍 {p.location}</div>
+                  <div className={styles.cardLocation}><MapPin size={12} className={styles.inlineIcon} /> {p.location}</div>
 
                   {(p.beds || p.baths || p.sqm) && (
                     <div className={styles.cardMeta}>
-                      {p.beds  != null && <span className={styles.cardMetaItem}>🛏 {p.beds}</span>}
-                      {p.baths != null && <span className={styles.cardMetaItem}>🚿 {p.baths}</span>}
-                      {p.sqm   != null && <span className={styles.cardMetaItem}>📐 {p.sqm} sqm</span>}
+                      {p.beds  != null && <span className={styles.cardMetaItem}><Bed size={14} /> {p.beds}</span>}
+                      {p.baths != null && <span className={styles.cardMetaItem}><Bath size={14} /> {p.baths}</span>}
+                      {p.sqm   != null && <span className={styles.cardMetaItem}><Maximize size={14} /> {p.sqm} sqm</span>}
                     </div>
                   )}
 
@@ -374,9 +403,9 @@ const OwnerProperties: React.FC = () => {
                       <Link
                           to={`/owner/properties/${p.id}/edit`}
                           className={styles.cardEditBtn}
-                        >
-                          {isRejected ? "👁 View" : " View"}
-                        </Link>
+                      >
+                          {isRejected ? <><Eye size={14} /> View</> : <><Edit size={14} /> View</>}
+                      </Link>
                       <button
                         className={styles.cardDeleteBtn}
                         onClick={() => { setDeleteTarget(p); setDeleteError(null); }}
@@ -384,7 +413,7 @@ const OwnerProperties: React.FC = () => {
                         disabled={isRejected || p.hasActiveTenant}
                         title={isRejected ? "Rejected properties cannot be deleted" : undefined}
                       >
-                        🗑️ Delete
+                        <Trash2 size={14} /> Delete
                       </button>
                     </div>
                   </div>

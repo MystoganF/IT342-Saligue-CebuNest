@@ -6,6 +6,18 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 
+import {
+  Search,
+  AlertTriangle,
+  MapPin,
+  Lightbulb,
+  Camera,
+  X,
+  Check,
+  Loader2,
+  ChevronLeft
+} from "lucide-react";
+
 // ─── Fix for default marker icons in React-Leaflet ─────────────────────────
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
@@ -71,10 +83,7 @@ async function geocode(query: string): Promise<MapCoords | null> {
   }
 }
 
-async function reverseGeocode(
-  lat: number,
-  lon: number,
-): Promise<string | null> {
+async function reverseGeocode(lat: number, lon: number): Promise<string | null> {
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
@@ -87,28 +96,16 @@ async function reverseGeocode(
 }
 
 const BLOCKED_CITIES = [
-  "mandaue",
-  "lapu-lapu",
-  "lapulapu",
-  "lapu lapu",
-  "minglanilla",
-  "talisay",
-  "consolacion",
-  "liloan",
-  "compostela",
-  "cordova",
-  "naga",
-  "toledo",
-  "danao",
-  "carcar",
-  "bogo",
-  "mactan",
+  "mandaue", "lapu-lapu", "lapulapu", "lapu lapu", "minglanilla",
+  "talisay", "consolacion", "liloan", "compostela", "cordova",
+  "naga", "toledo", "danao", "carcar", "bogo", "mactan",
 ];
 
 function isBlockedLocation(input: string): boolean {
   const lower = input.toLowerCase();
   return BLOCKED_CITIES.some((city) => lower.includes(city));
 }
+
 // ─── Clickable Map Component ───────────────────────────────────────────────
 function ClickableMap({
   coords,
@@ -126,7 +123,6 @@ function ClickableMap({
       onLocationSelect(lat, lng);
     },
   });
-
   return coords ? <Marker position={[coords.lat, coords.lon]} /> : null;
 }
 
@@ -137,7 +133,6 @@ const AddProperty: React.FC = () => {
 
   // Grab user from OwnerLayout context
   const { user } = useOutletContext<{ user: User }>();
-
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
 
   // Form fields
@@ -200,7 +195,6 @@ const AddProperty: React.FC = () => {
         coords.lat <= CEBU_CITY_BOUNDS.maxLat &&
         coords.lon >= CEBU_CITY_BOUNDS.minLon &&
         coords.lon <= CEBU_CITY_BOUNDS.maxLon;
-
       if (!inBounds) {
         setMapError(
           "This location is outside Cebu City. Only addresses within Cebu City are allowed.",
@@ -255,7 +249,7 @@ const AddProperty: React.FC = () => {
     setImageFiles(combined);
     setImagePreviews(combined.map((f) => URL.createObjectURL(f)));
   };
-
+  
   const removeImage = (index: number) => {
     const updated = imageFiles.filter((_, i) => i !== index);
     setImageFiles(updated);
@@ -267,7 +261,6 @@ const AddProperty: React.FC = () => {
     e.preventDefault();
     if (!user) return;
 
-    // Check if map location is pinned
     if (!mapCoords) {
       setSubmitMsg({
         type: "error",
@@ -280,7 +273,6 @@ const AddProperty: React.FC = () => {
     setSubmitMsg(null);
 
     try {
-      // Step 1 — Create property
       const createData = await addPropertyApi.createProperty({
         title: title.trim(),
         description: description.trim(),
@@ -291,7 +283,7 @@ const AddProperty: React.FC = () => {
         baths: baths ? parseInt(baths) : null,
         sqm: sqm ? parseInt(sqm) : null,
       });
-
+      
       if (!createData.success) {
         setSubmitMsg({
           type: "error",
@@ -301,7 +293,6 @@ const AddProperty: React.FC = () => {
       }
 
       const propertyId: number = createData.data?.property?.id;
-
       if (!propertyId) {
         setSubmitMsg({
           type: "warning",
@@ -311,7 +302,6 @@ const AddProperty: React.FC = () => {
         return;
       }
 
-      // Step 2 — Upload images if any
       if (imageFiles.length > 0) {
         const formData = new FormData();
         imageFiles.forEach((f) => formData.append("files", f));
@@ -320,7 +310,6 @@ const AddProperty: React.FC = () => {
           propertyId,
           formData,
         );
-
         if (!imgData.success) {
           setSubmitMsg({
             type: "warning",
@@ -331,7 +320,6 @@ const AddProperty: React.FC = () => {
         }
       }
 
-      // Full success
       setSubmitMsg({
         type: "success",
         text: "Property listed successfully! Redirecting…",
@@ -347,11 +335,14 @@ const AddProperty: React.FC = () => {
   if (!user) return null;
 
   const submitIcon =
-    submitMsg?.type === "success"
-      ? "✓"
-      : submitMsg?.type === "warning"
-        ? "⚠"
-        : "✕";
+    submitMsg?.type === "success" ? (
+      <Check size={16} />
+    ) : submitMsg?.type === "warning" ? (
+      <AlertTriangle size={16} />
+    ) : (
+      <X size={16} />
+    );
+
   const submitMsgClass =
     submitMsg?.type === "success"
       ? styles.submitMsgSuccess
@@ -361,19 +352,13 @@ const AddProperty: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      {/* ── Navbar removed (Handled by OwnerLayout) ── */}
-
       {/* ── Page Header ── */}
       <div className={styles.pageBar}>
         <div className={styles.pageBarDeco} />
         <div className={styles.pageBarAccent} />
         <div className={styles.pageBarInner}>
-          <button
-            className={styles.backBtn}
-            onClick={() => navigate(-1)}
-            type="button"
-          >
-            ← Back
+          <button className={styles.backBtn} onClick={() => navigate(-1)} type="button">
+            <ChevronLeft size={16} /> Back
           </button>
           <h1 className={styles.pageBarTitle}>Add New Property</h1>
           <p className={styles.pageBarSub}>
@@ -415,8 +400,7 @@ const AddProperty: React.FC = () => {
 
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>
-                  Monthly Price (₱){" "}
-                  <span className={styles.fieldRequired}>*</span>
+                  Monthly Price (₱) <span className={styles.fieldRequired}>*</span>
                 </label>
                 <input
                   type="number"
@@ -492,20 +476,14 @@ const AddProperty: React.FC = () => {
           <div className={styles.card}>
             <div className={styles.cardTitle}>Location</div>
 
-            {/* Combined location input + map search */}
-            <div
-              className={styles.mapSearchWrap}
-              style={{ marginBottom: "14px" }}
-            >
+            <div className={styles.mapSearchWrap} style={{ marginBottom: "14px" }}>
               <input
                 type="text"
                 className={styles.mapSearchInput}
                 placeholder="e.g. Lahug, Cebu City"
                 value={location}
                 onChange={(e) => { setLocation(e.target.value); setMapError(null); }}
-                onKeyDown={(e) =>
-                  e.key === "Enter" && (e.preventDefault(), handleMapSearch())
-                }
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleMapSearch())}
                 required
               />
               <button
@@ -514,30 +492,19 @@ const AddProperty: React.FC = () => {
                 onClick={handleMapSearch}
                 disabled={mapSearching || !location.trim()}
               >
-                {mapSearching ? "Searching…" : "🔍 Find"}
+                {mapSearching ? "Searching…" : <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Search size={14} /> Find</span>}
               </button>
             </div>
 
             {mapError && (
-              <p
-                style={{
-                  color: "#c0392b",
-                  fontSize: "13px",
-                  marginBottom: "10px",
-                }}
-              >
-                ⚠ {mapError}
+              <p style={{ color: "#c0392b", fontSize: "13px", marginBottom: "10px", display: "flex", alignItems: "center", gap: "4px" }}>
+                <AlertTriangle size={14} /> {mapError}
               </p>
             )}
 
-            {/* React-Leaflet Interactive Map */}
             <div className={styles.mapFrame}>
               <MapContainer
-                center={
-                  mapCoords
-                    ? [mapCoords.lat, mapCoords.lon]
-                    : [10.3157, 123.8854]
-                }
+                center={mapCoords ? [mapCoords.lat, mapCoords.lon] : [10.3157, 123.8854]}
                 zoom={mapCoords ? 16 : 14}
                 minZoom={12}
                 maxBounds={[
@@ -561,16 +528,13 @@ const AddProperty: React.FC = () => {
 
             {mapCoords && (
               <div className={styles.mapCoordsBadge}>
-                <span className={styles.mapCoordsIcon}>📍</span>
+                <MapPin size={14} className={styles.mapCoordsIcon} />
                 {mapCoords.lat.toFixed(5)}, {mapCoords.lon.toFixed(5)}
               </div>
             )}
 
-            <p
-              style={{ fontSize: "12px", color: "#6e7071", marginTop: "12px" }}
-            >
-              💡 Click anywhere on the map to pinpoint your property's exact
-              location.
+            <p style={{ fontSize: "12px", color: "#6e7071", marginTop: "12px", display: "flex", alignItems: "center", gap: "4px" }}>
+              <Lightbulb size={14} /> Click anywhere on the map to pinpoint your property's exact location.
             </p>
           </div>
 
@@ -579,18 +543,14 @@ const AddProperty: React.FC = () => {
             <div className={styles.cardTitle}>Photos (up to 10)</div>
 
             <div className={styles.photoTip}>
-              <span className={styles.photoTipIcon}>💡</span>
+              <Lightbulb size={20} className={styles.photoTipIcon} />
               <div>
                 <div className={styles.photoTipTitle}>
                   Improve your chances of approval
                 </div>
                 <div className={styles.photoTipBody}>
-                  Include clear photos of the actual property and supporting
-                  documents such as your <strong>business permit</strong> or{" "}
-                  <strong>barangay certificate</strong>. 
-The <strong>first photo</strong> uploaded will be used as the listing thumbnail.
-
-                  
+                  Include clear photos of the actual property and supporting documents such as your <strong>business permit</strong> or <strong>barangay certificate</strong>.
+                  <br />The <strong>first photo</strong> uploaded will be used as the listing thumbnail.
                 </div>
               </div>
             </div>
@@ -617,7 +577,7 @@ The <strong>first photo</strong> uploaded will be used as the listing thumbnail.
                 className={styles.imageUploadInput}
                 onChange={(e) => addFiles(e.target.files)}
               />
-              <div className={styles.imageUploadIcon}>📸</div>
+              <Camera size={36} className={styles.imageUploadIcon} />
               <div className={styles.imageUploadTitle}>
                 {imageFiles.length > 0
                   ? `${imageFiles.length} photo${imageFiles.length > 1 ? "s" : ""} selected`
@@ -646,7 +606,7 @@ The <strong>first photo</strong> uploaded will be used as the listing thumbnail.
                       }}
                       aria-label="Remove image"
                     >
-                      ✕
+                      <X size={14} />
                     </button>
                   </div>
                 ))}
@@ -676,7 +636,7 @@ The <strong>first photo</strong> uploaded will be used as the listing thumbnail.
             >
               {submitting ? (
                 <>
-                  <span className={styles.submitSpinner} /> Listing…
+                  <Loader2 size={16} className={styles.submitSpinner} /> Listing…
                 </>
               ) : (
                 "List Property"

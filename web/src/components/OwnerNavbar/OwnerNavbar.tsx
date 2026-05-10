@@ -197,9 +197,7 @@ const OwnerNavbar: React.FC<OwnerNavbarProps> = ({ user, onAddProperty }) => {
           </div>
 
           <div className={styles.actions}>
-            <button className={styles.addBtn} onClick={onAddProperty} type="button">
-              + Add Property
-            </button>
+            
 
             <div className={styles.notifWrap} ref={notifRef}>
               <button
