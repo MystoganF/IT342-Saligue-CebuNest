@@ -49,6 +49,20 @@ interface PaymentEntry {
   propertyLocation: string;
 }
 
+// ── NEW: Request Entry Interface ──
+interface RentalRequestEntry {
+  id: number;
+  propertyId: number;
+  propertyTitle: string;
+  propertyLocation: string;
+  tenantName: string;
+  tenantEmail: string;
+  startDate: string;
+  leaseDurationMonths: number;
+  status: string;
+  createdAt: string;
+}
+
 interface PropertyRating {
   propertyId: number;
   propertyTitle: string;
@@ -86,9 +100,19 @@ interface Analytics {
     overdueCount: number;
   };
   monthlyRevenue: { month: string; revenue: number }[];
+  
+  // Payment Lists
   paidPayments: PaymentEntry[];
   pendingPayments: PaymentEntry[];
   overduePayments: PaymentEntry[];
+  
+  // ── NEW: Request Lists ──
+  pendingRequests: RentalRequestEntry[];
+  approvedRequests: RentalRequestEntry[];
+  confirmedRequests: RentalRequestEntry[];
+  rejectedRequests: RentalRequestEntry[];
+  terminatedRequests: RentalRequestEntry[];
+
   overallRating: {
     average: number;
     total: number;
@@ -97,11 +121,20 @@ interface Analytics {
 }
 
 type DrawerStatus = "paid" | "pending" | "overdue";
+type RequestDrawerStatus = "pending" | "approved" | "confirmed" | "rejected" | "terminated";
 
 const DRAWER_META: Record<DrawerStatus, { label: string; color: string; bg: string; icon: React.ReactNode; entriesKey: keyof Analytics }> = {
   paid:    { label: "Paid Payments",    color: "#2d8c6a", bg: "rgba(45,140,106,0.08)",  icon: <CheckCircle2 size={24} />,  entriesKey: "paidPayments"    },
   pending: { label: "Pending Payments", color: "#b78e42", bg: "rgba(183,142,66,0.08)",  icon: <Clock size={24} />,         entriesKey: "pendingPayments" },
   overdue: { label: "Overdue Payments", color: "#c0392b", bg: "rgba(192,57,43,0.08)",   icon: <AlertTriangle size={24} />, entriesKey: "overduePayments" },
+};
+
+const REQ_DRAWER_META: Record<RequestDrawerStatus, { label: string; color: string; bg: string; icon: React.ReactNode; entriesKey: keyof Analytics }> = {
+  pending:    { label: "Pending Requests",    color: "#b78e42", bg: "rgba(183,142,66,0.08)",  icon: <Clock size={24} />,      entriesKey: "pendingRequests" },
+  approved:   { label: "Approved Requests",   color: "#53a4a3", bg: "rgba(83,164,163,0.08)",  icon: <ThumbsUp size={24} />,   entriesKey: "approvedRequests" },
+  confirmed:  { label: "Confirmed Leases",    color: "#2d8c6a", bg: "rgba(45,140,106,0.08)",  icon: <Key size={24} />,        entriesKey: "confirmedRequests" },
+  rejected:   { label: "Rejected Requests",   color: "#c0392b", bg: "rgba(192,57,43,0.08)",   icon: <XCircle size={24} />,    entriesKey: "rejectedRequests" },
+  terminated: { label: "Terminated Leases",   color: "#6e7071", bg: "rgba(110,112,113,0.08)", icon: <Ban size={24} />,        entriesKey: "terminatedRequests" },
 };
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -111,6 +144,13 @@ function formatPrice(price: number): string {
     style: "currency", currency: "PHP",
     minimumFractionDigits: 0, maximumFractionDigits: 0,
   }).format(price);
+}
+
+function formatDate(isoStr: string | null | undefined): string {
+  if (!isoStr) return "—";
+  const d = new Date(isoStr);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -183,26 +223,25 @@ function PaymentDrawer({
   status,
   entries,
   onClose,
+  navigate
 }: {
   status: DrawerStatus;
   entries: PaymentEntry[];
   onClose: () => void;
+  navigate: (path: string) => void;
 }) {
   const meta = DRAWER_META[status];
   const [page, setPage]     = useState(1);
   const [search, setSearch] = useState("");
-
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
-
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = ""; };
   }, []);
-
   const filtered = entries.filter((e) => {
     const q = search.toLowerCase();
     return (
@@ -212,13 +251,11 @@ function PaymentDrawer({
       e.propertyLocation.toLowerCase().includes(q)
     );
   });
-
   const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const pageEntries = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   useEffect(() => { setPage(1); }, [search]);
-
   return (
     <>
       <div className={styles.drawerBackdrop} onClick={onClose} />
@@ -277,9 +314,14 @@ function PaymentDrawer({
                   <th className={styles.drawerTableAmountCol}>Amount</th>
                 </tr>
               </thead>
-              <tbody>
+            <tbody>
                 {pageEntries.map((entry, idx) => (
-                  <tr key={entry.id} className={styles.drawerRow} style={{ animationDelay: `${idx * 30}ms` }}>
+                  <tr 
+                    key={entry.id} 
+                    className={`${styles.drawerRow} ${styles.paymentRowClickable}`} 
+                    style={{ animationDelay: `${idx * 30}ms`, cursor: "pointer" }}
+                    onClick={() => navigate(`/owner/properties/${entry.propertyId}/edit`)}
+                  >
                     <td>
                       <div className={styles.drawerInstallBadge} style={{ background: meta.bg, color: meta.color }}>
                         <span className={styles.drawerInstallNum}>{entry.installmentNumber}</span>
@@ -311,8 +353,13 @@ function PaymentDrawer({
                       )}
                     </td>
                     <td className={styles.drawerTableAmountCol}>
-                      <div className={styles.drawerCellAmount} style={{ color: meta.color }}>
-                        {formatPrice(entry.amount)}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "12px" }}>
+                        <div className={styles.drawerCellAmount} style={{ color: meta.color }}>
+                          {formatPrice(entry.amount)}
+                        </div>
+                        <span className={styles.paymentArrow} style={{ color: meta.color, display: "inline-flex" }}>
+                          <ArrowRight size={16} />
+                        </span>
                       </div>
                     </td>
                   </tr>
@@ -357,6 +404,173 @@ function PaymentDrawer({
   );
 }
 
+// ─── Request Drawer (NEW) ────────────────────────────────────────────────────────
+
+function RequestDrawer({
+  status,
+  entries,
+  onClose,
+  navigate
+}: {
+  status: RequestDrawerStatus;
+  entries: RentalRequestEntry[];
+  onClose: () => void;
+  navigate: (path: string) => void;
+}) {
+  const meta = REQ_DRAWER_META[status];
+  const [page, setPage]     = useState(1);
+  const [search, setSearch] = useState("");
+  
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+  
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+  
+  const filtered = entries.filter((e) => {
+    const q = search.toLowerCase();
+    return (
+      e.tenantName.toLowerCase().includes(q) ||
+      e.tenantEmail.toLowerCase().includes(q) ||
+      e.propertyTitle.toLowerCase().includes(q) ||
+      e.propertyLocation.toLowerCase().includes(q)
+    );
+  });
+  
+  const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageEntries = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  useEffect(() => { setPage(1); }, [search]);
+  
+  return (
+    <>
+      <div className={styles.drawerBackdrop} onClick={onClose} />
+      <div className={styles.drawer} role="dialog" aria-modal="true" aria-label={meta.label}>
+
+        <div className={styles.drawerHeader} style={{ borderTop: `3px solid ${meta.color}` }}>
+          <div className={styles.drawerHeaderLeft}>
+            <span className={styles.drawerIcon} style={{ color: meta.color, background: meta.bg }}>
+              {meta.icon}
+            </span>
+            <div>
+              <h2 className={styles.drawerTitle}>{meta.label}</h2>
+              <p className={styles.drawerSubtitle}>
+                {filtered.length} of {entries.length} request{entries.length !== 1 ? "s" : ""}
+                {search ? " matched" : " total"}
+              </p>
+            </div>
+          </div>
+          <button className={styles.drawerClose} onClick={onClose} type="button" aria-label="Close">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className={styles.drawerSearch}>
+          <Search size={16} className={styles.drawerSearchIcon} />
+          <input
+            className={styles.drawerSearchInput}
+            type="text"
+            placeholder="Search by tenant, email, or property…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            autoFocus
+          />
+          {search && (
+            <button className={styles.drawerSearchClear} onClick={() => setSearch("")} type="button">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
+        <div className={styles.drawerBody}>
+          {pageEntries.length === 0 ? (
+            <div className={styles.drawerEmpty}>
+              <Search size={48} className={styles.drawerEmptyIcon} />
+              <p>No requests match your search.</p>
+            </div>
+          ) : (
+            <table className={styles.drawerTable}>
+              <thead>
+                <tr>
+                  <th>Request Date</th>
+                  <th>Property</th>
+                  <th>Tenant</th>
+                  <th>Duration</th>
+                  <th className={styles.drawerTableAmountCol}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageEntries.map((entry, idx) => (
+                  <tr 
+                    key={entry.id} 
+                    className={`${styles.drawerRow} ${styles.paymentRowClickable}`} 
+                    style={{ animationDelay: `${idx * 30}ms`, cursor: "pointer" }}
+                    onClick={() => navigate(`/owner/properties/${entry.propertyId}/edit`)}
+                  >
+                    <td>
+                      <div className={styles.drawerCellDate}>{formatDate(entry.createdAt)}</div>
+                      <div className={styles.drawerStatusPill} style={{ background: meta.bg, color: meta.color, marginTop: "4px" }}>
+                        {status.toUpperCase()}
+                      </div>
+                    </td>
+                    <td>
+                      <div className={styles.drawerCellTitle}>{entry.propertyTitle}</div>
+                      <div className={styles.drawerCellSub}>
+                        <MapPin size={12} className={styles.inlineIcon} /> {entry.propertyLocation}
+                      </div>
+                    </td>
+                    <td>
+                      <div className={styles.drawerCellTitle}>{entry.tenantName}</div>
+                      <div className={styles.drawerCellSub}>{entry.tenantEmail}</div>
+                    </td>
+                    <td>
+                      <div className={styles.drawerCellDate}>{entry.leaseDurationMonths} months</div>
+                      <div className={styles.drawerCellSub}>Start: {formatDate(entry.startDate)}</div>
+                    </td>
+                    <td className={styles.drawerTableAmountCol}>
+                      <span className={styles.paymentArrow} style={{ color: meta.color, display: "inline-flex" }}>
+                        <ArrowRight size={16} />
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {totalPages > 1 && (
+          <div className={styles.drawerPager}>
+            <button className={styles.drawerPagerBtn}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1} type="button">
+              <ChevronLeft size={16} /> Prev
+            </button>
+            <div className={styles.drawerPagerPages}>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
+                <button key={pg}
+                  className={`${styles.drawerPagerNum} ${pg === currentPage ? styles.drawerPagerNumActive : ""}`}
+                  onClick={() => setPage(pg)} type="button">{pg}</button>
+              ))}
+            </div>
+            <button className={styles.drawerPagerBtn}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages} type="button">
+              Next <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const OwnerDashboard: React.FC = () => {
@@ -364,10 +578,13 @@ const OwnerDashboard: React.FC = () => {
   const { user } = useOutletContext<{ user: User }>();
   const [analytics, setAnalytics]               = useState<Analytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  
   const [drawerStatus, setDrawerStatus]         = useState<DrawerStatus | null>(null);
+  const [reqDrawerStatus, setReqDrawerStatus]   = useState<RequestDrawerStatus | null>(null);
 
   const openDrawer  = useCallback((s: DrawerStatus) => setDrawerStatus(s), []);
   const closeDrawer = useCallback(() => setDrawerStatus(null), []);
+  const closeReqDrawer = useCallback(() => setReqDrawerStatus(null), []);
 
   useEffect(() => {
     dashboardApi.getOwnerAnalytics()
@@ -381,6 +598,10 @@ const OwnerDashboard: React.FC = () => {
 
   const drawerEntries = drawerStatus
     ? ((a?.[DRAWER_META[drawerStatus].entriesKey] ?? []) as PaymentEntry[])
+    : [];
+
+  const reqDrawerEntries = reqDrawerStatus
+    ? ((a?.[REQ_DRAWER_META[reqDrawerStatus].entriesKey] ?? []) as RentalRequestEntry[])
     : [];
 
   const allDist = a?.propertyRatings?.flatMap((p) => p.distribution ?? []) ?? [];
@@ -482,7 +703,7 @@ const OwnerDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Request Funnel */}
+          {/* Request Funnel (NOW INTERACTIVE) */}
           <div className={styles.analyticCard}>
             <div className={styles.analyticCardHeader}>
               <div>
@@ -494,22 +715,34 @@ const OwnerDashboard: React.FC = () => {
               </div>
               <span className={styles.requestTotal}>{al ? "—" : a?.requestStats.total} total</span>
             </div>
+            <span className={styles.drawerHint}>Click a row to view details</span>
+            
             <div className={styles.funnelList}>
-              {[
-                { label: "Pending",    key: "pending",    color: "#b78e42", icon: <Clock size={14} /> },
-                { label: "Approved",   key: "approved",   color: "#53a4a3", icon: <ThumbsUp size={14} /> },
-                { label: "Confirmed",  key: "confirmed",  color: "#2d8c6a", icon: <Key size={14} /> },
-                { label: "Rejected",   key: "rejected",   color: "#c0392b", icon: <XCircle size={14} /> },
-                { label: "Terminated", key: "terminated", color: "#6e7071", icon: <Ban size={14} /> },
-              ].map(({ label, key, color, icon }) => {
+              {([
+                { label: "Pending",    key: "pending" as RequestDrawerStatus,    color: "#b78e42", icon: <Clock size={14} /> },
+                { label: "Approved",   key: "approved" as RequestDrawerStatus,   color: "#53a4a3", icon: <ThumbsUp size={14} /> },
+                { label: "Confirmed",  key: "confirmed" as RequestDrawerStatus,  color: "#2d8c6a", icon: <Key size={14} /> },
+                { label: "Rejected",   key: "rejected" as RequestDrawerStatus,   color: "#c0392b", icon: <XCircle size={14} /> },
+                { label: "Terminated", key: "terminated" as RequestDrawerStatus, color: "#6e7071", icon: <Ban size={14} /> },
+              ]).map(({ label, key, color, icon }) => {
                 const count = al ? 0 : (a?.requestStats as any)?.[key] ?? 0;
                 const total = al ? 1 : Math.max(a?.requestStats.total ?? 1, 1);
+                const hasEntries = count > 0;
+                
                 return (
-                  <div key={key} className={styles.funnelRow}>
+                  <div 
+                    key={key} 
+                    className={`${styles.funnelRow} ${hasEntries ? styles.paymentRowClickable : ""}`}
+                    onClick={() => hasEntries && setReqDrawerStatus(key)}
+                    style={{ padding: "4px 8px", borderRadius: "8px", background: "transparent" }}
+                  >
                     <div className={styles.funnelMeta}>
                       <span className={styles.funnelIcon} style={{ color }}>{icon}</span>
                       <span className={styles.funnelLabel}>{label}</span>
                       <span className={styles.funnelCount}>{al ? "—" : count}</span>
+                      {hasEntries && (
+                        <ArrowRight size={14} style={{ color, marginLeft: "auto" }} />
+                      )}
                     </div>
                     <div className={styles.funnelTrack}>
                       <div className={styles.funnelBar} style={{ width: al ? "0%" : `${Math.round((count / total) * 100)}%`, background: color }} />
@@ -666,11 +899,23 @@ const OwnerDashboard: React.FC = () => {
         </div>
       </main>
 
+      {/* Render Payment Modal */}
       {drawerStatus && (
         <PaymentDrawer
           status={drawerStatus}
           entries={drawerEntries}
           onClose={closeDrawer}
+          navigate={navigate}
+        />
+      )}
+
+      {/* Render Request Funnel Modal */}
+      {reqDrawerStatus && (
+        <RequestDrawer
+          status={reqDrawerStatus}
+          entries={reqDrawerEntries}
+          onClose={closeReqDrawer}
+          navigate={navigate}
         />
       )}
     </div>
