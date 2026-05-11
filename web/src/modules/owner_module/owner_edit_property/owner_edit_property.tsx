@@ -33,6 +33,7 @@ interface RentalRequest {
   id: number; tenantId: number; tenantName: string; tenantEmail: string;
   startDate: string; leaseDurationMonths: number; status: string; createdAt: string;
   tenantFacebookUrl?: string | null; tenantInstagramUrl?: string | null; tenantTwitterUrl?: string | null;
+  hasOverdue?: boolean;
 }
 interface ActiveTenant {
   id: number; tenantId: number; tenantName: string; tenantEmail: string;
@@ -564,8 +565,8 @@ const EditProperty: React.FC = () => {
   const totalPhotos = visibleExisting.length + newImageFiles.length;
   const existingSrcs = visibleExisting.map((img) => img.imageUrl);
   const pendingRequests = requests.filter((r) => r.status === "PENDING");
-  const pastRequests = requests.filter((r) => r.status !== "PENDING");
-  const displayedRequests = showPastRequests ? requests : pendingRequests;
+  const displayedRequests = requests;
+  const overdueRequestsCount = requests.filter(r => r.hasOverdue).length;
   const pendingCount = pendingRequests.length;
   const pendingExtensions = leaseExtensions.filter((e) => e.status === "PENDING");
   const avgRating = reviews.length > 0 ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : null;
@@ -588,7 +589,7 @@ const EditProperty: React.FC = () => {
     { id: "property", label: "Property", icon: <Home size={18} /> },
     { id: "tenant", label: "Tenant", icon: <User size={18} />, badge: pendingExtensions.length > 0 ? pendingExtensions.length : null },
     { id: "payments", label: "Payments", icon: <Receipt size={18} />, badge: overdueCount > 0 ? overdueCount : null },
-    { id: "requests", label: "Requests", icon: <ClipboardList size={18} />, badge: pendingCount > 0 ? pendingCount : null },
+   { id: "requests", label: "Requests", icon: <ClipboardList size={18} />, badge: overdueRequestsCount > 0 ? overdueRequestsCount : (pendingCount > 0 ? pendingCount : null) },
     { id: "reviews", label: "Reviews", icon: <Star size={18} /> },
   ];
 
@@ -923,7 +924,13 @@ const EditProperty: React.FC = () => {
               <span className={tabStyles.tabIcon}>{tab.icon}</span>
               <span className={tabStyles.tabLabel}>{tab.label}</span>
               {tab.badge != null && tab.badge > 0 && (
-                <span className={`${tabStyles.tabBadge} ${tab.id === "payments" ? tabStyles.tabBadgeDanger : tabStyles.tabBadgeWarn}`}>{tab.badge}</span>
+                <span className={`${tabStyles.tabBadge} ${
+                  tab.id === "payments" || (tab.id === "requests" && overdueRequestsCount > 0) 
+                    ? tabStyles.tabBadgeDanger 
+                    : tabStyles.tabBadgeWarn
+                }`}>
+                  {tab.badge}
+                </span>
               )}
               {activeTab === tab.id && <span className={tabStyles.tabActiveLine} />}
             </button>
@@ -1313,7 +1320,15 @@ const EditProperty: React.FC = () => {
                                   <div key={req.id} className={styles.requestRow} onClick={!isPending ? () => setPastRequestModal(req) : undefined} style={{ cursor: !isPending ? "pointer" : undefined }}>
                                     <div className={styles.requestAvatar}>{req.tenantName?.charAt(0).toUpperCase()}</div>
                                     <div className={styles.requestInfo}>
-                                      <div className={styles.requestName}>{req.tenantName}</div>
+                                      
+                                      <div className={styles.requestName} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                          {req.tenantName}
+                                          {req.hasOverdue && (
+                                            <span style={{ fontSize: "10px", fontWeight: 800, color: "#c0392b", background: "rgba(192,57,43,0.1)", padding: "2px 6px", borderRadius: "4px", display: "flex", alignItems: "center", gap: "3px", textTransform: "uppercase" }}>
+                                              <AlertTriangle size={10} strokeWidth={2.5} /> Overdue Balance
+                                            </span>
+                                          )}
+                                        </div>
                                       <div className={styles.requestMeta}>
                                         <span style={{display: "flex", alignItems: "center", gap: "4px"}}><Mail size={12}/> {req.tenantEmail}</span>
                                         <span style={{display: "flex", alignItems: "center", gap: "4px"}}><Calendar size={12}/> Move in: {req.startDate}</span>
@@ -1342,11 +1357,7 @@ const EditProperty: React.FC = () => {
                   })}
                 </div>
               )}
-              {!showPastRequests && pastRequests.length > 0 && (
-                <button type="button" onClick={() => setShowPastRequests(true)} className={styles.contactBtn} style={{ width: "100%", marginTop: "16px", padding: "12px", background: "transparent", border: "1.5px dashed rgba(31, 93, 113, 0.3)", borderRadius: "10px", color: "var(--teal-deep)", fontFamily: "'DM Sans', sans-serif", fontSize: "13px", fontWeight: 700, cursor: "pointer", transition: "all 0.2s" }}>
-                  Load Past Requests ({pastRequests.length})
-                </button>
-              )}
+             
             </div>
           )}
 
