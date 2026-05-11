@@ -131,18 +131,57 @@ public class OwnerRentalService {
 
     @Transactional
     public RentalRequestDTO terminateLease(Long requestId, User owner) {
-        RentalRequest request = rentalRequestRepository.findById(requestId).orElseThrow(() -> new IllegalArgumentException("Request not found."));
-        if (!request.getProperty().getOwner().getId().equals(owner.getId())) throw new IllegalArgumentException("You do not own this property.");
-        if (request.getStatus() != RentalRequest.RentalStatus.CONFIRMED) throw new IllegalArgumentException("Only active (CONFIRMED) leases can be terminated.");
+        RentalRequest request = rentalRequestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Request not found."));
 
+        if (!request.getProperty().getOwner().getId().equals(owner.getId()))
+            throw new IllegalArgumentException("You do not own this property.");
+
+        if (request.getStatus() != RentalRequest.RentalStatus.CONFIRMED)
+            throw new IllegalArgumentException("Only active (CONFIRMED) leases can be terminated.");
+
+        // 1. --- PAYMENT CLEANUP LOGIC ---
+        List<RentalPayment> payments = rentalPaymentRepository.findByRentalRequestIdOrderByInstallmentNumberAsc(requestId);
+        boolean paymentsUpdated = false;
+
+        for (RentalPayment payment : payments) {
+            // Cancel all future pending installments
+            if (payment.getStatus() == RentalPayment.PaymentStatus.PENDING) {
+                payment.setStatus(RentalPayment.PaymentStatus.CANCELLED);
+                paymentsUpdated = true;
+            }
+
+            // OPTIONAL: If you want to completely forgive ALL past unpaid debt upon termination,
+            // uncomment the lines below. Otherwise, they will still owe past overdue rent.
+
+            if (payment.getStatus() == RentalPayment.PaymentStatus.OVERDUE) {
+                payment.setStatus(RentalPayment.PaymentStatus.CANCELLED);
+                paymentsUpdated = true;
+            }
+
+        }
+
+        if (paymentsUpdated) {
+            rentalPaymentRepository.saveAll(payments);
+        }
+        // --------------------------------
+
+        // 2. Terminate the Lease
         request.setStatus(RentalRequest.RentalStatus.TERMINATED);
         rentalRequestRepository.save(request);
 
+        // 3. Free up the property
         Property property = request.getProperty();
         property.setStatus(Property.PropertyStatus.AVAILABLE);
         propertyRepository.save(property);
 
-        notificationService.send(request.getTenant(), "LEASE_TERMINATED", "Your lease for \"" + property.getTitle() + "\" has been terminated by the owner.", request.getId());
+        // 4. Notify Tenant
+        notificationService.send(
+                request.getTenant(),
+                "LEASE_TERMINATED",
+                "Your lease for \"" + property.getTitle() + "\" has been terminated by the owner.",
+                request.getId()
+        );
 
         return RentalRequestDTO.from(request);
     }

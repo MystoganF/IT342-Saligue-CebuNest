@@ -13,7 +13,7 @@ import {
   Home, User, Receipt, ClipboardList, Star, MapPin, Search, Plus, Minus,
   Camera, Lightbulb, Lock, Eye, EyeOff, CheckCircle2, XCircle, Ban, Inbox,
   ChevronDown, ChevronRight, ChevronLeft, Calendar, CalendarDays, Clock, Mail,
-  Check, X, Loader2, Circle, AlertTriangle
+  Check, X, Loader2, Circle, AlertTriangle, AlertCircle
 } from "lucide-react";
 
 let DefaultIcon = L.icon({
@@ -760,17 +760,44 @@ const EditProperty: React.FC = () => {
                     <span><User size={14} className={styles.inlineIcon}/> {activeTenant.tenantName}</span>
                   </div>
                 </>
-              ) : (
+             ) : (
                 <>
-                  <p className={styles.reqModalDesc}>This will <strong>immediately terminate</strong> the lease for <strong>{activeTenant.tenantName}</strong> and mark this property as <strong>Available</strong>. This action <strong>cannot be undone</strong>.</p>
+                  <p className={styles.reqModalDesc}>
+                    This will <strong>immediately terminate</strong> the lease for <strong style={{ color: overdueCount > 0 ? "#c0392b" : "inherit" }}>{activeTenant.tenantName}</strong> and mark this property as <strong>Available</strong>. This action <strong>cannot be undone</strong>.
+                  </p>
+
+                  {/* Overdue Warning Alert */}
+                  {overdueCount > 0 && (
+                    <div style={{ marginTop: "12px", marginBottom: "12px", padding: "10px 14px", background: "rgba(192,57,43,0.06)", borderLeft: "3px solid #c0392b", borderRadius: "0 8px 8px 0" }}>
+                      <span style={{ color: "#c0392b", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <AlertTriangle size={16} /> Warning: Tenant has {overdueCount} overdue payment{overdueCount > 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Payment Forgiveness Info Box */}
+                  <div style={{ marginTop: "12px", marginBottom: "16px", fontSize: "13px", color: "#92600a", background: "#fffbea", border: "1px solid rgba(246, 216, 96, 0.6)", padding: "10px 14px", borderRadius: "8px", display: "flex", alignItems: "flex-start", gap: "8px" }}>
+                    <AlertCircle size={16} style={{ flexShrink: 0, marginTop: "2px" }} />
+                    <span style={{ lineHeight: 1.4 }}>
+                      <strong>Payment Forgiveness:</strong> All unpaid installments (both Pending and Overdue) will be automatically cancelled upon termination.
+                    </span>
+                  </div>
+
                   <div className={styles.reqModalMeta}>
-                    <span><User size={14} className={styles.inlineIcon}/> {activeTenant.tenantName}</span>
+                    <span style={{ 
+                      color: overdueCount > 0 ? "#c0392b" : undefined, 
+                      background: overdueCount > 0 ? "rgba(192,57,43,0.06)" : undefined,
+                      border: overdueCount > 0 ? "1px solid rgba(192,57,43,0.2)" : undefined
+                    }}>
+                      <User size={14} className={styles.inlineIcon}/> {activeTenant.tenantName}
+                    </span>
                     <span><Mail size={14} className={styles.inlineIcon}/> {activeTenant.tenantEmail}</span>
                     <span><Calendar size={14} className={styles.inlineIcon}/> {activeTenant.startDate}</span>
                     <span><CalendarDays size={14} className={styles.inlineIcon}/> {activeTenant.leaseDurationMonths} month(s)</span>
                   </div>
                 </>
               )}
+
               {leaseSuccess && <p style={{ fontSize: 13, fontWeight: 600, color: "#2d8c6a", marginTop: 12, display: "flex", alignItems: "center", gap: "6px" }}><Check size={14}/> {leaseSuccess}</p>}
               {leaseError && <p className={styles.reqModalError}><AlertTriangle size={14} className={styles.inlineIcon}/> {leaseError}</p>}
             </div>

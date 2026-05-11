@@ -143,14 +143,14 @@ public class LeaseExtensionService {
             notificationService.send(
                     rental.getTenant(),
                     "EXTENSION_APPROVED",
-                    "🎉 Your lease extension of " + monthsToAdd + " month(s) for \"" + propTitle + "\" was approved! New total: " + newDuration + " month(s).",
+                    "Your lease extension of " + monthsToAdd + " month(s) for \"" + propTitle + "\" was approved! New total: " + newDuration + " month(s).",
                     rental.getId(),
                     propertyId
             );
 
             emailService.sendEmail(
                     rental.getTenant().getEmail(),
-                    "CebuNest – Lease Extension Approved 🎉",
+                    "CebuNest – Lease Extension Approved",
                     "Hi " + tenantName + ",\n\n" +
                             "Your lease extension request of " + monthsToAdd + " month(s) for \"" + propTitle + "\" has been approved.\n" +
                             "New total lease duration: " + newDuration + " month(s).\n\n— CebuNest Team"

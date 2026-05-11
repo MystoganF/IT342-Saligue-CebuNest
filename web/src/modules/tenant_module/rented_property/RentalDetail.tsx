@@ -247,7 +247,7 @@ const RentalDetail: React.FC = () => {
           .catch(() => {})
       );
 
-      if (found.status === "CONFIRMED" || found.status === "COMPLETED") {
+      if (found.status === "CONFIRMED" || found.status === "COMPLETED" || found.status === "TERMINATED") {
         promises.push(
           rentalsApi.getPaymentsForRequest(found.id)
             .then((d) => {
@@ -506,6 +506,7 @@ const RentalDetail: React.FC = () => {
   const canReview    = request?.status === "CONFIRMED" || request?.status === "COMPLETED";
   const isConfirmed  = request?.status === "CONFIRMED";
   const isCompleted  = request?.status === "COMPLETED";
+  const isTerminated = request?.status === "TERMINATED";
   const hasPendingExt = extensions.some((e) => e.status === "PENDING");
   const activeReceipt = viewingReceiptId ? payments.find((p) => p.id === viewingReceiptId) : null;
   const averageRating = allReviews.length > 0
@@ -829,11 +830,11 @@ const RentalDetail: React.FC = () => {
           </div>
 
           {/* ── Action Dropdowns Container ── */}
-          {(isConfirmed || isCompleted) && payments.length > 0 && (
+          {(isConfirmed || isCompleted || isTerminated) && payments.length > 0 && ( // <--- 2. Add isTerminated here
             <div className={styles.actionDropdownsContainer} ref={paymentSectionRef}>
 
               {/* OVERDUE BALANCE BANNER FOR COMPLETED LEASES */}
-              {isCompleted && hasOverdueBalance && (
+              {(isCompleted || isTerminated) && hasOverdueBalance && (
                 <div className={styles.overdueBannerContainer}>
                   <AlertTriangle className={styles.overdueBannerIcon} size={20} />
                   <div>
