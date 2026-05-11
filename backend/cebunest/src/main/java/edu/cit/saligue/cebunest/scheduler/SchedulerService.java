@@ -19,8 +19,8 @@ public class SchedulerService {
         rentalPaymentService.markOverduePayments();
     }
 
-    // Runs every minute to send reminders and complete leases
-    @Scheduled(cron = "*/10 * * * * *")
+    // Runs every day at 8:00 AM to send reminders and complete leases
+    @Scheduled(cron = "0 0 8 * * *")
     public void trackLeaseExpirations() {
         leaseTrackerService.processLeaseExpirations();
     }
