@@ -1,150 +1,164 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap");
 
 .page {
-  --teal-deep: #1f5d71; 
-  --teal-aero: #53a4a3; 
-  --slate:     #6e7071; 
-  --bg:        #f0f4f5; 
-  --approve:   #1a7a4a; 
-  --reject:    #c0392b; 
+  --teal-deep: #1f5d71;
+  --teal-aero: #53a4a3;
+  --slate: #6e7071;
+  --bg: #f0f4f5;
+  --approve: #1a7a4a;
+  --reject: #c0392b;
 
   min-height: 100vh;
   background: var(--bg);
-  font-family: 'DM Sans', sans-serif;
+  font-family: "DM Sans", sans-serif;
   font-size: 16px;
   color: #0f172a;
+}
+
+.page *,
+.page *::before,
+.page *::after {
+  box-sizing: border-box;
 }
 
 /* ── Full Width Containers ── */
 .pageHeader {
   width: 100%;
-  max-width: 1440px; 
-  margin: 0 auto; 
+  max-width: 1440px;
+  margin: 0 auto;
   padding: 40px 5% 0;
+  animation: fadeUp 0.5s ease both;
 }
 .pageTitle {
-  font-family: 'Playfair Display', serif;
-  font-size: 32px; 
-  font-weight: 800; 
-  color: var(--teal-deep); 
+  font-family: "Playfair Display", serif;
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--teal-deep);
   margin-bottom: 6px;
 }
-.pageSub { 
-  font-size: 15px; 
-  color: var(--slate); 
+.pageSub {
+  font-size: 15px;
+  color: var(--slate);
 }
 
-.bannerWrap { 
+.bannerWrap {
   width: 100%;
-  max-width: 1440px; 
-  margin: 20px auto 0; 
-  padding: 0 5%; 
+  max-width: 1440px;
+  margin: 20px auto 0;
+  padding: 0 5%;
+  animation: fadeUp 0.4s ease both;
 }
 .banner {
-  display: flex; 
-  align-items: center; 
+  display: flex;
+  align-items: center;
   gap: 10px;
   padding: 12px 16px;
-  border-radius: 12px; 
-  font-size: 14px; 
+  border-radius: 12px;
+  font-size: 14px;
   font-weight: 600;
 }
 .banner span {
-  flex: 1; 
+  flex: 1;
 }
-.bannerSuccess { 
-  background: rgba(16, 185, 129, 0.1); 
-  border: 1.5px solid rgba(16, 185, 129, 0.25); 
+.bannerSuccess {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1.5px solid rgba(16, 185, 129, 0.25);
   color: #059669;
 }
-.bannerError { 
-  background: rgba(239, 68, 68, 0.1); 
-  border: 1.5px solid rgba(239, 68, 68, 0.2);  
-  color: #dc2626; 
+.bannerError {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1.5px solid rgba(239, 68, 68, 0.2);
+  color: #dc2626;
 }
 .bannerClose {
-  margin-left: auto; 
+  margin-left: auto;
   background: none;
   border: none;
-  font-size: 14px; 
-  cursor: pointer; 
-  color: inherit; 
+  font-size: 14px;
+  cursor: pointer;
+  color: inherit;
   opacity: 0.6;
   padding: 4px;
 }
-.bannerClose:hover { opacity: 1; }
+.bannerClose:hover {
+  opacity: 1;
+}
 
-.main { 
+.main {
   width: 100%;
-  max-width: 1440px; 
-  margin: 0 auto; 
-  padding: 24px 5% 80px; 
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px 5% 80px;
 }
 
 /* ── Tabs ── */
-.tabs { 
-  display: flex; 
-  gap: 10px; 
+.tabs {
+  display: flex;
+  gap: 10px;
   margin-bottom: 32px;
-  flex-wrap: wrap; 
+  flex-wrap: wrap;
+  animation: fadeUp 0.5s 0.1s ease both;
 }
 .tab {
-  display: flex; 
-  align-items: center; 
+  display: flex;
+  align-items: center;
   gap: 8px;
-  padding: 10px 20px; 
+  padding: 10px 20px;
   border-radius: 24px;
   background: #ffffff;
   border: 1.5px solid #e2e8f0;
-  font-family: 'DM Sans', sans-serif; 
-  font-size: 14px; 
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--slate); 
-  cursor: pointer; 
+  color: var(--slate);
+  cursor: pointer;
   transition: all 0.2s;
 }
-.tab:hover { 
-  border-color: var(--teal-aero); 
-  color: var(--teal-deep); 
+.tab:hover {
+  border-color: var(--teal-aero);
+  color: var(--teal-deep);
 }
-.tabActive { 
-  background: var(--teal-deep); 
-  border-color: var(--teal-deep); 
+.tabActive {
+  background: var(--teal-deep);
+  border-color: var(--teal-deep);
   color: #ffffff;
 }
-.tabBadge { 
-  background: rgba(15, 118, 110, 0.12); 
-  color: var(--teal-deep); 
-  font-size: 11px; 
-  font-weight: 700; 
-  padding: 2px 8px; 
+.tabBadge {
+  background: rgba(15, 118, 110, 0.12);
+  color: var(--teal-deep);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
   border-radius: 20px;
 }
-.tabBadgeActive { 
-  background: rgba(255, 255, 255, 0.25); 
-  color: #ffffff; 
+.tabBadgeActive {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
 }
 
 /* ── Modern Rental Grid ── */
-.rentalGrid { 
+.rentalGrid {
   display: grid;
-  /* Automatically fits as many cards as possible, minimum width of 480px per card */
   grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
   gap: 24px;
   align-items: stretch;
 }
 
 .rentalCard {
-  background: #ffffff; 
+  background: #ffffff;
   border-radius: 18px;
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
   overflow: hidden;
   border: 1.5px solid #f1f5f9;
   cursor: pointer;
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  height: 100%;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s;
   display: flex;
   flex-direction: row;
-  animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
   outline: none;
 }
 .rentalCard:hover {
@@ -157,32 +171,27 @@
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.2);
 }
 
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(15px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Thumbnail */
+/* Thumbnail & Lazy Loading */
 .cardThumb {
-  width: 160px; /* Slightly wider for the grid layout */
+  width: 180px;
   min-height: 100%;
   flex-shrink: 0;
-  background: #f1f5f9; 
+  background: #f1f5f9;
   overflow: hidden;
   position: relative;
 }
-.cardThumbImg { 
-  width: 100%; 
-  height: 100%; 
-  object-fit: cover; 
+.cardThumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
 }
 .cardThumbPlaceholder {
-  width: 100%; 
-  height: 100%; 
+  width: 100%;
+  height: 100%;
   min-height: 140px;
-  display: flex; 
-  align-items: center; 
+  display: flex;
+  align-items: center;
   justify-content: center;
 }
 .cardThumbPlaceholderIcon {
@@ -190,39 +199,76 @@
   opacity: 0.5;
 }
 
+.imgShimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #e2e8f0 25%, #cbd5e1 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s ease-in-out infinite;
+  z-index: 1;
+}
+.cardImagePending {
+  opacity: 0;
+  filter: blur(6px);
+  transform: scale(1.02);
+  transition: none;
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cardImageLoaded {
+  opacity: 1;
+  filter: blur(0);
+  transform: scale(1);
+  transition:
+    opacity 0.35s ease,
+    filter 0.35s ease,
+    transform 0.35s ease;
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.rentalCard:hover .cardImageLoaded {
+  transform: scale(1.04);
+}
+
 /* Info Section */
 .cardInfo {
-  flex: 1; 
+  flex: 1;
   padding: 20px;
-  display: flex; 
-  flex-direction: column; 
+  display: flex;
+  flex-direction: column;
   justify-content: space-between;
 }
 
 .cardTop {
-  display: flex; 
+  display: flex;
   justify-content: space-between;
-  align-items: flex-start; 
+  align-items: flex-start;
   gap: 16px;
   margin-bottom: 12px;
 }
-.cardTitleWrap { 
-  flex: 1; 
+.cardTitleWrap {
+  flex: 1;
   min-width: 0;
 }
-.cardTitle { 
-  font-size: 16px; 
-  font-weight: 700; 
-  color: #0f172a; 
-  margin: 0 0 6px 0; 
+.cardTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px 0;
   line-height: 1.3;
 }
-.cardLocation { 
+.cardLocation {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px; 
-  color: var(--slate); 
+  font-size: 13px;
+  color: var(--slate);
   font-weight: 500;
 }
 .cardIconTeal {
@@ -231,23 +277,24 @@
 }
 
 .cardPrice {
-  font-size: 18px; 
-  font-weight: 800; 
-  color: var(--teal-deep); 
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--teal-deep);
   white-space: nowrap;
+  text-align: right;
 }
-.cardPrice span { 
-  font-size: 12px; 
-  font-weight: 500; 
+.cardPrice span {
+  font-size: 12px;
+  font-weight: 500;
   color: var(--slate);
   margin-left: 2px;
 }
 
 .cardMeta {
-  display: flex; 
-  flex-wrap: wrap; 
+  display: flex;
+  flex-wrap: wrap;
   gap: 14px;
-  font-size: 13px; 
+  font-size: 13px;
   color: var(--slate);
   font-weight: 500;
   margin-bottom: 16px;
@@ -264,19 +311,19 @@
 }
 
 .cardFooter {
-  display: flex; 
+  display: flex;
   flex-wrap: wrap;
-  align-items: center; 
+  align-items: center;
   justify-content: space-between;
-  gap: 8px; 
+  gap: 8px;
   padding-top: 14px;
   border-top: 1px dashed #e2e8f0;
 }
 
 .cardStatus {
-  font-size: 12px; 
+  font-size: 12px;
   font-weight: 700;
-  padding: 4px 12px; 
+  padding: 4px 12px;
   border-radius: 20px;
 }
 
@@ -284,7 +331,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 13px; 
+  font-size: 13px;
   font-weight: 700;
   color: var(--teal-aero);
   transition: transform 0.2s;
@@ -295,13 +342,14 @@
 
 /* ── Empty & Error States ── */
 .stateBox {
-  text-align: center; 
-  padding: 80px 40px; 
+  text-align: center;
+  padding: 80px 40px;
   background: #ffffff;
   border-radius: 18px;
   border: 1px dashed #cbd5e1;
   max-width: 600px;
   margin: 40px auto;
+  animation: fadeUp 0.4s ease both;
 }
 .stateIconWrap {
   display: flex;
@@ -322,68 +370,74 @@
   color: #0f172a;
   margin-bottom: 10px;
 }
-.stateText { 
-  font-size: 15px; 
-  color: var(--slate); 
-  margin-bottom: 24px; 
+.stateText {
+  font-size: 15px;
+  color: var(--slate);
+  margin-bottom: 24px;
   max-width: 360px;
   margin-left: auto;
   margin-right: auto;
   line-height: 1.5;
 }
 .stateBtn {
-  padding: 12px 24px; 
-  background: var(--teal-deep); 
+  padding: 12px 24px;
+  background: var(--teal-deep);
   color: #ffffff;
-  border: none; 
+  border: none;
   border-radius: 10px;
-  font-family: 'DM Sans', sans-serif; 
-  font-size: 14px; 
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
   font-weight: 700;
-  cursor: pointer; 
-  transition: background 0.2s, transform 0.1s;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    transform 0.1s;
 }
-.stateBtn:hover { 
+.stateBtn:hover {
   background: #174d5e;
   transform: translateY(-1px);
 }
 
 /* ── Skeletons ── */
 .skeletonCard {
-  background: #ffffff; 
+  background: #ffffff;
   border-radius: 18px;
-  display: flex; 
+  display: flex;
   overflow: hidden;
   border: 1.5px solid #f1f5f9;
+  height: 140px;
 }
 .skeletonImg {
-  width: 160px; 
-  height: 100%; 
+  width: 180px;
+  height: 100%;
   flex-shrink: 0;
   background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%; 
+  background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
-.skeletonBody { 
+.skeletonBody {
   flex: 1;
-  padding: 24px; 
-  display: flex; 
-  flex-direction: column; 
-  gap: 12px; 
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 .skeletonLine {
-  height: 14px; 
+  height: 14px;
   border-radius: 6px;
   background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-  background-size: 200% 100%; 
+  background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
-.skeletonLg { width: 60%; }
-.skeletonMd { width: 40%; }
-.skeletonSm { width: 25%; margin-top: auto; }
-
-@keyframes shimmer { 
-  to { background-position: -200% 0; } 
+.skeletonLg {
+  width: 60%;
+}
+.skeletonMd {
+  width: 40%;
+}
+.skeletonSm {
+  width: 25%;
+  margin-top: auto;
 }
 
 /* Terminated Utilities */
@@ -403,29 +457,51 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 5;
 }
 
-/* ── Media Queries ── */
+/* ── Animations & Media Queries ── */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
 @media (max-width: 1024px) {
-  /* On tablets, cards can become a bit narrower */
   .rentalGrid {
     grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
   }
 }
 
 @media (max-width: 640px) {
-  .pageHeader { padding: 30px 5% 0; }
-  .main       { padding: 20px 5% 60px; }
-  
-  /* On mobile, stack the card vertically */
+  .pageHeader {
+    padding: 30px 5% 0;
+  }
+  .main {
+    padding: 20px 5% 60px;
+  }
   .rentalGrid {
     grid-template-columns: 1fr;
   }
   .rentalCard {
     flex-direction: column;
+    height: auto;
   }
   .cardThumb {
     width: 100%;
-    height: 160px;
+    height: 180px;
+  }
+  .cardPrice {
+    text-align: left;
   }
 }

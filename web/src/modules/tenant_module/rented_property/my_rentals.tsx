@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams, useOutletContext } from "react-router-dom";
 import { rentalsApi } from "./rentals.api";
 import styles from "./my_rentals.module.css";
+import { VirtuosoGrid } from "react-virtuoso";
 import {
   Home,
   Clock,
@@ -86,11 +87,30 @@ function statusBadgeStyle(status: string): React.CSSProperties {
   }
 }
 
+// ─── LazyImage Component ───────────────────────────────────────────────────
+const LazyImage: React.FC<{ src: string; alt: string; isPriority?: boolean }> = ({ src, alt, isPriority }) => {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <>
+      {!loaded && <div className={styles.imgShimmer} aria-hidden="true" />}
+      <img
+        src={src}
+        alt={alt}
+        loading={isPriority ? "eager" : "lazy"}
+        // @ts-expect-error - fetchpriority is a modern HTML attribute
+        fetchpriority={isPriority ? "high" : "auto"}
+        decoding="async"
+        className={loaded ? styles.cardImageLoaded : styles.cardImagePending}
+        onLoad={() => setLoaded(true)}
+      />
+    </>
+  );
+};
+
 // ─── Main Component ────────────────────────────────────────────────────────
 const MyRentals: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-
   const { user } = useOutletContext<{ user: NavUser }>();
 
   const [requests, setRequests] = useState<RentalRequest[]>([]);
@@ -157,7 +177,7 @@ const MyRentals: React.FC = () => {
   return (
     <div className={styles.page}>
       
-      {/* Header spanning full width container */}
+      {/* Header */}
       <div className={styles.pageHeader}>
         <h1 className={styles.pageTitle}>My Rentals</h1>
         <p className={styles.pageSub}>Track your rental requests and payment schedules.</p>
@@ -193,8 +213,7 @@ const MyRentals: React.FC = () => {
           ))}
         </div>
 
-        {/* Skeletons now in Grid */}
-        {loading && (
+        {loading ? (
           <div className={styles.rentalGrid}>
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div key={i} className={styles.skeletonCard}>
@@ -207,9 +226,7 @@ const MyRentals: React.FC = () => {
               </div>
             ))}
           </div>
-        )}
-
-        {!loading && error && (
+        ) : error ? (
           <div className={styles.stateBox}>
             <div className={styles.stateIconWrap}>
               <AlertTriangle size={48} className={styles.stateIconError} strokeWidth={1.5} />
@@ -218,9 +235,7 @@ const MyRentals: React.FC = () => {
             <p className={styles.stateText}>{error}</p>
             <button className={styles.stateBtn} onClick={fetchRequests} type="button">Try Again</button>
           </div>
-        )}
-
-        {!loading && !error && filtered.length === 0 && (
+        ) : filtered.length === 0 ? (
           <div className={styles.stateBox}>
             <div className={styles.stateIconWrap}>
               {React.cloneElement(emptyConfig[tab].icon as React.ReactElement, { className: styles.stateIconEmpty })}
@@ -237,15 +252,22 @@ const MyRentals: React.FC = () => {
               </button>
             )}
           </div>
-        )}
-
-        {/* CSS Grid for Cards */}
-        {!loading && !error && filtered.length > 0 && (
-          <div className={styles.rentalGrid}>
-            {filtered.map((req) => (
+        ) : (
+          <VirtuosoGrid
+            useWindowScroll
+            data={filtered}
+            components={{
+              List: React.forwardRef((props, ref) => (
+                <div {...props} ref={ref} className={styles.rentalGrid} />
+              )),
+              Item: ({ children, ...props }) => (
+                <div {...props} style={{ margin: 0 }}>{children}</div>
+              )
+            }}
+            itemContent={(index, req) => (
               <div
-                key={req.id}
                 className={`${styles.rentalCard} ${req.status === "TERMINATED" ? styles.rentalCardTerminated : ""}`}
+                style={{ animationDelay: `${Math.min(index * 40, 400)}ms` }}
                 onClick={() => navigate(`/my-rentals/${req.id}`)}
                 role="button"
                 tabIndex={0}
@@ -253,7 +275,7 @@ const MyRentals: React.FC = () => {
               >
                 <div className={styles.cardThumb}>
                   {req.propertyImage ? (
-                    <img src={req.propertyImage} alt={req.propertyTitle} className={styles.cardThumbImg} />
+                    <LazyImage src={req.propertyImage} alt={req.propertyTitle} isPriority={index < 6} />
                   ) : (
                     <div className={styles.cardThumbPlaceholder}>
                       <Building size={32} className={styles.cardThumbPlaceholderIcon} strokeWidth={1.5} />
@@ -302,10 +324,9 @@ const MyRentals: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
+            )}
+          />
         )}
-
       </div>
     </div>
   );

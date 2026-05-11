@@ -92,9 +92,8 @@ public class PropertyDTO {
                     String originalUrl = i.getImageUrl();
                     String thumbUrl = originalUrl;
 
-                    // More aggressive Cloudinary optimization for maximum speed
                     if (originalUrl != null && originalUrl.contains("/upload/")) {
-                        thumbUrl = originalUrl.replace("/upload/", "/upload/w_300,c_fill,q_auto:eco,f_auto,fl_progressive/");
+                        thumbUrl = originalUrl.replace("/upload/", "/upload/w_200,c_fill,q_auto:low,f_auto,fl_progressive,dpr_1.0/");
                     }
 
                     return new ImageDTO(i.getId(), originalUrl, thumbUrl);

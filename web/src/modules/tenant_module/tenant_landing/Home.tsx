@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { landingApi } from "./landing.api";
 import styles from "./Home.module.css";
+import { VirtuosoGrid } from "react-virtuoso";
 import { 
   Home as HomeIcon, 
   MapPin, 
@@ -29,7 +30,8 @@ interface Property {
   location: string;
   type: string;
   status: string;
-  images: { imageUrl: string }[];
+  // Notice we added thumbnailUrl here
+  images: { imageUrl: string; thumbnailUrl?: string }[];
   ownerId: number;
 }
 
@@ -71,20 +73,43 @@ const SkeletonCard: React.FC = () => (
   </div>
 );
 
+// ─── LazyImage Component (Prioritization + Blur-up) ────────────────────────
+const LazyImage: React.FC<{ src: string; alt: string; isPriority?: boolean }> = ({ src, alt, isPriority }) => {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <>
+      {!loaded && <div className={styles.imgShimmer} aria-hidden="true" />}
+      <img
+        src={src}
+        alt={alt}
+        loading={isPriority ? "eager" : "lazy"}
+        // @ts-expect-error - fetchpriority is a modern HTML attribute
+        fetchpriority={isPriority ? "high" : "auto"}
+        decoding="async"
+        className={`${styles.cardImage} ${loaded ? styles.cardImageLoaded : styles.cardImagePending}`}
+        onLoad={() => setLoaded(true)}
+      />
+    </>
+  );
+};
+
 interface PropertyCardProps {
   property: Property;
+  index: number;
+  isPriority?: boolean;
   onClick: (id: number) => void;
-  animationDelay?: number;
 }
 
-const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, animationDelay = 0 }) => {
-  const firstImage = property.images?.[0]?.imageUrl;
+const PropertyCard: React.FC<PropertyCardProps> = ({ property, index, isPriority, onClick }) => {
+  // Use thumbnailUrl if available, fallback to full imageUrl
+  const imgToLoad = property.images?.[0]?.thumbnailUrl || property.images?.[0]?.imageUrl;
   const statusLabel = property.status?.charAt(0) + property.status?.slice(1).toLowerCase();
 
   return (
     <div
       className={styles.card}
-      style={{ animationDelay: `${animationDelay}ms` }}
+      // Natively stagger the entrance animation
+      style={{ animationDelay: `${Math.min(index * 40, 400)}ms` }}
       onClick={() => onClick(property.id)}
       role="button"
       tabIndex={0}
@@ -93,13 +118,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, animatio
     >
       {/* Image */}
       <div className={styles.cardImageWrap}>
-        {firstImage ? (
-          <img
-            src={firstImage}
-            alt={property.title}
-            className={styles.cardImage}
-            loading="lazy"
-          />
+        {imgToLoad ? (
+          <LazyImage src={imgToLoad} alt={property.title} isPriority={isPriority} />
         ) : (
           <div className={styles.cardImagePlaceholder}>
             <HomeIcon size={36} className={styles.cardImagePlaceholderIcon} strokeWidth={1.5} />
@@ -107,12 +127,10 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, animatio
           </div>
         )}
 
-        {/* Status badge */}
         <span className={`${styles.cardBadge} ${getStatusBadgeClass(property.status, styles)}`}>
           {statusLabel}
         </span>
 
-        {/* Type badge */}
         {property.type && (
           <span className={styles.cardTypeBadge}>
             {property.type}
@@ -135,7 +153,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, animatio
             <span className={styles.cardPriceAmount}>{formatPrice(property.price)}</span>
             <span className={styles.cardPriceLabel}>per month</span>
           </div>
-          <button className={styles.cardViewBtn}>
+          <button className={styles.cardViewBtn} type="button" tabIndex={-1}>
             View <ArrowRight size={14} />
           </button>
         </div>
@@ -148,34 +166,27 @@ const PropertyCard: React.FC<PropertyCardProps> = ({ property, onClick, animatio
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
-  // Auth state — retrieve user object from TenantLayout context wrapper
   const { user } = useOutletContext<{ user: User }>();
 
-  // Properties state
-  const [properties, setProperties]   = useState<Property[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [error, setError]             = useState<string | null>(null);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Property types for filter chips
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
-
-  // Filter state
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeType, setActiveType]   = useState<string>("ALL");
-  const [minPrice, setMinPrice]       = useState("");
-  const [maxPrice, setMaxPrice]       = useState("");
+  const [activeType, setActiveType] = useState<string>("ALL");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
 
-  // ── Fetch property types for filter chips ──────────────────────────────
   useEffect(() => {
     landingApi.getPropertyTypes()
       .then((data) => {
         if (data.success) setPropertyTypes(data.data.types ?? []);
       })
-      .catch(() => {}); // silently fail — chips just won't show
+      .catch(() => {}); 
   }, []);
 
-  // ── Fetch properties from backend via API file ─────────────────────────
   const fetchProperties = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -205,7 +216,6 @@ const Home: React.FC = () => {
     fetchProperties();
   }, [fetchProperties]);
 
-  // ── Handlers ──────────────────────────────────────────────────────────
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setSearchQuery(searchInput.trim());
@@ -215,17 +225,13 @@ const Home: React.FC = () => {
     navigate(`/properties/${id}`);
   };
 
-  // ── Derived greeting ───────────────────────────────────────────────────
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" :
-    hour < 18 ? "Good afternoon" :
-                "Good evening";
+    hour < 18 ? "Good afternoon" : "Good evening";
 
-  // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div className={styles.page}>
-
       {/* ── Hero ── */}
       <section className={styles.hero}>
         <div className={styles.heroDeco + " " + styles.heroDeco1} />
@@ -268,7 +274,6 @@ const Home: React.FC = () => {
 
       {/* ── Main Listings ── */}
       <main className={styles.main}>
-
         {/* Section header */}
         <div className={styles.sectionHeader}>
           <div className={styles.sectionTitleGroup}>
@@ -279,16 +284,13 @@ const Home: React.FC = () => {
               </span>
             </div>
             <h2 className={styles.sectionTitle}>
-              {loading
-                ? "Loading listings…"
-                : `${properties.length} propert${properties.length === 1 ? "y" : "ies"} found`}
+              {loading ? "Loading listings…" : `${properties.length} propert${properties.length === 1 ? "y" : "ies"} found`}
             </h2>
           </div>
         </div>
 
         {/* ── Search & Filter Section ── */}
         <div className={styles.filterSection}>
-          
           <form className={styles.mainSearch} onSubmit={handleSearchSubmit}>
             <Search size={18} className={styles.mainSearchIcon} />
             <input
@@ -298,12 +300,9 @@ const Home: React.FC = () => {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
             />
-            <button type="submit" className={styles.mainSearchBtn}>
-              Search
-            </button>
+            <button type="submit" className={styles.mainSearchBtn}>Search</button>
           </form>
 
-          {/* Existing Filter Bar */}
           <div className={styles.filterBar}>
             <span className={styles.filterLabel}>Filter</span>
             <div className={styles.filterChips}>
@@ -324,7 +323,6 @@ const Home: React.FC = () => {
               ))}
             </div>
 
-            {/* Price range */}
             <div className={styles.filterPrice}>
               <input
                 type="number"
@@ -347,60 +345,58 @@ const Home: React.FC = () => {
           </div>
         </div>
 
-        {/* Property grid */}
-        <div className={styles.propertyGrid}>
-
-          {/* Loading skeletons */}
-          {loading && Array.from({ length: 6 }).map((_, i) => (
-            <SkeletonCard key={i} />
-          ))}
-
-          {/* Error state */}
-          {!loading && error && (
-            <div className={styles.stateBox}>
-              <AlertTriangle size={48} className={styles.stateIcon} strokeWidth={1.5} />
-              <h3 className={styles.stateTitle}>Something went wrong</h3>
-              <p className={styles.stateBody}>{error}</p>
-              <button className={styles.stateBtn} onClick={fetchProperties}>
-                Try Again
-              </button>
-            </div>
-          )}
-
-          {/* Empty state */}
-          {!loading && !error && properties.length === 0 && (
-            <div className={styles.stateBox}>
-              <Building size={48} className={styles.stateIcon} strokeWidth={1.5} />
-              <h3 className={styles.stateTitle}>No properties found</h3>
-              <p className={styles.stateBody}>
-                Try adjusting your search or filters to find available listings.
-              </p>
-              <button
-                className={styles.stateBtn}
-                onClick={() => {
-                  setSearchInput("");
-                  setSearchQuery("");
-                  setActiveType("ALL");
-                  setMinPrice("");
-                  setMaxPrice("");
-                }}
-              >
-                Clear Filters
-              </button>
-            </div>
-          )}
-
-          {/* Property cards */}
-          {!loading && !error && properties.map((property, i) => (
-            <PropertyCard
-              key={property.id}
-              property={property}
-              onClick={handleCardClick}
-              animationDelay={i * 60}
-            />
-          ))}
-
-        </div>
+        {/* ── Property Grid (Virtualizer) ── */}
+        {loading ? (
+          <div className={styles.propertyGrid}>
+            {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : error ? (
+          <div className={styles.stateBox}>
+            <AlertTriangle size={48} className={styles.stateIcon} strokeWidth={1.5} />
+            <h3 className={styles.stateTitle}>Something went wrong</h3>
+            <p className={styles.stateBody}>{error}</p>
+            <button className={styles.stateBtn} onClick={fetchProperties}>Try Again</button>
+          </div>
+        ) : properties.length === 0 ? (
+          <div className={styles.stateBox}>
+            <Building size={48} className={styles.stateIcon} strokeWidth={1.5} />
+            <h3 className={styles.stateTitle}>No properties found</h3>
+            <p className={styles.stateBody}>Try adjusting your search or filters to find available listings.</p>
+            <button
+              className={styles.stateBtn}
+              onClick={() => {
+                setSearchInput("");
+                setSearchQuery("");
+                setActiveType("ALL");
+                setMinPrice("");
+                setMaxPrice("");
+              }}
+            >
+              Clear Filters
+            </button>
+          </div>
+        ) : (
+          <VirtuosoGrid
+            useWindowScroll
+            data={properties}
+            components={{
+              List: React.forwardRef((props, ref) => (
+                <div {...props} ref={ref} className={styles.propertyGrid} />
+              )),
+              Item: ({ children, ...props }) => (
+                <div {...props} style={{ margin: 0 }}>{children}</div>
+              )
+            }}
+            itemContent={(index, property) => (
+              <PropertyCard
+                property={property}
+                index={index}
+                isPriority={index < 6}
+                onClick={handleCardClick}
+              />
+            )}
+          />
+        )}
       </main>
     </div>
   );
