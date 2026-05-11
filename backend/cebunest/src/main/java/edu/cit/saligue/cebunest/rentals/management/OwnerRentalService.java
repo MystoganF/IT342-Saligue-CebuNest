@@ -6,7 +6,7 @@ import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequestDTO;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository;
 import edu.cit.saligue.cebunest.payments.shared.RentalPayment; // Keep in old folder for now
-import edu.cit.saligue.cebunest.repository.RentalPaymentRepository; // Keep in old folder for now
+import edu.cit.saligue.cebunest.payments.shared.RentalPaymentRepository;
 import edu.cit.saligue.cebunest.notifications.core.NotificationService;
 import edu.cit.saligue.cebunest.users.shared.User;
 import lombok.RequiredArgsConstructor;

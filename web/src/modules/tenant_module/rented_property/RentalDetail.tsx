@@ -139,7 +139,6 @@ const TwitterIcon = () => (
     <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
   </svg>
 );
-
 const StarPicker: React.FC<{ value: number; onChange: (v: number) => void }> = ({ value, onChange }) => {
   const [hovered, setHovered] = useState(0);
   return (
@@ -263,7 +262,7 @@ const RentalDetail: React.FC = () => {
                 const initial: Record<string, boolean> = {};
                 years.forEach((y) => { initial[y] = false; });
                 setExpandedYears(initial);
-                
+
                 const stale = fetched.find((p) => p.paymongoPaymentId !== null && p.status !== "PAID" && p.status !== "FAILED");
                 if (stale) {
                   rentalsApi.cancelPayment(stale.id)
@@ -277,11 +276,13 @@ const RentalDetail: React.FC = () => {
             })
             .catch(() => {})
         );
+
         promises.push(
           rentalsApi.getLeaseExtensions(found.id)
             .then((d) => { if (d.success) setExtensions(d.data.extensionRequests ?? []); })
             .catch(() => {})
         );
+
         promises.push(
           rentalsApi.getPropertyReviews(found.propertyId)
             .then((d) => {
@@ -504,11 +505,17 @@ const RentalDetail: React.FC = () => {
   const nextDue      = payments.find((p) => p.status === "PENDING" || p.status === "OVERDUE" || p.status === "FAILED");
   const canReview    = request?.status === "CONFIRMED" || request?.status === "COMPLETED";
   const isConfirmed  = request?.status === "CONFIRMED";
+  const isCompleted  = request?.status === "COMPLETED";
   const hasPendingExt = extensions.some((e) => e.status === "PENDING");
   const activeReceipt = viewingReceiptId ? payments.find((p) => p.id === viewingReceiptId) : null;
   const averageRating = allReviews.length > 0
     ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
     : 0;
+
+  // OVERDUE BALANCE CALCULATION
+  const overduePaymentsCount = payments.filter((p) => p.status === "OVERDUE");
+  const totalOverdue = overduePaymentsCount.reduce((sum, p) => sum + p.amount, 0);
+  const hasOverdueBalance = totalOverdue > 0;
 
   if (loading) return (
     <div className={styles.page}>
@@ -533,13 +540,9 @@ const RentalDetail: React.FC = () => {
 
   return (
     <div className={styles.page}>
-
-      
-
       <div className={styles.main}>
         {/* ══ LEFT ══ */}
         <div className={styles.leftCol}>
-
           {/* Gallery */}
           <div className={styles.gallery}>
             <div className={styles.galleryMain}>
@@ -826,10 +829,24 @@ const RentalDetail: React.FC = () => {
           </div>
 
           {/* ── Action Dropdowns Container ── */}
-          {isConfirmed && payments.length > 0 && (
+          {(isConfirmed || isCompleted) && payments.length > 0 && (
             <div className={styles.actionDropdownsContainer} ref={paymentSectionRef}>
 
-              {/* Verify / Overdue Banner */}
+              {/* OVERDUE BALANCE BANNER FOR COMPLETED LEASES */}
+              {isCompleted && hasOverdueBalance && (
+                <div className={styles.overdueBannerContainer}>
+                  <AlertTriangle className={styles.overdueBannerIcon} size={20} />
+                  <div>
+                    <h3 className={styles.overdueBannerTitle}>Outstanding Balance</h3>
+                    <p className={styles.overdueBannerText}>
+                      Your lease has ended, but you have an overdue balance of <strong>{formatPrice(totalOverdue)}</strong>. 
+                      Please settle your remaining installments below to clear your account.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Verify / Notification Banner */}
               {verifyBanner && (
                 <div className={`${styles.verifyBanner} ${styles[`verifyBanner_${verifyBanner.state}`]}`}>
                   <span className={styles.verifyBannerIcon}>
@@ -906,6 +923,7 @@ const RentalDetail: React.FC = () => {
                                             <AlertTriangle size={10} /> Overdue
                                           </span>
                                         )}
+                                        
                                         {p.status === "PENDING" && p.checkoutUrl && !isLocked && (
                                           <div className={styles.paymentResetLink} onClick={() => handleResetPayment(p.id)}>
                                             Link expired? Click to reset
@@ -983,97 +1001,99 @@ const RentalDetail: React.FC = () => {
                 )}
               </div>
 
-              {/* 3. Lease Extension */}
-              <div className={styles.actionCard}>
-                <button type="button" onClick={() => setExtensionExpanded(!extensionExpanded)} className={styles.actionHeaderBtn}>
-                  <span>Lease Extension Requests</span>
-                  <span style={{ transition: 'transform 0.2s', transform: extensionExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'flex' }}>
-                    <ChevronDown size={18} />
-                  </span>
-                </button>
+              {/* 3. Lease Extension (Hidden if Completed) */}
+              {isConfirmed && (
+                <div className={styles.actionCard}>
+                  <button type="button" onClick={() => setExtensionExpanded(!extensionExpanded)} className={styles.actionHeaderBtn}>
+                    <span>Lease Extension Requests</span>
+                    <span style={{ transition: 'transform 0.2s', transform: extensionExpanded ? 'rotate(180deg)' : 'rotate(0deg)', display: 'flex' }}>
+                      <ChevronDown size={18} />
+                    </span>
+                  </button>
 
-                {extensionExpanded && (
-                  <div className={styles.actionBody}>
-                    {extensions.length > 0 && (
-                      <div className={styles.extensionList}>
-                        {extensions.map((ext) => (
-                          <div key={ext.id} className={`${styles.extensionItem} ${styles[`extensionItem_${ext.status}`]}`}>
-                            <div className={styles.extensionItemHeader}>
-                              <span className={styles.extensionItemDuration}>
-                                {ext.requestedMonths} month{ext.requestedMonths !== 1 ? "s" : ""} requested
-                              </span>
-                              <span className={`${styles.extensionItemStatus} ${styles[`extensionItemStatus_${ext.status}`]}`}>
-                                {ext.status === "APPROVED" ? <><Check size={12} strokeWidth={3} /> Approved</> 
-                                  : ext.status === "REJECTED" ? <><X size={12} strokeWidth={3} /> Rejected</> 
-                                  : <><Clock size={12} strokeWidth={3} /> Pending</>}
-                              </span>
+                  {extensionExpanded && (
+                    <div className={styles.actionBody}>
+                      {extensions.length > 0 && (
+                        <div className={styles.extensionList}>
+                          {extensions.map((ext) => (
+                            <div key={ext.id} className={`${styles.extensionItem} ${styles[`extensionItem_${ext.status}`]}`}>
+                              <div className={styles.extensionItemHeader}>
+                                <span className={styles.extensionItemDuration}>
+                                  {ext.requestedMonths} month{ext.requestedMonths !== 1 ? "s" : ""} requested
+                                </span>
+                                <span className={`${styles.extensionItemStatus} ${styles[`extensionItemStatus_${ext.status}`]}`}>
+                                  {ext.status === "APPROVED" ? <><Check size={12} strokeWidth={3} /> Approved</> 
+                                    : ext.status === "REJECTED" ? <><X size={12} strokeWidth={3} /> Rejected</> 
+                                    : <><Clock size={12} strokeWidth={3} /> Pending</>}
+                                </span>
+                              </div>
+                              {ext.reason && <div className={styles.extensionItemReason}>"{ext.reason}"</div>}
                             </div>
-                            {ext.reason && <div className={styles.extensionItemReason}>"{ext.reason}"</div>}
+                          ))}
+                        </div>
+                      )}
+
+                      {extMsg && (
+                        <div className={`${styles.extensionMsg} ${styles[`extensionMsg_${extMsg.type}`]}`}>
+                          {extMsg.type === "success" ? <CheckCircle size={16} /> : <AlertCircle size={16} />} 
+                          {extMsg.text}
+                        </div>
+                      )}
+
+                      {!hasPendingExt && !showExtForm && (
+                        <button type="button" onClick={() => { setShowExtForm(true); setExtMsg(null); }} className={styles.extensionAddBtn}>
+                          <Plus size={16} /> Request New Extension
+                        </button>
+                      )}
+
+                      {hasPendingExt && !showExtForm && (
+                        <p className={styles.extensionPendingNotice}>
+                          <Clock size={14} /> You have a pending extension request.
+                        </p>
+                      )}
+
+                      {showExtForm && (
+                        <form onSubmit={handleExtensionSubmit} className={styles.extensionForm}>
+                          <div className={styles.extensionFormField}>
+                            <label className={styles.extensionFormLabel}>Additional Months</label>
+                            <div className={styles.extensionStepper}>
+                              <button type="button" className={styles.extensionStepperBtn} onClick={() => setExtMonths((m) => Math.max(1, m - 1))}>
+                                <Minus size={16} strokeWidth={3} />
+                              </button>
+                              <span className={styles.extensionStepperValue}>{extMonths}</span>
+                              <button type="button" className={styles.extensionStepperBtn} onClick={() => setExtMonths((m) => m + 1)}>
+                                <Plus size={16} strokeWidth={3} />
+                              </button>
+                              <span className={styles.extensionStepperUnit}>month{extMonths !== 1 ? "s" : ""}</span>
+                            </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {extMsg && (
-                      <div className={`${styles.extensionMsg} ${styles[`extensionMsg_${extMsg.type}`]}`}>
-                        {extMsg.type === "success" ? <CheckCircle size={16} /> : <AlertCircle size={16} />} 
-                        {extMsg.text}
-                      </div>
-                    )}
-
-                    {!hasPendingExt && !showExtForm && (
-                      <button type="button" onClick={() => { setShowExtForm(true); setExtMsg(null); }} className={styles.extensionAddBtn}>
-                        <Plus size={16} /> Request New Extension
-                      </button>
-                    )}
-
-                    {hasPendingExt && !showExtForm && (
-                      <p className={styles.extensionPendingNotice}>
-                        <Clock size={14} /> You have a pending extension request.
-                      </p>
-                    )}
-
-                    {showExtForm && (
-                      <form onSubmit={handleExtensionSubmit} className={styles.extensionForm}>
-                        <div className={styles.extensionFormField}>
-                          <label className={styles.extensionFormLabel}>Additional Months</label>
-                          <div className={styles.extensionStepper}>
-                            <button type="button" className={styles.extensionStepperBtn} onClick={() => setExtMonths((m) => Math.max(1, m - 1))}>
-                              <Minus size={16} strokeWidth={3} />
-                            </button>
-                            <span className={styles.extensionStepperValue}>{extMonths}</span>
-                            <button type="button" className={styles.extensionStepperBtn} onClick={() => setExtMonths((m) => m + 1)}>
-                              <Plus size={16} strokeWidth={3} />
-                            </button>
-                            <span className={styles.extensionStepperUnit}>month{extMonths !== 1 ? "s" : ""}</span>
+                          <div className={styles.extensionFormField}>
+                            <label className={styles.extensionFormLabel}>
+                              Reason <span className={styles.extensionOptional}>(optional)</span>
+                            </label>
+                            <textarea
+                              value={extReason}
+                              onChange={(e) => setExtReason(e.target.value)}
+                              placeholder="Why are you requesting an extension?"
+                              rows={3}
+                              maxLength={300}
+                              className={styles.extensionTextarea}
+                            />
                           </div>
-                        </div>
-                        <div className={styles.extensionFormField}>
-                          <label className={styles.extensionFormLabel}>
-                            Reason <span className={styles.extensionOptional}>(optional)</span>
-                          </label>
-                          <textarea
-                            value={extReason}
-                            onChange={(e) => setExtReason(e.target.value)}
-                            placeholder="Why are you requesting an extension?"
-                            rows={3}
-                            maxLength={300}
-                            className={styles.extensionTextarea}
-                          />
-                        </div>
-                        <div className={styles.extensionFormActions}>
-                          <button type="button" onClick={() => { setShowExtForm(false); setExtMsg(null); }} className={styles.extensionCancelBtn}>
-                            Cancel
-                          </button>
-                          <button type="submit" disabled={extSubmitting} className={styles.extensionSubmitBtn}>
-                            {extSubmitting ? "Sending…" : `Request +${extMonths} month${extMonths !== 1 ? "s" : ""}`}
-                          </button>
-                        </div>
-                      </form>
-                    )}
-                  </div>
-                )}
-              </div>
+                          <div className={styles.extensionFormActions}>
+                            <button type="button" onClick={() => { setShowExtForm(false); setExtMsg(null); }} className={styles.extensionCancelBtn}>
+                              Cancel
+                            </button>
+                            <button type="submit" disabled={extSubmitting} className={styles.extensionSubmitBtn}>
+                              {extSubmitting ? "Sending…" : `Request +${extMonths} month${extMonths !== 1 ? "s" : ""}`}
+                            </button>
+                          </div>
+                        </form>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

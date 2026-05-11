@@ -8,7 +8,7 @@ import edu.cit.saligue.cebunest.infrastructure.mail.EmailService;
 import edu.cit.saligue.cebunest.notifications.core.NotificationService;
 import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.rentals.shared.LeaseExtensionRequestRepository;
-import edu.cit.saligue.cebunest.repository.RentalPaymentRepository; // Ensure this is imported
+import edu.cit.saligue.cebunest.payments.shared.RentalPaymentRepository;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

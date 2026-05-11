@@ -8,6 +8,7 @@ import {
   AlertCircle, CalendarCheck, Star, MessageSquare,
   Check, AlertTriangle
 } from "lucide-react";
+import axios from "axios";
 
 // ─── custom social icons ───────────────────────────────────────────────────
 
@@ -343,32 +344,89 @@ const PropertyDetail: React.FC = () => {
       }
       setBookingMsg({ type: "success", text: "Rental request submitted! The owner will review it shortly." });
       setExistingRequest({ id: data.data.request.id, status: "PENDING" });
-    } catch {
-      setBookingMsg({ type: "error", text: "Network error. Please try again." });
+      
+    } catch (err: any) {
+      // Apply the robust error extraction here!
+      let displayMessage = "Network error. Please try again.";
+
+      if (err.response?.data) {
+        const data = err.response.data;
+
+        // 1. Try to read OUR custom backend format
+        if (data.error && typeof data.error === 'object' && data.error.message) {
+          displayMessage = data.error.message;
+        } 
+        // 2. Try to read the default Spring Boot message (if enabled)
+        else if (data.message) {
+          displayMessage = data.message;
+        } 
+        // 3. Fallback to the Spring Boot HTTP error name (e.g., "Bad Request")
+        else if (typeof data.error === 'string') {
+          displayMessage = `Server Error: ${data.error}`;
+        }
+      }
+
+      setBookingMsg({ 
+        type: "error", 
+        text: displayMessage 
+      });
+      
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleConfirm = async () => {
-    if (!existingRequest) return;
-    setConfirming(true);
-    setConfirmMsg(null);
+  if (!existingRequest) return;
+  setConfirming(true);
+  setConfirmMsg(null);
 
-    try {
-      const data = await rentingApi.confirmRental(existingRequest.id);
-      if (!data.success) {
-        setConfirmMsg({ type: "error", text: data?.error?.message ?? "Failed to confirm rental." });
-        return;
-      }
-      setConfirmMsg({ type: "success", text: "Rental confirmed! Your monthly payment schedule is ready." });
-      setExistingRequest(prev => prev ? { ...prev, status: "CONFIRMED" } : prev);
-    } catch {
-      setConfirmMsg({ type: "error", text: "Network error. Please try again." });
-    } finally {
-      setConfirming(false);
+  try {
+    const data = await rentingApi.confirmRental(existingRequest.id);
+    
+    // Defensive check just in case it returns 200 OK but success is false
+    if (!data.success) {
+      setConfirmMsg({ 
+        type: "error", 
+        text: data?.error?.message ?? "Failed to confirm rental." 
+      });
+      return;
     }
-  };
+    
+    setConfirmMsg({ 
+      type: "success", 
+      text: "Rental confirmed! Your monthly payment schedule is ready." 
+    });
+    setExistingRequest(prev => prev ? { ...prev, status: "CONFIRMED" } : prev);
+    
+} catch (err: any) {
+    let displayMessage = "Network error. Please try again.";
+
+    if (err.response?.data) {
+      const data = err.response.data;
+
+      // 1. Try to read OUR custom backend format
+      if (data.error && typeof data.error === 'object' && data.error.message) {
+        displayMessage = data.error.message;
+      } 
+      // 2. Try to read the default Spring Boot message (if enabled)
+      else if (data.message) {
+        displayMessage = data.message;
+      } 
+      // 3. Fallback to the Spring Boot HTTP error name (e.g., "Bad Request")
+      else if (typeof data.error === 'string') {
+        displayMessage = `Server Error: ${data.error}`;
+      }
+    }
+
+    setConfirmMsg({ 
+      type: "error", 
+      text: displayMessage 
+    });
+  } finally {
+    setConfirming(false);
+  }
+};
 
   const handlePayClick = async (paymentId: number) => {
     setPaymentActionLoading(paymentId);

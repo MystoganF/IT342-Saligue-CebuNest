@@ -8,7 +8,7 @@ import edu.cit.saligue.cebunest.rentals.shared.LeaseExtensionRequest;
 import edu.cit.saligue.cebunest.rentals.shared.LeaseExtensionRequestRepository;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository;
-import edu.cit.saligue.cebunest.repository.RentalPaymentRepository;
+import edu.cit.saligue.cebunest.payments.shared.RentalPaymentRepository;
 import edu.cit.saligue.cebunest.users.shared.User;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

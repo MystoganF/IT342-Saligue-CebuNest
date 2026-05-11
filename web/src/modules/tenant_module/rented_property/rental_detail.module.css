@@ -1653,3 +1653,40 @@
     transform: translateY(0) scale(1);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   OVERDUE BANNER FOR COMPLETED LEASES
+════════════════════════════════════════════════════════════════════════ */
+
+.overdueBannerContainer {
+  background: rgba(192, 57, 43, 0.06);
+  border-left: 4px solid #c0392b;
+  padding: 16px;
+  margin-bottom: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.overdueBannerIcon {
+  color: #c0392b;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.overdueBannerTitle {
+  color: #922b21;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 4px 0;
+}
+
+.overdueBannerText {
+  color: #a93226;
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.5;
+}
