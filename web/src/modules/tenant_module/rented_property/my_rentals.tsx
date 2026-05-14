@@ -15,7 +15,8 @@ import {
   AlertTriangle,
   ArrowRight,
   Ban,
-  Building
+  Building,
+  AlertCircle,
 } from "lucide-react";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
@@ -119,6 +120,12 @@ const MyRentals: React.FC = () => {
   const [tab, setTab] = useState<Tab>("active");
   const [banner, setBanner] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // ── Overdue tracking ──
+  // Set of rental request IDs that have at least one OVERDUE or FAILED payment
+  const [overdueRentalIds, setOverdueRentalIds] = useState<Set<number>>(new Set());
+  // Map of rental request ID → count of overdue/failed payments
+  const [overdueCountMap, setOverdueCountMap] = useState<Map<number, number>>(new Map());
+
   useEffect(() => {
     const ps = searchParams.get("payment");
     if (ps === "success") setBanner({ type: "success", text: "Payment received! Open your rental to verify." });
@@ -131,7 +138,43 @@ const MyRentals: React.FC = () => {
     try {
       const data = await rentalsApi.getMyRentalRequests();
       if (!data.success) { setError("Failed to load rentals."); return; }
-      setRequests(data.data.requests ?? []);
+      const allRequests: RentalRequest[] = data.data.requests ?? [];
+      setRequests(allRequests);
+
+      // ── Fetch payments in parallel for rentals that can have payment issues ──
+      const paymentEligible = allRequests.filter(
+        (r) => r.status === "CONFIRMED" || r.status === "COMPLETED" || r.status === "TERMINATED"
+      );
+
+      if (paymentEligible.length > 0) {
+        const results = await Promise.allSettled(
+          paymentEligible.map((r) =>
+            rentalsApi.getPaymentsForRequest(r.id).then((d) => ({
+              rentalId: r.id,
+              payments: d.success ? (d.data.payments ?? []) : [],
+            }))
+          )
+        );
+
+        const newOverdueIds = new Set<number>();
+        const newCountMap = new Map<number, number>();
+
+        results.forEach((result) => {
+          if (result.status === "fulfilled") {
+            const { rentalId, payments } = result.value;
+            const badCount = payments.filter(
+              (p: { status: string }) => p.status === "OVERDUE" || p.status === "FAILED"
+            ).length;
+            if (badCount > 0) {
+              newOverdueIds.add(rentalId);
+              newCountMap.set(rentalId, badCount);
+            }
+          }
+        });
+
+        setOverdueRentalIds(newOverdueIds);
+        setOverdueCountMap(newCountMap);
+      }
     } catch {
       setError("Unable to connect to server.");
     } finally {
@@ -158,6 +201,16 @@ const MyRentals: React.FC = () => {
     pending:  requests.filter((r) => r.status === "PENDING" || r.status === "APPROVED").length,
     rejected: requests.filter((r) => r.status === "REJECTED").length,
     past:     requests.filter((r) => r.status === "COMPLETED" || r.status === "TERMINATED").length,
+  };
+
+  // ── Warning counts per tab (how many rentals in that tab have overdue payments) ──
+  const warningCounts = {
+    active: requests.filter((r) => r.status === "CONFIRMED" && overdueRentalIds.has(r.id)).length,
+    pending: 0,
+    rejected: 0,
+    past: requests.filter(
+      (r) => (r.status === "COMPLETED" || r.status === "TERMINATED") && overdueRentalIds.has(r.id)
+    ).length,
   };
 
   const tabConfig: { key: Tab; label: string; icon: React.ReactNode }[] = [
@@ -200,13 +253,27 @@ const MyRentals: React.FC = () => {
             <button
               key={key}
               type="button"
-              className={`${styles.tab} ${tab === key ? styles.tabActive : ""}`}
+              className={`${styles.tab} ${tab === key ? styles.tabActive : ""} ${warningCounts[key] > 0 ? styles.tabHasWarning : ""}`}
               onClick={() => setTab(key)}
             >
               {icon} {label}
               {counts[key] > 0 && (
                 <span className={`${styles.tabBadge} ${tab === key ? styles.tabBadgeActive : ""}`}>
                   {counts[key]}
+                </span>
+              )}
+              {/* Warning badge on tab — shown when NOT active tab so it draws attention */}
+              {warningCounts[key] > 0 && tab !== key && (
+                <span className={styles.tabWarningBadge} title={`${warningCounts[key]} rental${warningCounts[key] > 1 ? "s" : ""} with overdue payments`}>
+                  <AlertTriangle size={10} strokeWidth={3} />
+                  {warningCounts[key]}
+                </span>
+              )}
+              {/* When it IS the active tab, show inline warning pill */}
+              {warningCounts[key] > 0 && tab === key && (
+                <span className={styles.tabWarningBadgeActive} title={`${warningCounts[key]} overdue`}>
+                  <AlertTriangle size={10} strokeWidth={3} />
+                  {warningCounts[key]}
                 </span>
               )}
             </button>
@@ -264,67 +331,91 @@ const MyRentals: React.FC = () => {
                 <div {...props} style={{ margin: 0 }}>{children}</div>
               )
             }}
-            itemContent={(index, req) => (
-              <div
-                className={`${styles.rentalCard} ${req.status === "TERMINATED" ? styles.rentalCardTerminated : ""}`}
-                style={{ animationDelay: `${Math.min(index * 40, 400)}ms` }}
-                onClick={() => navigate(`/my-rentals/${req.id}`)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === "Enter" && navigate(`/my-rentals/${req.id}`)}
-              >
-                <div className={styles.cardThumb}>
-                  {req.propertyImage ? (
-                    <LazyImage src={req.propertyImage} alt={req.propertyTitle} isPriority={index < 6} />
-                  ) : (
-                    <div className={styles.cardThumbPlaceholder}>
-                      <Building size={32} className={styles.cardThumbPlaceholderIcon} strokeWidth={1.5} />
-                    </div>
-                  )}
-                  {req.status === "TERMINATED" && (
-                    <div className={styles.terminatedOverlay}>
-                      <Ban size={32} color="#fff" strokeWidth={2.5} />
-                    </div>
-                  )}
-                </div>
+            itemContent={(index, req) => {
+              const isOverdue = overdueRentalIds.has(req.id);
+              const overdueCount = overdueCountMap.get(req.id) ?? 0;
 
-                <div className={styles.cardInfo}>
-                  <div className={styles.cardTop}>
-                    <div className={styles.cardTitleWrap}>
-                      <h3 className={styles.cardTitle}>{req.propertyTitle}</h3>
-                      <div className={styles.cardLocation}>
-                        <MapPin size={14} className={styles.cardIconTeal} /> 
-                        {req.propertyLocation}
+              return (
+                <div
+                  className={[
+                    styles.rentalCard,
+                    req.status === "TERMINATED" ? styles.rentalCardTerminated : "",
+                    isOverdue ? styles.rentalCardOverdue : "",
+                  ].filter(Boolean).join(" ")}
+                  style={{ animationDelay: `${Math.min(index * 40, 400)}ms` }}
+                  onClick={() => navigate(`/my-rentals/${req.id}`)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === "Enter" && navigate(`/my-rentals/${req.id}`)}
+                >
+                  <div className={styles.cardThumb}>
+                    {req.propertyImage ? (
+                      <LazyImage src={req.propertyImage} alt={req.propertyTitle} isPriority={index < 6} />
+                    ) : (
+                      <div className={styles.cardThumbPlaceholder}>
+                        <Building size={32} className={styles.cardThumbPlaceholderIcon} strokeWidth={1.5} />
+                      </div>
+                    )}
+                    {req.status === "TERMINATED" && (
+                      <div className={styles.terminatedOverlay}>
+                        <Ban size={32} color="#fff" strokeWidth={2.5} />
+                      </div>
+                    )}
+                    {/* ── Overdue warning overlay on thumbnail ── */}
+                    {isOverdue && req.status !== "TERMINATED" && (
+                      <div className={styles.overdueThumbOverlay}>
+                        <AlertCircle size={22} color="#fff" strokeWidth={2.5} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={styles.cardInfo}>
+                    <div className={styles.cardTop}>
+                      <div className={styles.cardTitleWrap}>
+                        <h3 className={styles.cardTitle}>{req.propertyTitle}</h3>
+                        <div className={styles.cardLocation}>
+                          <MapPin size={14} className={styles.cardIconTeal} /> 
+                          {req.propertyLocation}
+                        </div>
+                      </div>
+                      <div className={styles.cardPrice}>
+                        {formatPrice(req.propertyPrice)}<span>/mo</span>
                       </div>
                     </div>
-                    <div className={styles.cardPrice}>
-                      {formatPrice(req.propertyPrice)}<span>/mo</span>
+
+                    <div className={styles.cardMeta}>
+                      <span className={styles.metaItem}>
+                        <CalendarDays size={14} className={styles.metaIcon} /> Move in: {formatDate(req.startDate)}
+                      </span>
+                      <span className={styles.metaItem}>
+                        <Clock size={14} className={styles.metaIcon} /> {req.leaseDurationMonths} month{req.leaseDurationMonths !== 1 ? "s" : ""}
+                      </span>
+                      <span className={styles.metaItem}>
+                        <User size={14} className={styles.metaIcon} /> {req.ownerName}
+                      </span>
+                    </div>
+
+                    <div className={styles.cardFooter}>
+                      <div className={styles.cardFooterLeft}>
+                        <span className={styles.cardStatus} style={statusBadgeStyle(req.status)}>
+                          {statusLabel(req.status)}
+                        </span>
+                        {/* ── Overdue warning pill inside card footer ── */}
+                        {isOverdue && (
+                          <span className={styles.overdueWarningPill}>
+                            <AlertTriangle size={11} strokeWidth={3} />
+                            {overdueCount} overdue payment{overdueCount > 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+                      <span className={styles.viewHint}>
+                        View details <ArrowRight size={14} />
+                      </span>
                     </div>
                   </div>
-
-                  <div className={styles.cardMeta}>
-                    <span className={styles.metaItem}>
-                      <CalendarDays size={14} className={styles.metaIcon} /> Move in: {formatDate(req.startDate)}
-                    </span>
-                    <span className={styles.metaItem}>
-                      <Clock size={14} className={styles.metaIcon} /> {req.leaseDurationMonths} month{req.leaseDurationMonths !== 1 ? "s" : ""}
-                    </span>
-                    <span className={styles.metaItem}>
-                      <User size={14} className={styles.metaIcon} /> {req.ownerName}
-                    </span>
-                  </div>
-
-                  <div className={styles.cardFooter}>
-                    <span className={styles.cardStatus} style={statusBadgeStyle(req.status)}>
-                      {statusLabel(req.status)}
-                    </span>
-                    <span className={styles.viewHint}>
-                      View details <ArrowRight size={14} />
-                    </span>
-                  </div>
                 </div>
-              </div>
-            )}
+              );
+            }}
           />
         )}
       </div>

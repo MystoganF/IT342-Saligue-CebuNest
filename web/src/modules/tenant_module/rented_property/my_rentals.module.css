@@ -505,3 +505,72 @@
     text-align: left;
   }
 }
+
+
+.tabHasWarning {
+  border-color: rgba(220, 38, 38, 0.4);
+}
+
+.tabWarningBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+
+.tabWarningBadgeActive {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+
+.rentalCardOverdue {
+  border-color: rgba(220, 38, 38, 0.35) !important;
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.15);
+}
+.rentalCardOverdue:hover {
+  border-color: rgba(220, 38, 38, 0.6) !important;
+  box-shadow: 0 10px 30px rgba(220, 38, 38, 0.1) !important;
+}
+
+.overdueThumbOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(220, 38, 38, 0.35);
+  backdrop-filter: blur(1px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+
+.overdueWarningPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+}
+
+.cardFooterLeft {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}

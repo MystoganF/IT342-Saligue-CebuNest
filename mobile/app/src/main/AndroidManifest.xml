@@ -30,6 +30,10 @@
             android:name=".modules.tenant.TenantMainActivity"
             android:exported="false"/>
 
+        <activity
+            android:name=".modules.tenant.renting_property.PropertyDetailActivity"
+            android:exported="false" />
+
 
         <activity
             android:name=".modules.tenant.my_rentals.RentalDetailFragment"
