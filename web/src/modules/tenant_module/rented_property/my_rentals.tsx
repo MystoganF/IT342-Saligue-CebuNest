@@ -132,55 +132,83 @@ const MyRentals: React.FC = () => {
     if (ps === "cancelled") setBanner({ type: "error", text: "Payment cancelled. You can try again from the rental detail page." });
   }, [searchParams]);
 
-  const fetchRequests = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await rentalsApi.getMyRentalRequests();
-      if (!data.success) { setError("Failed to load rentals."); return; }
-      const allRequests: RentalRequest[] = data.data.requests ?? [];
-      setRequests(allRequests);
+  const OVERDUE_CACHE_KEY = "overdue_cache";
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const fetchRequests = useCallback(async () => {
+  setLoading(true);
+  setError(null);
 
-      // ── Fetch payments in parallel for rentals that can have payment issues ──
-      const paymentEligible = allRequests.filter(
-        (r) => r.status === "CONFIRMED" || r.status === "COMPLETED" || r.status === "TERMINATED"
-      );
+  let allRequests: RentalRequest[] = [];
 
-      if (paymentEligible.length > 0) {
-        const results = await Promise.allSettled(
-          paymentEligible.map((r) =>
-            rentalsApi.getPaymentsForRequest(r.id).then((d) => ({
-              rentalId: r.id,
-              payments: d.success ? (d.data.payments ?? []) : [],
-            }))
-          )
-        );
+  try {
+    const data = await rentalsApi.getMyRentalRequests();
+    if (!data.success) { setError("Failed to load rentals."); return; }
+    allRequests = data.data.requests ?? [];
+    setRequests(allRequests);
 
-        const newOverdueIds = new Set<number>();
-        const newCountMap = new Map<number, number>();
-
-        results.forEach((result) => {
-          if (result.status === "fulfilled") {
-            const { rentalId, payments } = result.value;
-            const badCount = payments.filter(
-              (p: { status: string }) => p.status === "OVERDUE" || p.status === "FAILED"
-            ).length;
-            if (badCount > 0) {
-              newOverdueIds.add(rentalId);
-              newCountMap.set(rentalId, badCount);
-            }
-          }
-        });
-
-        setOverdueRentalIds(newOverdueIds);
-        setOverdueCountMap(newCountMap);
-      }
-    } catch {
-      setError("Unable to connect to server.");
-    } finally {
-      setLoading(false);
+    // Show cached overdue data instantly while re-fetching in background
+    const OVERDUE_CACHE_KEY = "overdue_cache";
+    const CACHE_TTL = 5 * 60 * 1000;
+    const cached = sessionStorage.getItem(OVERDUE_CACHE_KEY);
+    if (cached) {
+      const { ids, counts, ts } = JSON.parse(cached);
+      setOverdueRentalIds(new Set(ids));
+      setOverdueCountMap(new Map(counts));
+      if (Date.now() - ts < CACHE_TTL) return; // still fresh, skip re-fetch
     }
-  }, []);
+  } catch {
+    setError("Unable to connect to server.");
+    return;
+  } finally {
+    setLoading(false); // cards render immediately, overdue badges fill in after
+  }
+
+  // ── Overdue fetch runs after UI is already visible ──
+  try {
+    const OVERDUE_CACHE_KEY = "overdue_cache";
+    const CACHE_TTL = 5 * 60 * 1000;
+
+    const paymentEligible = allRequests.filter(
+      (r) => r.status === "CONFIRMED" || r.status === "COMPLETED" || r.status === "TERMINATED"
+    );
+    if (paymentEligible.length === 0) return;
+
+    const results = await Promise.allSettled(
+      paymentEligible.map((r) =>
+        rentalsApi.getPaymentsForRequest(r.id).then((d) => ({
+          rentalId: r.id,
+          payments: d.success ? (d.data.payments ?? []) : [],
+        }))
+      )
+    );
+
+    const newIds: number[] = [];
+    const newCounts: [number, number][] = [];
+
+    results.forEach((result) => {
+      if (result.status === "fulfilled") {
+        const { rentalId, payments } = result.value;
+        const badCount = payments.filter(
+          (p: { status: string }) => p.status === "OVERDUE" || p.status === "FAILED"
+        ).length;
+        if (badCount > 0) {
+          newIds.push(rentalId);
+          newCounts.push([rentalId, badCount]);
+        }
+      }
+    });
+
+    setOverdueRentalIds(new Set(newIds));
+    setOverdueCountMap(new Map(newCounts));
+    sessionStorage.setItem(
+      OVERDUE_CACHE_KEY,
+      JSON.stringify({ ids: newIds, counts: newCounts, ts: Date.now() })
+    );
+  } catch {
+    // Silent fail — overdue badges are non-critical, don't disrupt the UI
+  }
+}, []);
+
 
   useEffect(() => {
     fetchRequests();
