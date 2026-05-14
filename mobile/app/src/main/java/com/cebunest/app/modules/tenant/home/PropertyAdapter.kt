@@ -23,6 +23,7 @@ class PropertyAdapter(
         val tvStatusBadge: TextView = view.findViewById(R.id.tvStatusBadge)
         val ivImage: ImageView = view.findViewById(R.id.ivPropertyImage)
         val btnView: Button = view.findViewById(R.id.btnView)
+        val tvPropertyType: TextView = view.findViewById(R.id.tvPropertyType)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -34,6 +35,8 @@ class PropertyAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val property = properties[position]
 
+        holder.tvPropertyType.text = property.type ?: ""
+        holder.tvPropertyType.visibility = if (property.type != null) View.VISIBLE else View.GONE
         holder.tvTitle.text = property.title
         holder.tvLocation.text = "📍 ${property.location}"
 

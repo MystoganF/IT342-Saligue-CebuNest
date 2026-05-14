@@ -14,7 +14,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <!-- Image Placeholder -->
+        <!-- Image with overlaid badges -->
         <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="180dp"
@@ -26,18 +26,36 @@
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop"/>
 
+            <!-- TOP-LEFT: AVAILABLE badge -->
             <TextView
                 android:id="@+id/tvStatusBadge"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="top|start"
                 android:layout_margin="12dp"
                 android:background="@drawable/bg_success"
                 android:paddingHorizontal="10dp"
                 android:paddingVertical="4dp"
                 android:text="AVAILABLE"
-                android:textColor="#1F5D71"
+                android:textColor="@color/white"
                 android:textSize="10sp"
                 android:textStyle="bold" />
+
+            <!-- TOP-RIGHT: Property Type badge -->
+            <TextView
+                android:id="@+id/tvPropertyType"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="top|end"
+                android:layout_margin="12dp"
+                android:background="@drawable/badge_type_bg"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="4dp"
+                android:text="Studio"
+                android:textColor="@color/white"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+
         </FrameLayout>
 
         <!-- Details -->
@@ -91,6 +109,7 @@
                     android:text="View →"
                     android:backgroundTint="@color/teal_deep"
                     app:cornerRadius="8dp"/>
+
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
