@@ -1,6 +1,7 @@
 package edu.cit.saligue.cebunest.auth.shared;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value; // Added import
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -25,6 +26,10 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
 
+    // Pulls the Vercel URL from environment variables, defaults to localhost:5173
+    @Value("${FRONTEND_URL:http://localhost:5173}")
+    private String frontendUrl;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);
@@ -43,9 +48,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/properties/**").permitAll()
 
                         // ── Admin ──────────────────────────────────────────
-                        // Explicitly check for ROLE_ADMIN
                         .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
-
 
                         // ── Others ─────────────────────────────────────────
                         .anyRequest().authenticated()
@@ -58,10 +61,13 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:5173"));
+
+        // Dynamic CORS configuration
+        config.setAllowedOrigins(List.of("http://localhost:5173", frontendUrl));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
