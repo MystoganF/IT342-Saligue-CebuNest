@@ -1,49 +1,52 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
+import { 
+  Camera, Lock, CheckCircle, AlertTriangle, LogOut, 
+  ExternalLink, Key, Shield, Home, User as UserIcon, Phone, Mail, Save
+} from "lucide-react";
 import styles from "./Profile.module.css";
-
-// Import from your specific profile slice
 import type { User } from "./profile.types";
 import { profileApi } from "./profile.api";
+
+// ── Custom SVGs for missing Lucide brand icons ──
+const FacebookIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"></path></svg>;
+const InstagramIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg>;
+const TwitterIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path></svg>;
 
 function getInitials(name: string): string {
   return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 }
 
-function getRoleMeta(role: string): { label: string; icon: string; className: string } {
+function getRoleMeta(role: string): { label: string; icon: React.ReactNode; className: string } {
   switch (role?.toUpperCase()) {
-    case "OWNER":  return { label: "Property Owner", icon: "", className: styles.heroRoleOwner };
-    case "ADMIN":  return { label: "Administrator",  icon: "", className: styles.heroRoleAdmin };
-    default:       return { label: "Tenant",         icon: "", className: styles.heroRoleTenant };
+    case "OWNER":  return { label: "Property Owner", icon: <Key size={14} />, className: styles.heroRoleOwner };
+    case "ADMIN":  return { label: "Administrator",  icon: <Shield size={14} />, className: styles.heroRoleAdmin };
+    default:       return { label: "Tenant",         icon: <Home size={14} />, className: styles.heroRoleTenant };
   }
 }
 
 const Profile: React.FC = () => {
-  const navigate     = useNavigate();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── Grab user from Context (Provided by TenantLayout or OwnerLayout) ──
   const { user } = useOutletContext<{ user: User }>();
-
-  // State to hold the actively edited user (we initialize it with the context user)
   const [activeUser, setActiveUser] = useState<User>(user);
 
-  const [name, setName]               = useState("");
+  const [name, setName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [facebookUrl, setFacebookUrl] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
-  const [twitterUrl, setTwitterUrl]   = useState("");
+  const [twitterUrl, setTwitterUrl] = useState("");
 
-  const [avatarPreview, setAvatarPreview]     = useState<string | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
-  const [avatarMsg, setAvatarMsg]             = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [avatarMsg, setAvatarMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  const [saving, setSaving]   = useState(false);
+  const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  // Initialize form fields when the component mounts or user context changes
   useEffect(() => {
     if (activeUser) {
       setName(activeUser.name ?? "");
@@ -73,7 +76,6 @@ const Profile: React.FC = () => {
     setAvatarMsg(null);
 
     try {
-      // Use the new isolated profileApi
       const data = await profileApi.updateAvatar(activeUser.id, file);
 
       if (!data.success) {
@@ -84,7 +86,7 @@ const Profile: React.FC = () => {
 
       const updatedUser: User = { ...activeUser, avatarUrl: data.data.avatarUrl };
       setActiveUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser)); // Keep local storage in sync
+      localStorage.setItem("user", JSON.stringify(updatedUser)); 
       setAvatarMsg({ type: "success", text: "Profile picture updated!" });
     } catch (err: any) {
       const backendMessage = err.response?.data?.error?.message;
@@ -109,7 +111,6 @@ const Profile: React.FC = () => {
     setSaveMsg(null);
 
     try {
-      // Use the new isolated profileApi
       const data = await profileApi.updateProfile(activeUser.id, {
         name:         name.trim(),
         phoneNumber:  phoneNumber.trim() || null,
@@ -132,9 +133,9 @@ const Profile: React.FC = () => {
         instagramUrl: instagramUrl.trim() || null,
         twitterUrl:   twitterUrl.trim() || null,
       };
-      
+
       setActiveUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser)); // Keep local storage in sync
+      localStorage.setItem("user", JSON.stringify(updatedUser));
       setSaveMsg({ type: "success", text: "Changes saved successfully." });
     } catch (err: any) {
       const backendMessage = err.response?.data?.error?.message;
@@ -158,12 +159,10 @@ const Profile: React.FC = () => {
   return (
     <div className={styles.page}>
       
-      {/* ── Navbars Removed! The Layout component renders them automatically. ── */}
-
       {showLogoutModal && (
         <div className={styles.modalOverlay} onClick={() => setShowLogoutModal(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalIcon}>🚪</div>
+            <div className={styles.modalIconWrap}><LogOut size={28} /></div>
             <h3 className={styles.modalTitle}>Sign Out?</h3>
             <p className={styles.modalBody}>
               You'll be logged out of your account and returned to the login page.
@@ -173,7 +172,7 @@ const Profile: React.FC = () => {
                 Cancel
               </button>
               <button type="button" className={styles.modalConfirmBtn} onClick={confirmLogout}>
-                Yes, Log Out
+                <LogOut size={16} /> Yes, Log Out
               </button>
             </div>
           </div>
@@ -204,7 +203,7 @@ const Profile: React.FC = () => {
                 onClick={() => fileInputRef.current?.click()}
                 aria-label="Change profile picture"
               >
-                <span className={styles.heroAvatarOverlayIcon}>📷</span>
+                <span className={styles.heroAvatarOverlayIcon}><Camera size={24} /></span>
                 <span className={styles.heroAvatarOverlayText}>Change</span>
               </button>
             )}
@@ -222,38 +221,36 @@ const Profile: React.FC = () => {
             <h1 className={styles.heroName}>{activeUser.name}</h1>
 
             <div className={`${styles.heroRoleBadge} ${roleMeta.className}`}>
-              <span className={styles.heroRoleIcon}>{roleMeta.icon}</span>
+              {roleMeta.icon}
               {roleMeta.label}
             </div>
 
-            <div className={styles.heroEmail}>{activeUser.email}</div>
+            <div className={styles.heroEmail}><Mail size={16} /> {activeUser.email}</div>
 
             {/* Social link pills */}
             {(activeUser.facebookUrl || activeUser.instagramUrl || activeUser.twitterUrl) && (
               <div className={styles.heroSocialRow}>
                 {activeUser.facebookUrl && (
                   <a href={activeUser.facebookUrl} target="_blank" rel="noopener noreferrer" className={styles.heroSocialPill}>
-                    <span className={styles.heroSocialBadge}>f</span> Facebook
+                    <span className={styles.heroSocialBadge}><FacebookIcon /></span> Facebook
                   </a>
                 )}
                 {activeUser.instagramUrl && (
                   <a href={activeUser.instagramUrl} target="_blank" rel="noopener noreferrer" className={styles.heroSocialPill}>
-                    <span className={styles.heroSocialBadge}>in</span> Instagram
+                    <span className={styles.heroSocialBadge}><InstagramIcon /></span> Instagram
                   </a>
                 )}
                 {activeUser.twitterUrl && (
                   <a href={activeUser.twitterUrl} target="_blank" rel="noopener noreferrer" className={styles.heroSocialPill}>
-                    <span className={styles.heroSocialBadge}>𝕏</span> Twitter
+                    <span className={styles.heroSocialBadge}><TwitterIcon /></span> Twitter
                   </a>
                 )}
               </div>
             )}
 
             {avatarMsg && (
-              <span className={`${styles.avatarMsg} ${
-                avatarMsg.type === "success" ? styles.avatarMsgSuccess : styles.avatarMsgError
-              }`}>
-                {avatarMsg.type === "success" ? "✓" : "⚠"} {avatarMsg.text}
+              <span className={`${styles.avatarMsg} ${avatarMsg.type === "success" ? styles.avatarMsgSuccess : styles.avatarMsgError}`}>
+                {avatarMsg.type === "success" ? <CheckCircle size={16} /> : <AlertTriangle size={16} />} {avatarMsg.text}
               </span>
             )}
           </div>
@@ -263,19 +260,15 @@ const Profile: React.FC = () => {
       <main className={styles.main}>
 
         <div className={styles.lockedNotice}>
-        
+          <div className={styles.lockedNoticeIcon}><AlertTriangle size={20} /></div>
           <p className={styles.lockedNoticeText}>
-            <strong>Email and Role cannot be changed</strong> — these were set during
-            registration and are locked for security. To update them, please contact support.
-            You can freely edit your <strong>full name</strong>, <strong>phone number</strong>,
-            and <strong>social links</strong>.
+            <strong>Email and Role cannot be changed</strong> — these were set during registration and are locked for security. To update them, please contact <a href="mailto:support@cebunest.com" className={styles.supportLink}>support@cebunest.com</a>. You can freely edit your <strong>full name</strong>, <strong>phone number</strong>, and <strong>social links</strong>.
           </p>
         </div>
 
         <form onSubmit={handleSave}>
           <div className={styles.infoCard}>
 
-            {/* ── Editable Fields ── */}
             <div className={styles.sectionTitle}>Account Information</div>
 
             <div className={styles.fieldsGrid}>
@@ -284,14 +277,17 @@ const Profile: React.FC = () => {
                   Full Name
                   <span className={`${styles.fieldBadge} ${styles.fieldBadgeEdit}`}>Editable</span>
                 </span>
-                <input
-                  type="text"
-                  className={styles.fieldInput}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Your full name"
-                  required
-                />
+                <div className={styles.fieldInputWrap}>
+                  <input
+                    type="text"
+                    className={styles.fieldInput}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Your full name"
+                    required
+                  />
+                  <div className={styles.fieldInputIcon}><UserIcon size={18} /></div>
+                </div>
               </div>
 
               <div className={styles.field}>
@@ -299,28 +295,31 @@ const Profile: React.FC = () => {
                   Phone Number
                   <span className={`${styles.fieldBadge} ${styles.fieldBadgeEdit}`}>Editable</span>
                 </span>
-                <input
-                  type="tel"
-                  className={styles.fieldInput}
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="+63 912 345 6789"
-                />
+                <div className={styles.fieldInputWrap}>
+                  <input
+                    type="tel"
+                    className={styles.fieldInput}
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="+63 912 345 6789"
+                  />
+                  <div className={styles.fieldInputIcon}><Phone size={18} /></div>
+                </div>
               </div>
             </div>
 
-            {/* ── Social Links ── */}
             <div className={styles.cardDivider} />
             <div className={styles.sectionTitle}>Social Links</div>
 
             <div className={styles.fieldsGrid}>
               <div className={styles.field}>
                 <span className={`${styles.fieldLabel} ${styles.fieldLabelEditable}`}>
-                  <span className={styles.socialIconBadge}>f</span>
+                  <span className={styles.socialIconBadge}><FacebookIcon /></span>
                   Facebook
                   <span className={`${styles.fieldBadge} ${styles.fieldBadgeEdit}`}>Editable</span>
                 </span>
                 <div className={styles.socialInputWrap}>
+                  <div className={styles.fieldInputIcon}><FacebookIcon /></div>
                   <input
                     type="url"
                     className={`${styles.fieldInput} ${styles.socialInput}`}
@@ -330,7 +329,7 @@ const Profile: React.FC = () => {
                   />
                   {facebookUrl && (
                     <a href={facebookUrl} target="_blank" rel="noopener noreferrer" className={styles.socialVisitBtn}>
-                      ↗
+                      <ExternalLink size={16} />
                     </a>
                   )}
                 </div>
@@ -338,11 +337,12 @@ const Profile: React.FC = () => {
 
               <div className={styles.field}>
                 <span className={`${styles.fieldLabel} ${styles.fieldLabelEditable}`}>
-                  <span className={styles.socialIconBadge}>in</span>
+                  <span className={styles.socialIconBadge}><InstagramIcon /></span>
                   Instagram
                   <span className={`${styles.fieldBadge} ${styles.fieldBadgeEdit}`}>Editable</span>
                 </span>
                 <div className={styles.socialInputWrap}>
+                  <div className={styles.fieldInputIcon}><InstagramIcon /></div>
                   <input
                     type="url"
                     className={`${styles.fieldInput} ${styles.socialInput}`}
@@ -352,7 +352,7 @@ const Profile: React.FC = () => {
                   />
                   {instagramUrl && (
                     <a href={instagramUrl} target="_blank" rel="noopener noreferrer" className={styles.socialVisitBtn}>
-                      ↗
+                       <ExternalLink size={16} />
                     </a>
                   )}
                 </div>
@@ -360,11 +360,12 @@ const Profile: React.FC = () => {
 
               <div className={styles.field}>
                 <span className={`${styles.fieldLabel} ${styles.fieldLabelEditable}`}>
-                  <span className={styles.socialIconBadge}>𝕏</span>
+                  <span className={styles.socialIconBadge}><TwitterIcon /></span>
                   X / Twitter
                   <span className={`${styles.fieldBadge} ${styles.fieldBadgeEdit}`}>Editable</span>
                 </span>
                 <div className={styles.socialInputWrap}>
+                  <div className={styles.fieldInputIcon}><TwitterIcon /></div>
                   <input
                     type="url"
                     className={`${styles.fieldInput} ${styles.socialInput}`}
@@ -374,14 +375,13 @@ const Profile: React.FC = () => {
                   />
                   {twitterUrl && (
                     <a href={twitterUrl} target="_blank" rel="noopener noreferrer" className={styles.socialVisitBtn}>
-                      ↗
+                       <ExternalLink size={16} />
                     </a>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* ── Locked Fields ── */}
             <div className={styles.cardDivider} />
             <div className={styles.sectionTitle}>Locked Fields</div>
 
@@ -389,54 +389,52 @@ const Profile: React.FC = () => {
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>
                   Email Address
-                  <span className={`${styles.fieldBadge} ${styles.fieldBadgeLocked}`}> Locked</span>
+                  <span className={`${styles.fieldBadge} ${styles.fieldBadgeLocked}`}><Lock size={10} /> Locked</span>
                 </span>
                 <div className={styles.fieldValue}>
-                  {activeUser.email}
-                  <span className={styles.fieldLockIcon}>🔒</span>
+                  <div className={styles.fieldValueInner}>
+                    <Mail size={16} className={styles.fieldLockIcon} /> {activeUser.email}
+                  </div>
+                  <Lock size={14} className={styles.fieldLockIcon} />
                 </div>
               </div>
 
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>
                   Role
-                  <span className={`${styles.fieldBadge} ${styles.fieldBadgeLocked}`}> Locked</span>
+                  <span className={`${styles.fieldBadge} ${styles.fieldBadgeLocked}`}><Lock size={10} /> Locked</span>
                 </span>
                 <div className={styles.fieldValue}>
-                  {roleMeta.icon} {roleMeta.label}
-                  <span className={styles.fieldLockIcon}>🔒</span>
+                  <div className={styles.fieldValueInner}>
+                    {roleMeta.icon} {roleMeta.label}
+                  </div>
+                  <Lock size={14} className={styles.fieldLockIcon} />
                 </div>
               </div>
             </div>
 
-            {/* ── Save Row ── */}
             <div className={styles.saveRow}>
               {saveMsg && (
-                <span className={`${styles.saveMsg} ${
-                  saveMsg.type === "success" ? styles.saveMsgSuccess : styles.saveMsgError
-                }`}>
-                  {saveMsg.type === "success" ? "✓" : "⚠"} {saveMsg.text}
+                <span className={`${styles.saveMsg} ${saveMsg.type === "success" ? styles.saveMsgSuccess : styles.saveMsgError}`}>
+                  {saveMsg.type === "success" ? <CheckCircle size={16} /> : <AlertTriangle size={16} />} {saveMsg.text}
                 </span>
               )}
               <button type="submit" className={styles.saveBtn} disabled={saving}>
-                {saving
-                  ? <><span className={styles.saveSpinner} /> Saving…</>
-                  : "Save Changes"}
+                {saving ? <><span className={styles.saveSpinner} /> Saving…</> : <><Save size={16} /> Save Changes</>}
               </button>
             </div>
           </div>
         </form>
 
-        {/* ── Logout Card ── */}
         <div className={styles.logoutCard}>
           <div>
-            <div className={styles.logoutTitle}>Sign Out</div>
+            <div className={styles.logoutTitle}><LogOut size={18} /> Sign Out</div>
             <div className={styles.logoutDesc}>
               Your session will be cleared and you'll be returned to the login page.
             </div>
           </div>
           <button type="button" className={styles.logoutBtn} onClick={() => setShowLogoutModal(true)}>
-             Logout
+             <LogOut size={16} /> Logout
           </button>
         </div>
 

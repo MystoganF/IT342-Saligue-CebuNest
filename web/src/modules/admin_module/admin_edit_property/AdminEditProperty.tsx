@@ -1,120 +1,189 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams, useOutletContext } from "react-router-dom";
 import { adminEditPropertyApi } from "./admin_edit_property.api";
+import type { ActiveTenantInfo, ExistingImage, PropertyType } from "./admin_edit_property.api";
 import styles from "./admin_edit_property.module.css";
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 
-// ─── types ──────────────────────────────────────────────────────────────────
+import {
+  ShieldAlert,
+  AlertTriangle,
+  XCircle,
+  Home,
+  Clock,
+  User,
+  MapPin,
+  Camera,
+  CheckCircle2,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+} from "lucide-react";
 
-interface AdminUser { id: number; name: string; email: string; role: string; }
-interface PropertyType { id: number; name: string; }
-interface ExistingImage { id: number; imageUrl: string; }
-interface MapCoords { lat: number; lon: number; }
-interface ActiveTenantInfo {
-  tenantId: number;
-  tenantName: string;
-  tenantEmail: string;
-  startDate: string;
-  leaseDurationMonths: number;
+// Fix Leaflet's default marker icons for bundlers
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+L.Marker.prototype.options.icon = L.icon({
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+interface AdminUser {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
 }
 
-// ─── helpers ─────────────────────────────────────────────────────────────────
+interface MapCoords {
+  lat: number;
+  lon: number;
+}
 
+// ─── Cebu City map bounds ──────────────────────────────────────────────────
+const CEBU_BOUNDS = {
+  minLat: 10.255, maxLat: 10.445,
+  minLon: 123.808, maxLon: 123.924,
+};
+
+// ─── Geocoding helpers ─────────────────────────────────────────────────────
 async function geocode(query: string): Promise<MapCoords | null> {
   try {
+    const q = query.toLowerCase().includes("cebu city")
+      ? query
+      : `${query}, Cebu City, Philippines`;
+    const params = new URLSearchParams({
+      q,
+      format: "json",
+      limit: "1",
+      countrycodes: "ph",
+      bounded: "1",
+      viewbox: "123.75,10.48,123.95,10.24",
+    });
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
+      `https://nominatim.openstreetmap.org/search?${params}`,
       { headers: { "Accept-Language": "en" } }
     );
     const data = await res.json();
     if (!data.length) return null;
     return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
-function buildMapSrc(coords: MapCoords): string {
-  const { lat, lon } = coords;
-  return (
-    `https://www.openstreetmap.org/export/embed.html` +
-    `?bbox=${lon - 0.01},${lat - 0.01},${lon + 0.01},${lat + 0.01}` +
-    `&layer=mapnik&marker=${lat},${lon}`
-  );
+async function reverseGeocode(lat: number, lon: number): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`
+    );
+    const data = await res.json();
+    return data.display_name ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function calcMoveOut(startDate: string, months: number): string {
-  const d = new Date(startDate + "T00:00:00");
+  const d = new Date(`${startDate}T00:00:00`);
   d.setMonth(d.getMonth() + months);
-  return d.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-PH", {
+    year: "numeric", month: "short", day: "numeric",
+  });
 }
 
-// ─── component ───────────────────────────────────────────────────────────────
+// ─── Map click handler ─────────────────────────────────────────────────────
+function ClickableMap({
+  coords,
+  setCoords,
+  onSelect,
+}: {
+  coords: MapCoords | null;
+  setCoords: (c: MapCoords) => void;
+  onSelect: (lat: number, lon: number) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      const { lat, lng } = e.latlng;
+      setCoords({ lat, lon: lng });
+      onSelect(lat, lng);
+    },
+  });
+  return coords ? <Marker position={[coords.lat, coords.lon]} /> : null;
+}
 
+// ─── Component ────────────────────────────────────────────────────────────
 const AdminEditProperty: React.FC = () => {
-  const navigate     = useNavigate();
-  const { id }       = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Grab admin user from Layout context
   const { user: admin } = useOutletContext<{ user: AdminUser }>();
 
-  // ── Auth & metadata ─────────────────────────────────────────────────────
+  // Server data
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
-  const [pageLoading, setPageLoading]     = useState(true);
-  const [pageError, setPageError]         = useState<string | null>(null);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [pageError, setPageError] = useState<string | null>(null);
 
-  // ── Property meta ───────────────────────────────────────────────────────
-  const [ownerName, setOwnerName]             = useState("");
-  const [ownerId, setOwnerId]                 = useState<number | null>(null);
-  const [originalStatus, setOriginalStatus]   = useState("");
-  const [createdAt, setCreatedAt]             = useState("");
+  // Property meta (read-only display)
+  const [ownerName, setOwnerName] = useState("");
+  const [ownerId, setOwnerId] = useState<number | null>(null);
+  const [originalStatus, setOriginalStatus] = useState("");
+  const [createdAt, setCreatedAt] = useState("");
   const [hasActiveTenant, setHasActiveTenant] = useState(false);
-  const [activeTenant, setActiveTenant]       = useState<ActiveTenantInfo | null>(null);
+  const [activeTenant, setActiveTenant] = useState<ActiveTenantInfo | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
 
-  // ── Form fields ─────────────────────────────────────────────────────────
-  const [title, setTitle]             = useState("");
+  // Editable form fields
+  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [price, setPrice]             = useState("");
-  const [location, setLocation]       = useState("");
-  const [typeId, setTypeId]           = useState<string>("");
-  const [beds, setBeds]               = useState("");
-  const [baths, setBaths]             = useState("");
-  const [sqm, setSqm]                 = useState("");
-  const [auditNote, setAuditNote]     = useState("");
+  const [price, setPrice] = useState("");
+  const [location, setLocation] = useState("");
+  const [typeId, setTypeId] = useState("");
+  const [beds, setBeds] = useState("");
+  const [baths, setBaths] = useState("");
+  const [sqm, setSqm] = useState("");
 
-  // ── Map ─────────────────────────────────────────────────────────────────
-  const [mapQuery, setMapQuery]         = useState("");
-  const [mapCoords, setMapCoords]       = useState<MapCoords | null>(null);
+  // Map
+  const [mapCoords, setMapCoords] = useState<MapCoords | null>(null);
   const [mapSearching, setMapSearching] = useState(false);
-  const [mapError, setMapError]         = useState<string | null>(null);
+  const [mapError, setMapError] = useState<string | null>(null);
 
-  // ── Images ──────────────────────────────────────────────────────────────
-  const [existingImages, setExistingImages]     = useState<ExistingImage[]>([]);
-  const [removedImageIds, setRemovedImageIds]   = useState<number[]>([]);
-  const [newImageFiles, setNewImageFiles]       = useState<File[]>([]);
+  // Images
+  const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
+  const [removedImageIds, setRemovedImageIds] = useState<number[]>([]);
+  const [newImageFiles, setNewImageFiles] = useState<File[]>([]);
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
-  const [dragOver, setDragOver]                 = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
-  // ── Lightbox ────────────────────────────────────────────────────────────
-  const [lightboxSrc, setLightboxSrc]     = useState<string | null>(null);
-  const [lightboxIndex, setLightboxIndex] = useState<number>(0);
-  const [lightboxList, setLightboxList]   = useState<string[]>([]);
+  // Lightbox
+  const [lbList, setLbList] = useState<string[]>([]);
+  const [lbIndex, setLbIndex] = useState(0);
+  const [lbOpen, setLbOpen] = useState(false);
 
-  // ── Confirm modal ────────────────────────────────────────────────────────
+  // Submit / confirm
   const [showConfirm, setShowConfirm] = useState(false);
-
-  // ── Submit ──────────────────────────────────────────────────────────────
   const [submitting, setSubmitting] = useState(false);
-  const [submitMsg, setSubmitMsg]   = useState<{ type: "success" | "error" | "warning"; text: string; } | null>(null);
+  const [submitMsg, setSubmitMsg] = useState<{
+    type: "success" | "error" | "warning";
+    text: string;
+  } | null>(null);
 
-  // ── Property types ───────────────────────────────────────────────────────
+  // ── Fetch property types ──────────────────────────────────────────────────
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_BASE_URL || "http://localhost:8080"}/api/properties/types`)
-      .then((r) => r.json())
-      .then((data) => { if (data.success) setPropertyTypes(data.data.types ?? []); })
+    adminEditPropertyApi.getPropertyTypes()
+      .then((data) => {
+        if (data.success) setPropertyTypes(data.data.types ?? []);
+      })
       .catch(() => {});
   }, []);
 
-  // ── Load property ─────────────────────────────────────────────────────────
+  // ── Fetch property detail ─────────────────────────────────────────────────
   useEffect(() => {
     if (!admin || !id) return;
     setPageLoading(true);
@@ -138,50 +207,66 @@ const AdminEditProperty: React.FC = () => {
         setHasActiveTenant(p.hasActiveTenant ?? false);
         setActiveTenant(p.activeTenant ?? null);
         setExistingImages(
-          (p.images ?? []).map((img: any, idx: number) => ({
+          (p.images ?? []).map((img, idx) => ({
             id: img.id ?? idx,
             imageUrl: img.imageUrl,
           }))
         );
-        geocode(p.location).then((coords) => { if (coords) setMapCoords(coords); });
+        geocode(p.location).then((c) => { if (c) setMapCoords(c); });
       })
       .catch(() => setPageError("Failed to load property."))
       .finally(() => setPageLoading(false));
   }, [admin, id]);
 
-  // ── Keyboard lightbox nav ─────────────────────────────────────────────────
+  // ── Keyboard navigation for lightbox ─────────────────────────────────────
   useEffect(() => {
-    if (!lightboxSrc) return;
+    if (!lbOpen) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape")     closeLightbox();
+      if (e.key === "Escape")     closeLb();
       if (e.key === "ArrowRight") goNext();
       if (e.key === "ArrowLeft")  goPrev();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [lightboxSrc, lightboxIndex, lightboxList]);
+  }, [lbOpen, lbIndex, lbList]);
 
   // ── Lightbox helpers ──────────────────────────────────────────────────────
-  const openLightbox = (srcs: string[], index: number) => {
-    setLightboxList(srcs); setLightboxIndex(index); setLightboxSrc(srcs[index]);
+  const openLb = (srcs: string[], index: number) => {
+    setLbList(srcs); setLbIndex(index); setLbOpen(true);
   };
-  const closeLightbox = () => setLightboxSrc(null);
-  const goNext = () => {
-    const next = (lightboxIndex + 1) % lightboxList.length;
-    setLightboxIndex(next); setLightboxSrc(lightboxList[next]);
-  };
-  const goPrev = () => {
-    const prev = (lightboxIndex - 1 + lightboxList.length) % lightboxList.length;
-    setLightboxIndex(prev); setLightboxSrc(lightboxList[prev]);
+  const closeLb = () => setLbOpen(false);
+  const goNext  = () => setLbIndex((i) => { const n = (i + 1) % lbList.length; return n; });
+  const goPrev  = () => setLbIndex((i) => { const n = (i - 1 + lbList.length) % lbList.length; return n; });
+
+  // ── Map actions ───────────────────────────────────────────────────────────
+  const handleMapSearch = async () => {
+    if (!location.trim()) return;
+    setMapSearching(true); setMapError(null);
+    const coords = await geocode(location.trim());
+    if (coords) {
+      const inBounds =
+        coords.lat >= CEBU_BOUNDS.minLat && coords.lat <= CEBU_BOUNDS.maxLat &&
+        coords.lon >= CEBU_BOUNDS.minLon && coords.lon <= CEBU_BOUNDS.maxLon;
+      if (!inBounds) {
+        setMapError("This location is outside Cebu City.");
+        setMapSearching(false); return;
+      }
+      setMapCoords(coords);
+    } else {
+      setMapError("Location not found. Try a more specific address.");
+    }
+    setMapSearching(false);
   };
 
-  // ── Map search ────────────────────────────────────────────────────────────
-  const handleMapSearch = async () => {
-    if (!mapQuery.trim()) return;
+  const handleMapClick = async (lat: number, lon: number) => {
+    const out =
+      lat < CEBU_BOUNDS.minLat || lat > CEBU_BOUNDS.maxLat ||
+      lon < CEBU_BOUNDS.minLon || lon > CEBU_BOUNDS.maxLon;
+    if (out) { setMapError("That pin is outside Cebu City."); return; }
     setMapSearching(true); setMapError(null);
-    const coords = await geocode(mapQuery.trim());
-    if (coords) { setMapCoords(coords); if (!location.trim()) setLocation(mapQuery.trim()); }
-    else setMapError("Location not found. Try a more specific address.");
+    const address = await reverseGeocode(lat, lon);
+    if (address) setLocation(address);
+    else setMapError("Could not retrieve address for this location.");
     setMapSearching(false);
   };
 
@@ -191,14 +276,16 @@ const AdminEditProperty: React.FC = () => {
     const valid = Array.from(files).filter(
       (f) => f.type.startsWith("image/") && f.size <= 5 * 1024 * 1024
     );
-    const totalAllowed = 10 - (existingImages.length - removedImageIds.length);
-    const combined = [...newImageFiles, ...valid].slice(0, totalAllowed);
+    const allowed = 10 - (existingImages.length - removedImageIds.length);
+    const combined = [...newImageFiles, ...valid].slice(0, allowed);
     setNewImageFiles(combined);
     setNewImagePreviews(combined.map((f) => URL.createObjectURL(f)));
   };
-  const removeExistingImage = (imgId: number) =>
+
+  const removeExisting = (imgId: number) =>
     setRemovedImageIds((prev) => [...prev, imgId]);
-  const removeNewImage = (index: number) => {
+
+  const removeNew = (index: number) => {
     const updated = newImageFiles.filter((_, i) => i !== index);
     setNewImageFiles(updated);
     setNewImagePreviews(updated.map((f) => URL.createObjectURL(f)));
@@ -207,268 +294,304 @@ const AdminEditProperty: React.FC = () => {
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!admin || !id) return;
-    setShowConfirm(false);
-    setSubmitting(true);
-    setSubmitMsg(null);
-
+    setShowConfirm(false); setSubmitting(true); setSubmitMsg(null);
     try {
-      const updateData = await adminEditPropertyApi.updateAdminProperty(id, {
-        title:           title.trim(),
-        description:     description.trim(),
-        price:           parseFloat(price),
-        location:        location.trim(),
-        typeId:          parseInt(typeId),
-        beds:            beds  ? parseInt(beds)  : null,
-        baths:           baths ? parseInt(baths) : null,
-        sqm:             sqm   ? parseInt(sqm)   : null,
+      const res = await adminEditPropertyApi.updateAdminProperty(id, {
+        title: title.trim(),
+        description: description.trim(),
+        price: parseFloat(price),
+        location: location.trim(),
+        typeId: parseInt(typeId),
+        beds: beds ? parseInt(beds) : null,
+        baths: baths ? parseInt(baths) : null,
+        sqm: sqm ? parseInt(sqm) : null,
         removedImageIds: removedImageIds.length > 0 ? removedImageIds : undefined,
       });
-      
-      if (!updateData.success) {
-        setSubmitMsg({ type: "error", text: updateData?.error?.message ?? "Failed to update property." });
-        return;
+
+      if (!res.success) {
+        setSubmitMsg({ type: "error", text: res.error?.message ?? "Failed to update property." });
+        setSubmitting(false); return;
       }
 
       if (newImageFiles.length > 0) {
-        const formData = new FormData();
-        newImageFiles.forEach((f) => formData.append("files", f));
-
-        const imgData = await adminEditPropertyApi.uploadAdminPropertyImages(id, formData);
-
-        if (!imgData.success) {
-          setSubmitMsg({ type: "warning", text: "Property updated! Some images failed to upload." });
-          setTimeout(() => navigate("/admin/properties"), 2000);
+        const fd = new FormData();
+        newImageFiles.forEach((f) => fd.append("files", f));
+        const imgRes = await adminEditPropertyApi.uploadAdminPropertyImages(id, fd);
+        if (!imgRes.success) {
+          setSubmitMsg({ type: "warning", text: "Property updated. Some images failed to upload." });
+          setTimeout(() => navigate("/admin/properties"), 2200);
           return;
         }
       }
 
       setSubmitMsg({ type: "success", text: "Property updated successfully. Redirecting…" });
-      setTimeout(() => navigate("/admin/properties"), 1500);
+      setTimeout(() => navigate("/admin/properties"), 1600);
     } catch {
       setSubmitMsg({ type: "error", text: "Network error. Please try again." });
-    } finally {
       setSubmitting(false);
     }
   };
 
-  // ── Derived ───────────────────────────────────────────────────────────────
+  // ── Derived values ────────────────────────────────────────────────────────
   if (!admin) return null;
 
-  const visibleExisting = existingImages.filter((img) => !removedImageIds.includes(img.id));
-  const totalPhotos     = visibleExisting.length + newImageFiles.length;
-  const existingSrcs    = visibleExisting.map((img) => img.imageUrl);
-
-  const submitIcon     = submitMsg?.type === "success" ? "✓" : submitMsg?.type === "warning" ? "⚠" : "✕";
-  const submitMsgClass = submitMsg?.type === "success" ? styles.submitMsgSuccess
-                       : submitMsg?.type === "warning" ? styles.submitMsgWarning
-                       : styles.submitMsgError;
-
-  const isPendingReview = originalStatus === "PENDING_REVIEW";
-
-  const formattedCreatedAt = createdAt
-    ? new Date(createdAt).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" })
+  const visibleExisting = existingImages.filter(
+    (img) => !removedImageIds.includes(img.id)
+  );
+  const totalPhotos    = visibleExisting.length + newImageFiles.length;
+  const existingSrcs   = visibleExisting.map((img) => img.imageUrl);
+  const isPending      = originalStatus === "PENDING_REVIEW";
+  const isRejected     = originalStatus === "REJECTED";
+  const formattedDate  = createdAt
+    ? new Date(createdAt).toLocaleDateString("en-PH", {
+        year: "numeric", month: "short", day: "numeric",
+      })
     : "—";
 
+  const submitMsgClass =
+    submitMsg?.type === "success" ? styles.submitMsgSuccess
+    : submitMsg?.type === "warning" ? styles.submitMsgWarning
+    : styles.submitMsgError;
+
+  const canSubmit =
+    !submitting && title.trim() && price && location.trim() && typeId;
+
+  // ── Loading ───────────────────────────────────────────────────────────────
   if (pageLoading) return (
     <div className={styles.page}>
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#6e7071", fontSize: 15 }}>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#6e7071" }}>
+        <Loader2 size={22} style={{ animation: "spin 0.7s linear infinite", marginRight: 8 }} />
         Loading property…
       </div>
     </div>
   );
 
+  // ── Error ─────────────────────────────────────────────────────────────────
   if (pageError) return (
     <div className={styles.page}>
-      <div style={{ flex: 1, padding: "60px 40px", textAlign: "center", color: "#c0392b" }}>{pageError}</div>
+      <div className={styles.stateBox} style={{ margin: "60px auto 0", maxWidth: 380 }}>
+        <div className={styles.stateIcon}><AlertTriangle size={44} /></div>
+        <h3 className={styles.stateTitle}>Something went wrong</h3>
+        <p className={styles.stateBody}>{pageError}</p>
+        <button className={styles.cancelBtn} onClick={() => navigate(-1)} type="button">
+          Go Back
+        </button>
+      </div>
     </div>
   );
 
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div className={styles.page}>
-      {/* ── AdminSidebar removed (Handled by AdminLayout) ── */}
 
       {/* ── Lightbox ── */}
-      {lightboxSrc && (
-        <div className={styles.lightboxOverlay} onClick={closeLightbox}>
-          <button className={styles.lightboxClose} onClick={closeLightbox} type="button">✕</button>
-          {lightboxList.length > 1 && (
-            <div className={styles.lightboxCounter}>{lightboxIndex + 1} / {lightboxList.length}</div>
+      {lbOpen && (
+        <div className={styles.lightboxOverlay} onClick={closeLb}>
+          <button className={styles.lightboxClose} onClick={closeLb} type="button">
+            <X size={20} />
+          </button>
+          {lbList.length > 1 && (
+            <div className={styles.lightboxCounter}>{lbIndex + 1} / {lbList.length}</div>
           )}
-          {lightboxList.length > 1 && (
-            <button className={`${styles.lightboxNav} ${styles.lightboxNavPrev}`}
-              onClick={(e) => { e.stopPropagation(); goPrev(); }} type="button">‹</button>
+          {lbList.length > 1 && (
+            <button
+              className={`${styles.lightboxNav} ${styles.lightboxNavPrev}`}
+              onClick={(e) => { e.stopPropagation(); goPrev(); }}
+              type="button"
+            >
+              <ChevronLeft size={32} />
+            </button>
           )}
-          <img src={lightboxSrc} alt="Full preview" className={styles.lightboxImg}
-            onClick={(e) => e.stopPropagation()} />
-          {lightboxList.length > 1 && (
-            <button className={`${styles.lightboxNav} ${styles.lightboxNavNext}`}
-              onClick={(e) => { e.stopPropagation(); goNext(); }} type="button">›</button>
+          <img
+            src={lbList[lbIndex]}
+            alt="Full preview"
+            className={styles.lightboxImg}
+            onClick={(e) => e.stopPropagation()}
+          />
+          {lbList.length > 1 && (
+            <button
+              className={`${styles.lightboxNav} ${styles.lightboxNavNext}`}
+              onClick={(e) => { e.stopPropagation(); goNext(); }}
+              type="button"
+            >
+              <ChevronRight size={32} />
+            </button>
           )}
-          {lightboxList.length > 1 && (
+          {lbList.length > 1 && (
             <div className={styles.lightboxStrip} onClick={(e) => e.stopPropagation()}>
-              {lightboxList.map((src, i) => (
-                <img key={i} src={src} alt={`Thumb ${i + 1}`}
-                  className={`${styles.lightboxThumb} ${i === lightboxIndex ? styles.lightboxThumbActive : ""}`}
-                  onClick={() => { setLightboxIndex(i); setLightboxSrc(src); }} />
+              {lbList.map((src, i) => (
+                <img
+                  key={i}
+                  src={src}
+                  alt={`Thumb ${i + 1}`}
+                  className={`${styles.lightboxThumb} ${i === lbIndex ? styles.lightboxThumbActive : ""}`}
+                  onClick={() => setLbIndex(i)}
+                />
               ))}
             </div>
           )}
         </div>
       )}
 
-      {/* ── Confirm Save Modal ── */}
+      {/* ── Confirm modal ── */}
       {showConfirm && (
-        <div className={styles.modalOverlay} onClick={() => !submitting && setShowConfirm(false)}>
+        <div
+          className={styles.modalOverlay}
+          onClick={() => !submitting && setShowConfirm(false)}
+        >
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalHeader} style={{ background: "linear-gradient(135deg, rgba(125,60,152,0.1), rgba(125,60,152,0.05))" }}>
-              <span style={{ fontSize: 22 }}>🛡️</span>
+            <div className={styles.modalHead}>
+              <ShieldAlert size={22} className={styles.modalHeadIcon} />
               <h3 className={styles.modalTitle}>Confirm Property Edit</h3>
             </div>
             <div className={styles.modalBody}>
               <p className={styles.modalDesc}>
-                You are about to save changes to <strong>{title}</strong>. These changes take immediate
-                effect and will be recorded in the Audit Log alongside this property's rental request
-                history and any rejection details.
+                You are about to save changes to <strong>{title}</strong>. These
+                changes take immediate effect and are recorded in the Audit Log
+                alongside this property's full history.
               </p>
-              {auditNote.trim() && (
-                <div style={{
-                  padding: "10px 14px", borderRadius: "10px",
-                  background: "rgba(125,60,152,0.06)", border: "1px solid rgba(125,60,152,0.15)",
-                  fontSize: 13, color: "#5a2d74",
-                }}>
-                  <span style={{ fontWeight: 700 }}>📝 Admin Note:</span> {auditNote}
-                </div>
-              )}
             </div>
-            <div className={styles.modalFooter}>
-              <button className={styles.modalCancelBtn} onClick={() => setShowConfirm(false)} disabled={submitting}>
+            <div className={styles.modalFoot}>
+              <button
+                className={styles.modalCancel}
+                onClick={() => setShowConfirm(false)}
+                disabled={submitting}
+                type="button"
+              >
                 Cancel
               </button>
-              <button className={styles.modalConfirmBtn} onClick={handleSubmit} disabled={submitting}>
-                {submitting ? <><span className={styles.spinner} /> Saving…</> : "🛡️ Confirm Save"}
+              <button
+                className={styles.modalConfirm}
+                onClick={handleSubmit}
+                disabled={submitting}
+                type="button"
+              >
+                {submitting ? (
+                  <><span className={styles.spinner} /> Saving…</>
+                ) : (
+                  <><ShieldAlert size={15} /> Confirm Save</>
+                )}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Content column ── */}
+      {/* ── Page content ── */}
       <div className={styles.content}>
 
-        {/* ── Page Header ── */}
+        {/* Header bar */}
         <div className={styles.pageBar}>
-          <div className={styles.pageBarDeco} />
-          <div className={styles.pageBarDeco2} />
+          <div className={styles.pageBarOrb1} />
+          <div className={styles.pageBarOrb2} />
           <div className={styles.pageBarAccent} />
           <div className={styles.pageBarInner}>
-            <button className={styles.backBtn} onClick={() => navigate(-1)} type="button">← Back to Properties</button>
+            <button className={styles.backBtn} onClick={() => navigate(-1)} type="button">
+              <ChevronLeft size={14} /> Back to Properties
+            </button>
             <h1 className={styles.pageBarTitle}>Edit Property</h1>
-            <p className={styles.pageBarSub}>Reviewing and modifying listing on behalf of owner.</p>
-            <div className={styles.adminBadge}>🛡️ Admin Override Mode</div>
+            <p className={styles.pageBarSub}>Reviewing and modifying this listing on behalf of the owner.</p>
+            <span className={styles.adminBadge}>
+              <ShieldAlert size={12} /> Admin Override Mode
+            </span>
           </div>
         </div>
 
-        {/* ── Main ── */}
         <div className={styles.main}>
 
-          {/* ── Admin Warning ── */}
-          <div className={styles.adminWarningBanner}>
-            <span className={styles.adminWarningIcon}>⚠️</span>
-            <div className={styles.adminWarningContent}>
-              <div className={styles.adminWarningTitle}>You are editing as an Administrator</div>
-              <div className={styles.adminWarningText}>
-                Changes made here take immediate effect. All edits are recorded in the Audit Log
-                together with this property's rental request history — including any prior rejection
-                reasons — so your team has a full picture of the listing's timeline.
+          {/* Admin warning banner */}
+          <div className={styles.adminBanner}>
+            <AlertTriangle size={22} className={styles.adminBannerIcon} />
+            <div className={styles.adminBannerBody}>
+              <div className={styles.adminBannerTitle}>You are editing as an Administrator</div>
+              <div className={styles.adminBannerText}>
+                Changes made here take immediate effect. All edits are recorded in the
+                Audit Log together with this property's history.
               </div>
-              <div className={styles.adminWarningMeta}>
-                <span className={styles.adminWarningChip}>👤 Owner: {ownerName}</span>
-                <span className={styles.adminWarningChip}>📅 Listed: {formattedCreatedAt}</span>
-                <span className={styles.adminWarningChip}>🆔 Property #{id}</span>
+              <div className={styles.adminBannerChips}>
+                <span className={styles.chip}>
+                  <User size={11} /> Owner: {ownerName}
+                </span>
+                <span className={styles.chip}>
+                  <Clock size={11} /> Listed: {formattedDate}
+                </span>
+                <span className={styles.chip}>ID #{id}</span>
                 {hasActiveTenant && (
-                  <span className={styles.adminWarningChip} style={{ color: "#7d3c98", background: "rgba(125,60,152,0.15)", borderColor: "rgba(125,60,152,0.25)" }}>
-                    🏠 Occupied
+                  <span className={`${styles.chip} ${styles.chipOccupied}`}>
+                    <Home size={11} /> Occupied
                   </span>
                 )}
               </div>
             </div>
           </div>
 
-          {/* ── Rejection Banner ── */}
-          {originalStatus === "REJECTED" && rejectionReason && (
-            <div className={styles.rejectionBanner}>
-              <span style={{ fontSize: 22 }}>❌</span>
+          {/* Rejection banner */}
+          {isRejected && rejectionReason && (
+            <div className={`${styles.banner} ${styles.bannerDanger}`}>
+              <XCircle size={20} className={`${styles.bannerIcon} ${styles.bannerIconDanger}`} />
               <div>
-                <div className={styles.rejectionTitle}>This property was previously rejected</div>
-                <div className={styles.rejectionReason}><strong>Reason on file:</strong> {rejectionReason}</div>
+                <div className={`${styles.bannerTitle} ${styles.bannerTitleDanger}`}>
+                  Previously Rejected
+                </div>
+                <div className={styles.rejectionBlock}>
+                  <strong>Reason on file:</strong> {rejectionReason}
+                </div>
                 <div className={styles.rejectionNote}>
-                  This rejection reason is visible in the Audit Log under this property's rental request entry.
-                  To change the status, use the <strong>Rental Requests</strong> panel for the proper review workflow.
+                  To change the status, use the <strong>Rental Requests</strong> panel.
                 </div>
               </div>
             </div>
           )}
 
-          {/* ── Occupied Warning ── */}
+          {/* Occupied banner */}
           {hasActiveTenant && activeTenant && (
-            <div style={{
-              display: "flex", alignItems: "flex-start", gap: 14,
-              padding: "16px 20px",
-              background: "rgba(125,60,152,0.05)",
-              border: "1.5px solid rgba(125,60,152,0.2)",
-              borderRadius: 14,
-            }}>
-              <span style={{ fontSize: 22 }}>🏠</span>
+            <div className={`${styles.banner} ${styles.bannerOccupied}`}>
+              <Home size={20} className={`${styles.bannerIcon} ${styles.bannerIconOccupied}`} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 800, fontSize: 14, color: "#7d3c98", marginBottom: 4 }}>
-                  Property has an active tenant
+                <div className={`${styles.bannerTitle} ${styles.bannerTitleOccupied}`}>
+                  Property Has an Active Tenant
                 </div>
-                <div style={{ fontSize: 13, color: "#5a2d74", lineHeight: 1.6 }}>
-                  <strong>{activeTenant.tenantName}</strong> ({activeTenant.tenantEmail}) is currently leasing
-                  this property since <strong>{activeTenant.startDate}</strong> for{" "}
-                  <strong>{activeTenant.leaseDurationMonths} month(s)</strong>.{" "}
-                  Move-out: <strong>{calcMoveOut(activeTenant.startDate, activeTenant.leaseDurationMonths)}</strong>.
+                <div className={`${styles.bannerBody} ${styles.bannerBodyOccupied}`}>
+                  <strong>{activeTenant.tenantName}</strong> ({activeTenant.tenantEmail}) is
+                  leasing since <strong>{activeTenant.startDate}</strong> for{" "}
+                  <strong>{activeTenant.leaseDurationMonths} month(s)</strong>. Move-out:{" "}
+                  <strong>{calcMoveOut(activeTenant.startDate, activeTenant.leaseDurationMonths)}</strong>.
                 </div>
-                <div style={{ fontSize: 12, color: "#7d3c98", marginTop: 8, fontWeight: 600 }}>
-                  ⚠ The active lease details are recorded in the Audit Log under this property's rental request entry.
+                <div className={styles.occupiedNote}>
+                  <AlertTriangle size={12} /> Active lease details are recorded in the Audit Log.
                 </div>
               </div>
             </div>
           )}
 
-          {/* ── Pending Review Notice ── */}
-          {isPendingReview && (
-            <div style={{
-              display: "flex", alignItems: "flex-start", gap: 14,
-              padding: "16px 20px",
-              background: "rgba(183,142,66,0.06)",
-              border: "1.5px solid rgba(183,142,66,0.22)",
-              borderRadius: 14,
-            }}>
-              <span style={{ fontSize: 22 }}>🕐</span>
+          {/* Pending banner */}
+          {isPending && (
+            <div className={`${styles.banner} ${styles.bannerWarning}`}>
+              <Clock size={20} className={`${styles.bannerIcon} ${styles.bannerIconWarning}`} />
               <div>
-                <div style={{ fontWeight: 800, fontSize: 14, color: "#b78e42", marginBottom: 4 }}>
-                  Pending admin review
+                <div className={`${styles.bannerTitle} ${styles.bannerTitleWarning}`}>
+                  Pending Admin Review
                 </div>
-                <div style={{ fontSize: 13, color: "#7a5210", lineHeight: 1.6 }}>
-                  This property is awaiting approval. To approve or reject it — and have the full
-                  property details and any rejection reason properly logged — use the{" "}
+                <div className={`${styles.bannerBody} ${styles.bannerBodyWarning}`}>
+                  This property awaits approval. To approve or reject it, use the{" "}
                   <strong>Rental Requests</strong> panel. You may still edit listing details here.
                 </div>
               </div>
             </div>
           )}
 
-          {/* ── Owner Info ── */}
+          {/* Owner info */}
           <div className={styles.card}>
-            <div className={styles.cardAdminTitle}>🏢 Property Owner</div>
-            <div className={styles.ownerInfoRow}>
-              <div className={styles.ownerAvatar}>{ownerName.charAt(0).toUpperCase()}</div>
-              <div className={styles.ownerInfo}>
+            <div className={`${styles.sectionLabel} ${styles.sectionLabelAdmin}`}>
+              <User size={13} /> Property Owner
+            </div>
+            <div className={styles.ownerRow}>
+              <div className={styles.ownerAvatar}><User size={20} /></div>
+              <div>
                 <div className={styles.ownerName}>{ownerName}</div>
-                <div className={styles.ownerEmail}>ID #{ownerId}</div>
+                <div className={styles.ownerEmail}>User ID #{ownerId}</div>
               </div>
-              <span className={styles.ownerBadge}>OWNER</span>
+              <span className={styles.ownerBadge}>Owner</span>
             </div>
             <div className={styles.ownerStats}>
               <div className={styles.ownerStat}>
@@ -477,201 +600,318 @@ const AdminEditProperty: React.FC = () => {
               </div>
               <div className={styles.ownerStat}>
                 <span className={styles.ownerStatLabel}>Listed</span>
-                <span className={styles.ownerStatValue} style={{ fontSize: 12 }}>{formattedCreatedAt}</span>
+                <span className={styles.ownerStatValue} style={{ fontSize: 12 }}>{formattedDate}</span>
               </div>
               <div className={styles.ownerStat}>
                 <span className={styles.ownerStatLabel}>Status</span>
-                <span className={styles.ownerStatValue} style={{ fontSize: 12 }}>{originalStatus.replace("_", " ")}</span>
+                <span className={styles.ownerStatValue} style={{ fontSize: 12 }}>
+                  {originalStatus.replace(/_/g, " ")}
+                </span>
               </div>
               <div className={styles.ownerStat}>
                 <span className={styles.ownerStatLabel}>Tenant</span>
-                <span className={styles.ownerStatValue} style={{ fontSize: 12, color: hasActiveTenant ? "#7d3c98" : "#2d8c6a" }}>
+                <span
+                  className={styles.ownerStatValue}
+                  style={{
+                    fontSize: 12,
+                    color: hasActiveTenant ? "var(--admin)" : "var(--success)",
+                  }}
+                >
                   {hasActiveTenant ? "Occupied" : "Vacant"}
                 </span>
               </div>
             </div>
           </div>
 
-          {/* ── Basic Info ── */}
+          {/* Basic info */}
           <div className={styles.card}>
-            <div className={styles.cardTitle}>Basic Information</div>
+            <div className={`${styles.sectionLabel} ${styles.sectionLabelTeal}`}>
+              <Home size={13} /> Basic Information
+            </div>
             <div className={styles.fieldsGrid}>
               <div className={`${styles.field} ${styles.fieldFull}`}>
-                <label className={styles.fieldLabel}>Title <span className={styles.fieldRequired}>*</span></label>
-                <input type="text" className={styles.fieldInput} placeholder="e.g. Cozy Studio near IT Park"
-                  value={title} onChange={(e) => setTitle(e.target.value)} required />
+                <label className={styles.fieldLabel}>
+                  Title <span className={styles.required}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className={styles.fieldInput}
+                  placeholder="e.g. Cozy Studio near IT Park"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                />
               </div>
               <div className={`${styles.field} ${styles.fieldFull}`}>
                 <label className={styles.fieldLabel}>Description</label>
-                <textarea className={styles.fieldTextarea} placeholder="Describe the property…"
-                  value={description} onChange={(e) => setDescription(e.target.value)} rows={4} />
+                <textarea
+                  className={styles.fieldTextarea}
+                  placeholder="Describe the property…"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={4}
+                />
               </div>
               <div className={styles.field}>
-                <label className={styles.fieldLabel}>Monthly Price (₱) <span className={styles.fieldRequired}>*</span></label>
-                <input type="number" className={styles.fieldInput} placeholder="e.g. 6500"
-                  value={price} onChange={(e) => setPrice(e.target.value)} min={0} required />
+                <label className={styles.fieldLabel}>
+                  Monthly Price (₱) <span className={styles.required}>*</span>
+                </label>
+                <input
+                  type="number"
+                  className={styles.fieldInput}
+                  placeholder="e.g. 6500"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  min={0}
+                />
               </div>
               <div className={styles.field}>
-                <label className={styles.fieldLabel}>Property Type <span className={styles.fieldRequired}>*</span></label>
-                <select className={styles.fieldSelect} value={typeId} onChange={(e) => setTypeId(e.target.value)} required>
+                <label className={styles.fieldLabel}>
+                  Property Type <span className={styles.required}>*</span>
+                </label>
+                <select
+                  className={styles.fieldSelect}
+                  value={typeId}
+                  onChange={(e) => setTypeId(e.target.value)}
+                >
                   <option value="" disabled>Select a type…</option>
-                  {propertyTypes.map((pt) => <option key={pt.id} value={pt.id}>{pt.name}</option>)}
+                  {propertyTypes.map((pt) => (
+                    <option key={pt.id} value={pt.id}>{pt.name}</option>
+                  ))}
                 </select>
               </div>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Bedrooms</label>
-                <input type="number" className={styles.fieldInput} placeholder="e.g. 1"
-                  value={beds} onChange={(e) => setBeds(e.target.value)} min={0} />
+                <input
+                  type="number"
+                  className={styles.fieldInput}
+                  placeholder="e.g. 1"
+                  value={beds}
+                  onChange={(e) => setBeds(e.target.value)}
+                  min={0}
+                />
               </div>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Bathrooms</label>
-                <input type="number" className={styles.fieldInput} placeholder="e.g. 1"
-                  value={baths} onChange={(e) => setBaths(e.target.value)} min={0} />
+                <input
+                  type="number"
+                  className={styles.fieldInput}
+                  placeholder="e.g. 1"
+                  value={baths}
+                  onChange={(e) => setBaths(e.target.value)}
+                  min={0}
+                />
               </div>
               <div className={styles.field}>
                 <label className={styles.fieldLabel}>Floor Area (sqm)</label>
-                <input type="number" className={styles.fieldInput} placeholder="e.g. 28"
-                  value={sqm} onChange={(e) => setSqm(e.target.value)} min={0} />
+                <input
+                  type="number"
+                  className={styles.fieldInput}
+                  placeholder="e.g. 28"
+                  value={sqm}
+                  onChange={(e) => setSqm(e.target.value)}
+                  min={0}
+                />
               </div>
             </div>
           </div>
 
-          {/* ── Location ── */}
+          {/* Location */}
           <div className={styles.card}>
-            <div className={styles.cardTitle}>Location</div>
-            <div className={`${styles.field} ${styles.fieldFull}`} style={{ marginBottom: "20px" }}>
-              <label className={styles.fieldLabel}>Address / Location <span className={styles.fieldRequired}>*</span></label>
-              <input type="text" className={styles.fieldInput} placeholder="e.g. Lahug, Cebu City"
-                value={location} onChange={(e) => setLocation(e.target.value)} required />
+            <div className={`${styles.sectionLabel} ${styles.sectionLabelTeal}`}>
+              <MapPin size={13} /> Location
             </div>
-            <div className={styles.mapSearchWrap}>
-              <input type="text" className={styles.mapSearchInput} placeholder="Search on map…"
-                value={mapQuery} onChange={(e) => setMapQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleMapSearch())} />
-              <button type="button" className={styles.mapSearchBtn}
-                onClick={handleMapSearch} disabled={mapSearching || !mapQuery.trim()}>
-                {mapSearching ? "Searching…" : "🔍 Find"}
+            <div className={styles.mapSearchRow}>
+              <input
+                type="text"
+                className={styles.mapSearchInput}
+                placeholder="Search an address in Cebu City…"
+                value={location}
+                onChange={(e) => { setLocation(e.target.value); setMapError(null); }}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleMapSearch())}
+              />
+              <button
+                type="button"
+                className={styles.mapSearchBtn}
+                onClick={handleMapSearch}
+                disabled={mapSearching || !location.trim()}
+              >
+                {mapSearching
+                  ? <><Loader2 size={14} style={{ animation: "spin 0.65s linear infinite" }} /> Searching…</>
+                  : <><MapPin size={14} /> Find</>
+                }
               </button>
             </div>
-            {mapError && <p style={{ color: "#c0392b", fontSize: "13px", marginBottom: "10px" }}>⚠ {mapError}</p>}
+
+            {mapError && (
+              <div className={styles.mapError}>
+                <AlertTriangle size={14} /> {mapError}
+              </div>
+            )}
+
             <div className={styles.mapFrame}>
-              {mapCoords
-                ? <iframe src={buildMapSrc(mapCoords)} title="Property location" loading="lazy" referrerPolicy="no-referrer" />
-                : <div className={styles.mapPlaceholder}>
-                    <div className={styles.mapPlaceholderIcon}>🗺️</div>
-                    <span>Search an address above to pin it on the map</span>
-                  </div>
-              }
+              <MapContainer
+                center={mapCoords ? [mapCoords.lat, mapCoords.lon] : [10.3157, 123.8854]}
+                zoom={mapCoords ? 16 : 13}
+                minZoom={11}
+                maxBounds={[
+                  [CEBU_BOUNDS.minLat, CEBU_BOUNDS.minLon],
+                  [CEBU_BOUNDS.maxLat, CEBU_BOUNDS.maxLon],
+                ]}
+                maxBoundsViscosity={1.0}
+                style={{ height: "100%", width: "100%", zIndex: 1 }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <ClickableMap
+                  coords={mapCoords}
+                  setCoords={setMapCoords}
+                  onSelect={handleMapClick}
+                />
+              </MapContainer>
             </div>
+
             {mapCoords && (
-              <div className={styles.mapCoordsBadge}>
-                <span>📍</span>
+              <div className={styles.mapCoords}>
+                <MapPin size={13} />
                 {mapCoords.lat.toFixed(5)}, {mapCoords.lon.toFixed(5)}
               </div>
             )}
           </div>
 
-          {/* ── Photos ── */}
+          {/* Photos */}
           <div className={styles.card}>
-            <div className={styles.cardTitle}>Photos ({totalPhotos}/10)</div>
+            <div className={`${styles.sectionLabel} ${styles.sectionLabelTeal}`}>
+              <Camera size={13} /> Photos ({totalPhotos}/10)
+            </div>
+
             <div className={styles.photoTip}>
-              <span className={styles.photoTipIcon}>🛡️</span>
+              <ShieldAlert size={18} className={styles.photoTipIcon} />
               <div>
                 <div className={styles.photoTipTitle}>Admin photo management</div>
                 <div className={styles.photoTipBody}>
-                  You can add or remove photos on behalf of the owner. Make sure any changes comply with
-                  platform guidelines. Removing all photos will make the listing less discoverable.
+                  You can add or remove photos on behalf of the owner. Ensure all
+                  changes comply with platform guidelines.
                 </div>
               </div>
             </div>
-            <div className={styles.thumbnailNote}>
-              🖼 The <strong>last photo uploaded</strong> will be used as the listing thumbnail.
-            </div>
 
+            {/* Existing images */}
             {visibleExisting.length > 0 && (
-              <div className={styles.existingImagesWrap}>
-                <p className={styles.existingImagesLabel}>Current photos — click to preview</p>
-                <div className={styles.imagePreviewGrid}>
+              <div style={{ marginBottom: 16 }}>
+                <div className={styles.imagesLabel}>Current photos — click to preview</div>
+                <div className={styles.imageGrid}>
                   {visibleExisting.map((img, idx) => (
-                    <div key={img.id} className={styles.imagePreviewWrap}>
-                      <img src={img.imageUrl} alt="Existing"
-                        className={`${styles.imagePreview} ${styles.imagePreviewClickable}`}
-                        onClick={() => openLightbox(existingSrcs, idx)} />
-                      <button type="button" className={styles.imagePreviewRemove}
-                        onClick={(e) => { e.stopPropagation(); removeExistingImage(img.id); }}
-                        aria-label="Remove image">✕</button>
+                    <div key={img.id} className={styles.imageThumb}>
+                      <img
+                        src={img.imageUrl}
+                        alt="Existing"
+                        className={styles.imageFit}
+                        onClick={() => openLb(existingSrcs, idx)}
+                      />
+                      <button
+                        type="button"
+                        className={styles.imageRemoveBtn}
+                        onClick={(e) => { e.stopPropagation(); removeExisting(img.id); }}
+                        aria-label="Remove image"
+                      >
+                        <X size={12} />
+                      </button>
                     </div>
                   ))}
                 </div>
               </div>
             )}
 
+            {/* Upload zone */}
             {totalPhotos < 10 && (
               <div
-                className={`${styles.imageUploadArea} ${dragOver ? styles.imageUploadAreaActive : ""}`}
+                className={`${styles.uploadZone} ${dragOver ? styles.uploadZoneActive : ""}`}
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={(e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
-                style={{ marginTop: visibleExisting.length > 0 ? "16px" : "0" }}
               >
-                <input ref={fileInputRef} type="file" accept="image/*" multiple
-                  className={styles.imageUploadInput} onChange={(e) => addFiles(e.target.files)} />
-                <div className={styles.imageUploadIcon}>📸</div>
-                <div className={styles.imageUploadTitle}>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className={styles.uploadInput}
+                  onChange={(e) => addFiles(e.target.files)}
+                />
+                <Camera size={32} className={styles.uploadZoneIcon} />
+                <div className={styles.uploadZoneTitle}>
                   {newImageFiles.length > 0
                     ? `${newImageFiles.length} new photo${newImageFiles.length > 1 ? "s" : ""} selected`
                     : "Click or drag to add photos"}
                 </div>
-                <div className={styles.imageUploadSub}>
-                  JPG, PNG, WEBP · Max 5MB each · Up to {10 - visibleExisting.length} more
+                <div className={styles.uploadZoneSub}>
+                  JPG, PNG, WEBP · Max 5 MB each · Up to {10 - visibleExisting.length} more
                 </div>
               </div>
             )}
 
+            {/* New image previews */}
             {newImagePreviews.length > 0 && (
-              <div className={styles.imagePreviewGrid} style={{ marginTop: "12px" }}>
+              <div className={styles.imageGrid} style={{ marginTop: 12 }}>
                 {newImagePreviews.map((src, i) => (
-                  <div key={i} className={styles.imagePreviewWrap}>
-                    <img src={src} alt={`New ${i + 1}`}
-                      className={`${styles.imagePreview} ${styles.imagePreviewClickable}`}
-                      onClick={() => openLightbox(newImagePreviews, i)} />
-                    <div className={styles.imagePreviewNewBadge}>New</div>
-                    <button type="button" className={styles.imagePreviewRemove}
-                      onClick={(e) => { e.stopPropagation(); removeNewImage(i); }}
-                      aria-label="Remove image">✕</button>
+                  <div key={i} className={styles.imageThumb}>
+                    <img
+                      src={src}
+                      alt={`New ${i + 1}`}
+                      className={styles.imageFit}
+                      onClick={() => openLb(newImagePreviews, i)}
+                    />
+                    <div className={styles.imageNewBadge}>New</div>
+                    <button
+                      type="button"
+                      className={styles.imageRemoveBtn}
+                      onClick={(e) => { e.stopPropagation(); removeNew(i); }}
+                      aria-label="Remove image"
+                    >
+                      <X size={12} />
+                    </button>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          {/* ── Submit ── */}
+          {/* Submit row */}
           <div className={styles.submitRow}>
             {submitMsg && (
               <span className={`${styles.submitMsg} ${submitMsgClass}`}>
-                {submitIcon} {submitMsg.text}
+                {submitMsg.type === "success" && <CheckCircle2 size={14} />}
+                {submitMsg.type === "warning" && <AlertTriangle size={14} />}
+                {submitMsg.type === "error"   && <XCircle size={14} />}
+                {submitMsg.text}
               </span>
             )}
-            <button type="button" className={styles.cancelBtn}
-              onClick={() => navigate(-1)} disabled={submitting}>
+            <button
+              type="button"
+              className={styles.cancelBtn}
+              onClick={() => navigate(-1)}
+              disabled={submitting}
+            >
               Cancel
             </button>
             <button
               type="button"
               className={styles.submitBtn}
-              disabled={submitting || !title.trim() || !price || !location.trim() || !typeId}
+              disabled={!canSubmit}
               onClick={() => { setSubmitMsg(null); setShowConfirm(true); }}
             >
               {submitting
-                ? <><span className={styles.submitSpinner} /> Saving…</>
-                : "🛡️ Save Admin Changes"
+                ? <><span className={styles.spinner} /> Saving…</>
+                : <><ShieldAlert size={15} /> Save Admin Changes</>
               }
             </button>
           </div>
 
-        </div>{/* end .main */}
-      </div>{/* end .content */}
+        </div>{/* /main */}
+      </div>{/* /content */}
     </div>
   );
 };

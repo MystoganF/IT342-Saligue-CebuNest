@@ -39,10 +39,20 @@ public class GoogleAuthService {
 
         // LOGIN FLOW
         if (requestedRole == null || requestedRole.isBlank()) {
-            if (!userRepository.existsByEmail(email)) {
+            var existingUser = userRepository.findByEmail(email);
+
+            if (existingUser.isEmpty()) {
                 return Map.of("requiresRoleSelection", true, "email", email, "name", name);
             }
-            return buildTokenMap(userRepository.findByEmail(email).get());
+
+            User user = existingUser.get();
+
+            // --> NEW VALIDATION: Check if user is active
+            if (!user.isActive()) {
+                throw new IllegalArgumentException("Your account has been deactivated. Please contact an administrator.");
+            }
+
+            return buildTokenMap(user);
         }
 
         // REGISTRATION FLOW

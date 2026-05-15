@@ -28,4 +28,6 @@ public class PropertyImage {
     private String imageUrl;
 
     private LocalDateTime createdAt = LocalDateTime.now();
+
+
 }

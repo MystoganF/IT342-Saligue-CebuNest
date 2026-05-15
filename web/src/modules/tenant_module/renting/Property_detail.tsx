@@ -2,6 +2,33 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useOutletContext } from "react-router-dom";
 import { rentingApi } from "./renting.api";
 import styles from "./Property_detail.module.css";
+import {
+  ArrowLeft, ZoomIn, Home, ChevronLeft, ChevronRight, X,
+  MapPin, BedDouble, Bath, Maximize, Map, Clock, CheckCircle,
+  AlertCircle, CalendarCheck, Star, MessageSquare,
+  Check, AlertTriangle
+} from "lucide-react";
+import axios from "axios";
+
+// ─── custom social icons ───────────────────────────────────────────────────
+
+const FacebookIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+  </svg>
+);
+const InstagramIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+  </svg>
+);
+const TwitterIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+  </svg>
+);
 
 // ─── types ─────────────────────────────────────────────────────────────────
 
@@ -110,7 +137,6 @@ function avgRating(reviews: Review[]): number {
   return reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
 }
 
-// Keeping native fetch here since it's an external 3rd-party API
 async function geocodeLocation(location: string): Promise<{ lat: number; lon: number } | null> {
   try {
     const res = await fetch(
@@ -149,31 +175,17 @@ function getBookingBtnLabel(req: ExistingRequest | null, submitted: boolean): st
 // ─── Sub-components ────────────────────────────────────────────────────────
 
 const StarDisplay: React.FC<{ rating: number; size?: number }> = ({ rating, size = 16 }) => (
-  <span className={styles.starDisplay} style={{ fontSize: size }}>
+  <span className={styles.starDisplay}>
     {[1, 2, 3, 4, 5].map((s) => (
-      <span key={s} className={s <= rating ? styles.starFilled : styles.starEmpty}>★</span>
+      <Star 
+        key={s} 
+        size={size} 
+        className={s <= rating ? styles.starFilled : styles.starEmpty}
+        fill={s <= rating ? "currentColor" : "none"}
+        strokeWidth={2}
+      />
     ))}
   </span>
-);
-
-const FacebookIcon = () => (
-  <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
-    <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
-  </svg>
-);
-
-const InstagramIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
-    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
-    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
-  </svg>
-);
-
-const TwitterIcon = () => (
-  <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
-    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-  </svg>
 );
 
 interface LightboxProps {
@@ -200,13 +212,19 @@ const Lightbox: React.FC<LightboxProps> = ({ images, startIndex, onClose }) => {
 
   return (
     <div className={styles.lightboxOverlay} onClick={onClose}>
-      <button className={styles.lightboxClose} onClick={onClose} aria-label="Close">✕</button>
+      <button className={styles.lightboxClose} onClick={onClose} aria-label="Close">
+        <X size={24} />
+      </button>
       <div className={styles.lightboxContent} onClick={e => e.stopPropagation()}>
         <img src={images[current].imageUrl} alt={`Image ${current + 1}`} className={styles.lightboxImg} />
         {images.length > 1 && (
           <>
-            <button className={`${styles.lightboxNav} ${styles.lightboxNavPrev}`} onClick={prev} aria-label="Previous">‹</button>
-            <button className={`${styles.lightboxNav} ${styles.lightboxNavNext}`} onClick={next} aria-label="Next">›</button>
+            <button className={`${styles.lightboxNav} ${styles.lightboxNavPrev}`} onClick={prev} aria-label="Previous">
+              <ChevronLeft size={32} />
+            </button>
+            <button className={`${styles.lightboxNav} ${styles.lightboxNavNext}`} onClick={next} aria-label="Next">
+              <ChevronRight size={32} />
+            </button>
             <div className={styles.lightboxCounter}>{current + 1} / {images.length}</div>
             <div className={styles.lightboxThumbs}>
               {images.map((img, i) => (
@@ -228,9 +246,7 @@ const PropertyDetail: React.FC = () => {
   const { id }   = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  // Grab user from TenantLayout context instead of localStorage
   const { user } = useOutletContext<{ user: User }>();
-
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState<string | null>(null);
@@ -252,7 +268,6 @@ const PropertyDetail: React.FC = () => {
   const [reviews, setReviews]               = useState<Review[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   
-  // ── Reviews Modal State ──
   const [showReviewsModal, setShowReviewsModal] = useState(false);
   const [modalRatingFilter, setModalRatingFilter] = useState<number>(0);
 
@@ -264,7 +279,6 @@ const PropertyDetail: React.FC = () => {
   const [confirming, setConfirming]   = useState(false);
   const [confirmMsg, setConfirmMsg]   = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Fetch Property Details
   useEffect(() => {
     if (!id) return;
     rentingApi.getPropertyById(id)
@@ -276,7 +290,6 @@ const PropertyDetail: React.FC = () => {
       .finally(() => setLoading(false));
   }, [id]);
 
-  // Fetch Reviews
   useEffect(() => {
     if (!id) return;
     setReviewsLoading(true);
@@ -286,7 +299,6 @@ const PropertyDetail: React.FC = () => {
       .finally(() => setReviewsLoading(false));
   }, [id]);
 
-  // Check Existing Request
   useEffect(() => {
     if (!id || !user) return;
     setRequestCheckLoading(true);
@@ -302,7 +314,6 @@ const PropertyDetail: React.FC = () => {
       .finally(() => setRequestCheckLoading(false));
   }, [id, user]);
 
-  // Fetch Payments if Confirmed
   useEffect(() => {
     if (existingRequest?.status === "CONFIRMED" && existingRequest.id) {
       setPaymentsLoading(true);
@@ -313,17 +324,16 @@ const PropertyDetail: React.FC = () => {
     }
   }, [existingRequest?.status, existingRequest?.id]);
 
-  // Fetch Geocode for Map
   useEffect(() => {
     if (!property?.location) return;
     setMapLoading(true);
     geocodeLocation(property.location).then(coords => { setMapCoords(coords); setMapLoading(false); });
   }, [property?.location]);
 
-  // Handlers
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!property || !user) return;
+
     setSubmitting(true);
     setBookingMsg(null);
     try {
@@ -334,31 +344,89 @@ const PropertyDetail: React.FC = () => {
       }
       setBookingMsg({ type: "success", text: "Rental request submitted! The owner will review it shortly." });
       setExistingRequest({ id: data.data.request.id, status: "PENDING" });
-    } catch {
-      setBookingMsg({ type: "error", text: "Network error. Please try again." });
+      
+    } catch (err: any) {
+      // Apply the robust error extraction here!
+      let displayMessage = "Network error. Please try again.";
+
+      if (err.response?.data) {
+        const data = err.response.data;
+
+        // 1. Try to read OUR custom backend format
+        if (data.error && typeof data.error === 'object' && data.error.message) {
+          displayMessage = data.error.message;
+        } 
+        // 2. Try to read the default Spring Boot message (if enabled)
+        else if (data.message) {
+          displayMessage = data.message;
+        } 
+        // 3. Fallback to the Spring Boot HTTP error name (e.g., "Bad Request")
+        else if (typeof data.error === 'string') {
+          displayMessage = `Server Error: ${data.error}`;
+        }
+      }
+
+      setBookingMsg({ 
+        type: "error", 
+        text: displayMessage 
+      });
+      
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleConfirm = async () => {
-    if (!existingRequest) return;
-    setConfirming(true);
-    setConfirmMsg(null);
-    try {
-      const data = await rentingApi.confirmRental(existingRequest.id);
-      if (!data.success) {
-        setConfirmMsg({ type: "error", text: data?.error?.message ?? "Failed to confirm rental." });
-        return;
-      }
-      setConfirmMsg({ type: "success", text: "Rental confirmed! Your monthly payment schedule is ready." });
-      setExistingRequest(prev => prev ? { ...prev, status: "CONFIRMED" } : prev);
-    } catch {
-      setConfirmMsg({ type: "error", text: "Network error. Please try again." });
-    } finally {
-      setConfirming(false);
+  if (!existingRequest) return;
+  setConfirming(true);
+  setConfirmMsg(null);
+
+  try {
+    const data = await rentingApi.confirmRental(existingRequest.id);
+    
+    // Defensive check just in case it returns 200 OK but success is false
+    if (!data.success) {
+      setConfirmMsg({ 
+        type: "error", 
+        text: data?.error?.message ?? "Failed to confirm rental." 
+      });
+      return;
     }
-  };
+    
+    setConfirmMsg({ 
+      type: "success", 
+      text: "Rental confirmed! Your monthly payment schedule is ready." 
+    });
+    setExistingRequest(prev => prev ? { ...prev, status: "CONFIRMED" } : prev);
+    
+} catch (err: any) {
+    let displayMessage = "Network error. Please try again.";
+
+    if (err.response?.data) {
+      const data = err.response.data;
+
+      // 1. Try to read OUR custom backend format
+      if (data.error && typeof data.error === 'object' && data.error.message) {
+        displayMessage = data.error.message;
+      } 
+      // 2. Try to read the default Spring Boot message (if enabled)
+      else if (data.message) {
+        displayMessage = data.message;
+      } 
+      // 3. Fallback to the Spring Boot HTTP error name (e.g., "Bad Request")
+      else if (typeof data.error === 'string') {
+        displayMessage = `Server Error: ${data.error}`;
+      }
+    }
+
+    setConfirmMsg({ 
+      type: "error", 
+      text: displayMessage 
+    });
+  } finally {
+    setConfirming(false);
+  }
+};
 
   const handlePayClick = async (paymentId: number) => {
     setPaymentActionLoading(paymentId);
@@ -413,9 +481,6 @@ const PropertyDetail: React.FC = () => {
   const avg              = avgRating(reviews);
   const blockReason      = getBookingBlockReason(existingRequest);
   const isBookingBlocked = blockReason !== null;
-  
-  // Modal Filter Logic
-  const filteredModalReviews = modalRatingFilter === 0 ? reviews : reviews.filter(r => r.rating === modalRatingFilter);
 
   if (loading) {
     return (
@@ -438,10 +503,12 @@ const PropertyDetail: React.FC = () => {
     return (
       <div className={styles.page}>
         <div className={styles.errorBox}>
-          <span className={styles.errorIcon}>🏚️</span>
+          <span className={styles.errorIcon}><AlertTriangle size={52} strokeWidth={1.5} /></span>
           <h2 className={styles.errorTitle}>Property Not Found</h2>
           <p className={styles.errorBody}>{error ?? "This property doesn't exist or has been removed."}</p>
-          <button className={styles.errorBtn} onClick={() => navigate("/home")}>← Back to Listings</button>
+          <button className={styles.errorBtn} onClick={() => navigate("/home")}>
+            <span className={styles.btnIconWrapper}><ArrowLeft size={16} /> Back to Listings</span>
+          </button>
         </div>
       </div>
     );
@@ -455,7 +522,7 @@ const PropertyDetail: React.FC = () => {
       )}
 
       <div className={styles.backBar}>
-        <button className={styles.backBtn} onClick={() => navigate(-1)}>← Back to listings</button>
+        
       </div>
 
       <div className={styles.main}>
@@ -475,18 +542,24 @@ const PropertyDetail: React.FC = () => {
                     onClick={() => setLightboxOpen(true)}
                     title="Click to enlarge"
                   />
-                  <div className={styles.galleryExpandHint}><span>🔍</span> Click to enlarge</div>
+                  <div className={styles.galleryExpandHint}>
+                    <ZoomIn size={14} /> Click to enlarge
+                  </div>
                 </>
               ) : (
                 <div className={styles.galleryPlaceholder}>
-                  <span className={styles.galleryPlaceholderIcon}>🏠</span>
+                  <Home size={48} strokeWidth={1.5} className={styles.galleryPlaceholderIcon} />
                   <span className={styles.galleryPlaceholderText}>No photos available</span>
                 </div>
               )}
               {images.length > 1 && (
                 <>
-                  <button className={`${styles.galleryNav} ${styles.galleryNavPrev}`} onClick={() => setActiveImg(i => (i === 0 ? images.length - 1 : i - 1))} aria-label="Previous image">‹</button>
-                  <button className={`${styles.galleryNav} ${styles.galleryNavNext}`} onClick={() => setActiveImg(i => (i === images.length - 1 ? 0 : i + 1))} aria-label="Next image">›</button>
+                  <button className={`${styles.galleryNav} ${styles.galleryNavPrev}`} onClick={() => setActiveImg(i => (i === 0 ? images.length - 1 : i - 1))} aria-label="Previous image">
+                    <ChevronLeft size={20} />
+                  </button>
+                  <button className={`${styles.galleryNav} ${styles.galleryNavNext}`} onClick={() => setActiveImg(i => (i === images.length - 1 ? 0 : i + 1))} aria-label="Next image">
+                    <ChevronRight size={20} />
+                  </button>
                   <span className={styles.galleryCounter}>{activeImg + 1} / {images.length}</span>
                 </>
               )}
@@ -508,7 +581,7 @@ const PropertyDetail: React.FC = () => {
               <div className={styles.infoTitleGroup}>
                 <h1 className={styles.infoTitle}>{property.title}</h1>
                 <div className={styles.infoLocation}>
-                  <span className={styles.infoLocationIcon}>📍</span>
+                  <MapPin size={14} className={styles.infoLocationIcon} />
                   {property.location}
                 </div>
                 {reviews.length > 0 && (
@@ -529,9 +602,9 @@ const PropertyDetail: React.FC = () => {
 
             {(property.beds || property.baths || property.sqm) && (
               <div className={styles.infoStats}>
-                {property.beds  != null && <div className={styles.infoStat}><span className={styles.infoStatIcon}>🛏️</span><span className={styles.infoStatValue}>{property.beds}</span><span className={styles.infoStatLabel}>Beds</span></div>}
-                {property.baths != null && <div className={styles.infoStat}><span className={styles.infoStatIcon}>🚿</span><span className={styles.infoStatValue}>{property.baths}</span><span className={styles.infoStatLabel}>Baths</span></div>}
-                {property.sqm   != null && <div className={styles.infoStat}><span className={styles.infoStatIcon}>📐</span><span className={styles.infoStatValue}>{property.sqm}</span><span className={styles.infoStatLabel}>sqm</span></div>}
+                {property.beds  != null && <div className={styles.infoStat}><span className={styles.infoStatIcon}><BedDouble size={20} /></span><span className={styles.infoStatValue}>{property.beds}</span><span className={styles.infoStatLabel}>Beds</span></div>}
+                {property.baths != null && <div className={styles.infoStat}><span className={styles.infoStatIcon}><Bath size={20} /></span><span className={styles.infoStatValue}>{property.baths}</span><span className={styles.infoStatLabel}>Baths</span></div>}
+                {property.sqm   != null && <div className={styles.infoStat}><span className={styles.infoStatIcon}><Maximize size={20} /></span><span className={styles.infoStatValue}>{property.sqm}</span><span className={styles.infoStatLabel}>sqm</span></div>}
               </div>
             )}
 
@@ -559,7 +632,7 @@ const PropertyDetail: React.FC = () => {
           <div className={styles.reviewsCard}>
             <div className={styles.reviewsHeader}>
               <div className={styles.reviewsTitle}>
-                <span>⭐</span> Tenant Reviews
+                <Star size={16} fill="currentColor" /> Tenant Reviews
               </div>
               {reviews.length > 0 && (
                 <div className={styles.reviewsSummary}>
@@ -578,12 +651,11 @@ const PropertyDetail: React.FC = () => {
               </div>
             ) : reviews.length === 0 ? (
               <div className={styles.reviewsEmpty}>
-                <span>💬</span>
+                <MessageSquare size={32} strokeWidth={1.5} />
                 <p>No reviews yet. Be the first to review after your stay!</p>
               </div>
             ) : (
               <>
-                {/* INITIAL DISPLAY (TOP 2) */}
                 <div className={styles.reviewsList}>
                   {reviews.slice(0, 2).map((r) => (
                     <div key={r.id} className={styles.reviewItem}>
@@ -638,12 +710,12 @@ const PropertyDetail: React.FC = () => {
           {/* Map */}
           <div className={styles.mapCard}>
             <div className={styles.mapHeader}>
-              <span className={styles.mapHeaderIcon}>🗺️</span>
+              <Map size={18} className={styles.mapHeaderIcon} />
               <span className={styles.mapHeaderTitle}>Location</span>
               <span className={styles.mapHeaderAddress}>{property.location}</span>
             </div>
             {mapLoading ? (
-              <div className={styles.mapLoading}><span>📍</span> Finding location…</div>
+              <div className={styles.mapLoading}><MapPin size={16} /> Finding location…</div>
             ) : mapCoords ? (
               <iframe
                 className={styles.mapFrame}
@@ -657,7 +729,7 @@ const PropertyDetail: React.FC = () => {
                 referrerPolicy="no-referrer"
               />
             ) : (
-              <div className={styles.mapLoading}>📍 Map unavailable for this location</div>
+              <div className={styles.mapLoading}><MapPin size={16} /> Map unavailable for this location</div>
             )}
           </div>
 
@@ -670,7 +742,7 @@ const PropertyDetail: React.FC = () => {
             {existingRequest?.status === "CONFIRMED" ? (
               <div className={styles.paymentScheduleSection}>
                 <div className={`${styles.bookingMessage} ${styles.bookingMessageSuccess}`}>
-                  <span>🏠</span> You are currently an active tenant.
+                  <Home size={16} /> You are currently an active tenant.
                 </div>
 
                 <h3 style={{ marginTop: "24px", marginBottom: "16px", fontSize: "1.2rem", fontWeight: "600" }}>
@@ -698,7 +770,7 @@ const PropertyDetail: React.FC = () => {
                             }}
                           >
                             <span>Year {year}</span>
-                            <span>{isExpanded ? "▲" : "▼"}</span>
+                            <span>{isExpanded ? <ChevronRight size={18} style={{ transform: 'rotate(90deg)', transition: '0.2s' }} /> : <ChevronRight size={18} style={{ transition: '0.2s' }} />}</span>
                           </button>
                           {isExpanded && (
                             <div style={{ padding: "0 16px", backgroundColor: "#fff" }}>
@@ -720,7 +792,7 @@ const PropertyDetail: React.FC = () => {
                                       <span style={{ fontWeight: "600", color: "#1e293b" }}>{formatPrice(payment.amount)}</span>
                                       {isPaid ? (
                                         <span style={{ color: "#10b981", fontWeight: "bold", fontSize: "14px", display: "flex", alignItems: "center", gap: "4px" }}>
-                                          ✓ Paid
+                                          <Check size={16} /> Paid
                                         </span>
                                       ) : (
                                         <button
@@ -765,14 +837,14 @@ const PropertyDetail: React.FC = () => {
                   <form className={styles.bookingForm} onSubmit={handleBooking}>
                     {existingRequest?.status === "PENDING" && (
                       <div className={`${styles.bookingMessage} ${styles.bookingMessagePending}`}>
-                        <span>⏳</span>
+                        <Clock size={16} />
                         Your rental request is awaiting owner review. You cannot submit another until it is decided.
                       </div>
                     )}
 
                     {existingRequest?.status === "APPROVED" && (
                       <div className={`${styles.bookingMessage} ${styles.bookingMessagePending}`}>
-                        <span>✅</span>
+                        <CheckCircle size={16} />
                         Your request has been approved! Confirm your rental to start your monthly payment schedule.
                         <button
                           type="button"
@@ -788,8 +860,8 @@ const PropertyDetail: React.FC = () => {
                           {confirming ? "Confirming…" : "Confirm Rental"}
                         </button>
                         {confirmMsg && (
-                          <div style={{ marginTop: "8px", fontSize: "0.9rem", color: confirmMsg.type === "success" ? "#1a7a4a" : "#c0392b" }}>
-                            {confirmMsg.type === "success" ? "✓" : "⚠"} {confirmMsg.text}
+                          <div style={{ marginTop: "8px", fontSize: "0.9rem", display: "flex", gap: "6px", alignItems: "center", color: confirmMsg.type === "success" ? "#1a7a4a" : "#c0392b" }}>
+                            {confirmMsg.type === "success" ? <Check size={14} /> : <AlertCircle size={14} />} {confirmMsg.text}
                           </div>
                         )}
                       </div>
@@ -801,13 +873,14 @@ const PropertyDetail: React.FC = () => {
                           <label className={styles.bookingLabel}>Move-in Date</label>
                           <input type="date" className={styles.bookingInput} value={startDate} onChange={e => setStartDate(e.target.value)} min={today} required />
                         </div>
+                        
                         <div className={styles.bookingField}>
                           <label className={styles.bookingLabel}>Lease Duration (months)</label>
                           <input type="number" className={styles.bookingInput} value={leaseDurationMonths} onChange={e => setLeaseDurationMonths(Math.max(1, parseInt(e.target.value) || 1))} min={1} max={24} required />
                         </div>
                         {startDate && (
                           <div className={styles.moveOutRow}>
-                            <div className={styles.moveOutIcon}>🏁</div>
+                            <div className={styles.moveOutIcon}><CalendarCheck size={20} /></div>
                             <div className={styles.moveOutInfo}>
                               <span className={styles.moveOutLabel}>Move-out Date</span>
                               <span className={styles.moveOutDate}>{formatDate(moveOutDate)}</span>
@@ -838,7 +911,7 @@ const PropertyDetail: React.FC = () => {
 
                     {bookingMsg && (
                       <div className={`${styles.bookingMessage} ${bookingMsg.type === "success" ? styles.bookingMessageSuccess : styles.bookingMessageError}`}>
-                        <span>{bookingMsg.type === "success" ? "✓" : "⚠"}</span>
+                        {bookingMsg.type === "success" ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
                         {bookingMsg.text}
                       </div>
                     )}
@@ -873,7 +946,9 @@ const PropertyDetail: React.FC = () => {
             
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 className={styles.infoTitle} style={{ fontSize: '20px', margin: 0 }}>Tenant Reviews</h3>
-              <button onClick={() => setShowReviewsModal(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}>✕</button>
+              <button onClick={() => setShowReviewsModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
+                <X size={24} />
+              </button>
             </div>
 
             <select

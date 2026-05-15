@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { rentalRequestsApi } from "./rental_requests.api";
-import { API_BASE } from "../../../api/axiosInstance"; 
+import { API_BASE } from "../../../api/axiosInstance";
 import styles from "./admin_rental_request.module.css";
+import { 
+  RefreshCw, MapPin, Tag, User, Clock, BedDouble, Bath, Maximize, 
+  ArrowRight, AlertTriangle, Home, CheckCircle 
+} from "lucide-react";
 
 interface AdminUser { id: number; name: string; email: string; role: string; }
 
 interface RentalRequest {
   id: number;
-  
   title?: string;
   propertyTitle?: string;
   location?: string;
@@ -35,10 +38,12 @@ function timeAgo(isoStr: string | undefined): string {
   const mins  = Math.floor(diff / 60_000);
   const hours = Math.floor(diff / 3_600_000);
   const days  = Math.floor(diff / 86_400_000);
+
   if (mins  < 1)  return "just now";
   if (mins  < 60) return `${mins}m ago`;
   if (hours < 24) return `${hours}h ago`;
   if (days  < 7)  return `${days}d ago`;
+  
   return new Date(isoStr).toLocaleDateString("en-PH", { month: "short", day: "numeric" });
 }
 
@@ -52,8 +57,7 @@ function formatPrice(n: number | undefined) {
 
 function getValidImageUrl(path: any): string | null {
   if (!path) return null;
-
-  // 1. If the backend sent an object (like PropertyImageDTO), extract the URL string
+  
   let imageStr = "";
   if (typeof path === "object") {
     imageStr = path.imageUrl || path.url || path.image || "";
@@ -61,13 +65,9 @@ function getValidImageUrl(path: any): string | null {
     imageStr = path;
   }
 
-  // 2. If we couldn't extract a valid string, return null
   if (!imageStr || typeof imageStr !== "string") return null;
-
-  // 3. If it's already a full URL (like your Supabase URLs!) or base64, return it as-is
   if (imageStr.startsWith("http") || imageStr.startsWith("data:")) return imageStr;
   
-  // 4. Otherwise, prepend your dynamic API base URL for local files
   return `${API_BASE}${imageStr.startsWith("/") ? "" : "/"}${imageStr}`;
 }
 
@@ -85,7 +85,6 @@ const AdminRentalRequests: React.FC = () => {
       const data = await rentalRequestsApi.getAllRentalRequests();
       if (!data.success) { setError(data?.error?.message ?? "Failed to fetch."); return; }
       
-      // Handles both potential array keys from the backend map
       setRequests(data.data.properties ?? data.data.requests ?? []);
     } catch { 
       setError("Unable to connect to server."); 
@@ -101,13 +100,17 @@ const AdminRentalRequests: React.FC = () => {
   return (
     <div className={styles.page}>
       <div className={styles.main}>
+        
+        {/* Header */}
         <div className={styles.pageHeader}>
           <div>
-            <h1 className={styles.pageTitle}>Pending Rental Property Requests</h1>
-            <p className={styles.pageSub}>{loading ? "Loading..." : `${requests.length} property awaiting review`}</p>
+            <h1 className={styles.pageTitle}>Pending Properties</h1>
+            <p className={styles.pageSub}>
+              {loading ? "Syncing..." : `${requests.length} propert${requests.length === 1 ? 'y' : 'ies'} awaiting review`}
+            </p>
           </div>
           <button className={styles.refreshBtn} onClick={fetchRequests} disabled={loading} type="button">
-            ↻ Refresh
+            <RefreshCw size={16} className={loading ? styles.spin : ""} /> Refresh
           </button>
         </div>
 
@@ -126,28 +129,26 @@ const AdminRentalRequests: React.FC = () => {
           </div>
         ) : error ? (
           <div className={styles.stateBox}>
-            <span className={styles.stateIcon}>⚠️</span>
+            <span className={styles.stateIcon}><AlertTriangle size={48} /></span>
             <h3 className={styles.stateTitle}>Failed to load</h3>
             <p className={styles.stateBody}>{error}</p>
             <button className={styles.stateBtn} onClick={fetchRequests} type="button">Try Again</button>
           </div>
         ) : requests.length === 0 ? (
           <div className={styles.stateBox}>
-            <span className={styles.stateIcon}>🎉</span>
+            <span className={styles.stateIcon}><CheckCircle size={48} /></span>
             <h3 className={styles.stateTitle}>All caught up!</h3>
             <p className={styles.stateBody}>There are no pending property requests at this time.</p>
           </div>
         ) : (
           <div className={styles.requestList}>
             {requests.map((r, i) => {
-              // Extract values dynamically to handle both standard backend DTOs and old interfaces
               const displayTitle = r.title || r.propertyTitle || "Untitled Property";
               const displayLocation = r.location || r.propertyLocation || "Location not provided";
               const displayPrice = r.price ?? r.propertyPrice ?? 0;
               const displayType = r.type || r.propertyType || "Property";
               const displayOwner = r.ownerName || r.owner?.name || "Unknown Owner";
               
-              // Process image
               const rawImg = (r.images && r.images.length > 0) ? r.images[0] : (r.imageUrl || r.propertyImage || null);
               const displayImg = getValidImageUrl(rawImg);
 
@@ -160,7 +161,7 @@ const AdminRentalRequests: React.FC = () => {
                       {displayImg ? (
                         <img src={displayImg} alt="" className={styles.cardThumbImg} />
                       ) : (
-                        <div className={styles.cardThumbPlaceholder}>🏠</div>
+                        <div className={styles.cardThumbPlaceholder}><Home size={32} /></div>
                       )}
                     </div>
                     
@@ -169,10 +170,10 @@ const AdminRentalRequests: React.FC = () => {
                         <div>
                           <h3 className={styles.cardTitle}>{displayTitle}</h3>
                           <div className={styles.cardMeta}>
-                            <span>📍 {displayLocation}</span>
-                            <span>🏷️ {displayType}</span>
-                            <span>👤 {displayOwner}</span>
-                            <span>🕐 {timeAgo(r.createdAt)}</span>
+                            <span className={styles.metaItem}><MapPin size={14}/> {displayLocation}</span>
+                            <span className={styles.metaItem}><Tag size={14}/> {displayType}</span>
+                            <span className={styles.metaItem}><User size={14}/> {displayOwner}</span>
+                            <span className={styles.metaItem}><Clock size={14}/> {timeAgo(r.createdAt)}</span>
                           </div>
                         </div>
                         <div className={styles.cardPrice}>
@@ -182,24 +183,27 @@ const AdminRentalRequests: React.FC = () => {
 
                       {(r.beds || r.baths || r.sqm) && (
                         <div className={styles.cardSpecs}>
-                          {r.beds  != null && <span className={styles.spec}>🛏 {r.beds} beds</span>}
-                          {r.baths != null && <span className={styles.spec}>🚿 {r.baths} bath</span>}
-                          {r.sqm   != null && <span className={styles.spec}>📐 {r.sqm} sqm</span>}
+                          {r.beds  != null && <span className={styles.spec}><BedDouble size={14} /> {r.beds} Beds</span>}
+                          {r.baths != null && <span className={styles.spec}><Bath size={14} /> {r.baths} Bath</span>}
+                          {r.sqm   != null && <span className={styles.spec}><Maximize size={14} /> {r.sqm} sqm</span>}
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className={styles.cardActions}>
+                  <div className={styles.cardFooter}>
                     <button 
                       className={styles.detailBtn} 
                       type="button" 
-                      onClick={(e) => { e.stopPropagation(); navigate(`/admin/rental-requests/${r.id}`); }}
+                      onClick={(e) => { 
+                        e.stopPropagation();
+                        navigate(`/admin/rental-requests/${r.id}`); 
+                      }}
                     >
-                      Review Listing →
+                      Review Listing <ArrowRight size={16} />
                     </button>
                   </div>
-                  
+                 
                 </div>
               );
             })}

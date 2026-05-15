@@ -1,6 +1,6 @@
 package edu.cit.saligue.cebunest.rentals.application;
 
-import edu.cit.saligue.cebunest.rentals.application.CreateRentalRequestDTO;
+import edu.cit.saligue.cebunest.payments.shared.RentalPaymentRepository;
 import edu.cit.saligue.cebunest.properties.shared.Property;
 import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
@@ -11,6 +11,7 @@ import edu.cit.saligue.cebunest.users.shared.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import edu.cit.saligue.cebunest.payments.shared.RentalPayment;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,6 +23,7 @@ public class TenantRentalService {
     private final RentalRequestRepository rentalRequestRepository;
     private final PropertyRepository propertyRepository;
     private final NotificationService notificationService;
+    private final RentalPaymentRepository rentalPaymentRepository;
 
     @Transactional
     public RentalRequestDTO createRequest(CreateRentalRequestDTO dto, User tenant) {
@@ -47,6 +49,14 @@ public class TenantRentalService {
                 .status(RentalRequest.RentalStatus.PENDING)
                 .createdAt(LocalDateTime.now())
                 .build();
+
+        boolean hasOverduePayments = rentalPaymentRepository.findAll().stream()
+                .anyMatch(p -> p.getRentalRequest().getTenant().getId().equals(tenant.getId())
+                        && p.getStatus() == RentalPayment.PaymentStatus.OVERDUE);
+
+        if (hasOverduePayments) {
+            throw new IllegalArgumentException("You cannot request a new rental until you settle your overdue balances from previous leases.");
+        }
 
         RentalRequest saved = rentalRequestRepository.save(request);
 

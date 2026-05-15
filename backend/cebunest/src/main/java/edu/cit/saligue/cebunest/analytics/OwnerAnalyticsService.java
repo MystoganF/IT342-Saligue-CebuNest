@@ -4,8 +4,9 @@ import edu.cit.saligue.cebunest.payments.shared.RentalPaymentDTO;
 import edu.cit.saligue.cebunest.payments.shared.RentalPayment;
 import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
+import edu.cit.saligue.cebunest.rentals.shared.RentalRequestDTO;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository;
-import edu.cit.saligue.cebunest.repository.RentalPaymentRepository;
+import edu.cit.saligue.cebunest.payments.shared.RentalPaymentRepository;
 import edu.cit.saligue.cebunest.reviews.PropertyReview;
 import edu.cit.saligue.cebunest.reviews.PropertyReviewRepository;
 import edu.cit.saligue.cebunest.users.shared.User;
@@ -80,6 +81,26 @@ public class OwnerAnalyticsService {
                 .filter(p -> p.getStatus() == RentalPayment.PaymentStatus.OVERDUE)
                 .sorted(Comparator.comparing(RentalPayment::getDueDate))
                 .map(RentalPaymentDTO::from).toList();
+
+        List<RentalRequestDTO> pendingRequests = allRequests.stream()
+                .filter(r -> r.getStatus() == RentalRequest.RentalStatus.PENDING)
+                .map(RentalRequestDTO::from).toList();
+
+        List<RentalRequestDTO> approvedRequests = allRequests.stream()
+                .filter(r -> r.getStatus() == RentalRequest.RentalStatus.APPROVED)
+                .map(RentalRequestDTO::from).toList();
+
+        List<RentalRequestDTO> confirmedRequests = allRequests.stream()
+                .filter(r -> r.getStatus() == RentalRequest.RentalStatus.CONFIRMED)
+                .map(RentalRequestDTO::from).toList();
+
+        List<RentalRequestDTO> rejectedRequests = allRequests.stream()
+                .filter(r -> r.getStatus() == RentalRequest.RentalStatus.REJECTED)
+                .map(RentalRequestDTO::from).toList();
+
+        List<RentalRequestDTO> terminatedRequests = allRequests.stream()
+                .filter(r -> r.getStatus() == RentalRequest.RentalStatus.TERMINATED)
+                .map(RentalRequestDTO::from).toList();
 
         // ── Monthly Revenue (last 6 months) ───────────────────────────────
         LocalDate today = LocalDate.now();
@@ -177,6 +198,14 @@ public class OwnerAnalyticsService {
         data.put("monthlyRevenue",  monthlyRevenue);
         data.put("overallRating",   overallRating);
         data.put("propertyRatings", propertyRatings);
+
+        data.put("pendingRequests", pendingRequests);
+        data.put("approvedRequests", approvedRequests);
+        data.put("confirmedRequests", confirmedRequests);
+        data.put("rejectedRequests", rejectedRequests);
+        data.put("terminatedRequests", terminatedRequests);
+
+
 
         return data;
     }

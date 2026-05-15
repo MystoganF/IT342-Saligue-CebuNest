@@ -4,9 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg">
-
-
+    android:background="#F0F4F5">
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
@@ -18,24 +16,38 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Property Image -->
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="220dp"
                 android:background="#D4EAEB">
-                <ImageView
-                    android:id="@+id/ivPropertyImage"
+
+                <androidx.viewpager2.widget.ViewPager2
+                    android:id="@+id/vpPropertyImages"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="centerCrop"/>
+                    android:layout_height="match_parent"/>
+
+                <TextView
+                    android:id="@+id/tvGalleryCounter"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="bottom|end"
+                    android:layout_margin="16dp"
+                    android:background="@drawable/bg_dark_overlay"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="4dp"
+                    android:visibility="gone"/>
+
                 <TextView
                     android:id="@+id/tvNoImage"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
-                    android:text="🏠 No Image"
-                    android:textColor="@color/teal_soft"
-                    android:textSize="18sp"
+                    android:text="🏠 No Photos Available"
+                    android:textColor="#98c1c1"
+                    android:textSize="16sp"
                     android:textStyle="bold"
                     android:visibility="gone"/>
             </FrameLayout>
@@ -46,11 +58,46 @@
                 android:orientation="vertical"
                 android:padding="20dp">
 
-                <!-- Title & Status -->
-                <TextView android:id="@+id/tvPropertyTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/teal_deep" android:textSize="22sp" android:textStyle="bold" />
-                <TextView android:id="@+id/tvLocation" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/slate" android:textSize="14sp" android:layout_marginBottom="16dp" />
+                <TextView android:id="@+id/tvPropertyTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#1f5d71" android:textSize="22sp" android:textStyle="bold" />
+                <TextView android:id="@+id/tvLocation" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#6e7071" android:textSize="14sp" android:layout_marginTop="4dp" android:layout_marginBottom="16dp" />
 
-                <!-- SUMMARY CARD -->
+                <LinearLayout
+                    android:id="@+id/layoutPropertyStats"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:background="@drawable/bg_border_outline"
+                    android:padding="12dp"
+                    android:layout_marginBottom="16dp"
+                    android:visibility="gone">
+                    <TextView android:id="@+id/tvBeds" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:textColor="#1f5d71" android:textStyle="bold"/>
+                    <TextView android:id="@+id/tvBaths" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:textColor="#1f5d71" android:textStyle="bold"/>
+                    <TextView android:id="@+id/tvSqm" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:textColor="#1f5d71" android:textStyle="bold"/>
+                </LinearLayout>
+
+                <TextView android:id="@+id/tvDescription" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#6e7071" android:textSize="14sp" android:layout_marginBottom="16dp" android:visibility="gone"/>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:background="#f8fbfb"
+                    android:padding="16dp"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="24dp">
+
+                    <TextView android:id="@+id/tvOwnerAvatar" android:layout_width="40dp" android:layout_height="40dp" android:backgroundTint="#1f5d71" android:background="@drawable/bg_circle" android:textColor="@color/white" android:gravity="center" android:textStyle="bold" android:textSize="16sp"/>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="12dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="LISTED BY" android:textSize="10sp" android:textStyle="bold" android:textColor="#6e7071"/>
+                        <TextView android:id="@+id/tvOwnerName" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#1a2a2e" android:textSize="16sp" android:textStyle="bold"/>
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal">
+                        <ImageButton android:id="@+id/btnFacebook" android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/ic_menu_share" android:backgroundTint="#e8f0fe" android:visibility="gone"/>
+                        <ImageButton android:id="@+id/btnInstagram" android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/ic_menu_camera" android:backgroundTint="#fceef3" android:layout_marginStart="8dp" android:visibility="gone"/>
+                    </LinearLayout>
+                </LinearLayout>
+
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -61,17 +108,16 @@
                     app:strokeColor="#D4AB6A"
                     android:layout_marginBottom="20dp">
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
-                        <TextView android:id="@+id/tvPrice" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/teal_deep" android:textSize="26sp" android:textStyle="bold" android:layout_marginBottom="12dp"/>
-                        <TextView android:id="@+id/tvSummaryDetails" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/slate" android:textSize="13sp" android:lineSpacingExtra="6dp"/>
+                        <TextView android:id="@+id/tvPrice" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="#1f5d71" android:textSize="26sp" android:textStyle="bold" android:layout_marginBottom="12dp"/>
+                        <TextView android:id="@+id/tvSummaryDetails" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#6e7071" android:textSize="13sp" android:lineSpacingExtra="6dp"/>
 
                         <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F0F4F5" android:layout_marginVertical="16dp"/>
-                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PAYMENT PROGRESS" android:textSize="11sp" android:textStyle="bold" android:textColor="@color/teal_deep" android:layout_marginBottom="8dp"/>
-                        <ProgressBar android:id="@+id/pbPaymentProgress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="8dp" android:progressDrawable="@drawable/bg_dark_overlay" android:progressTint="@color/teal_deep" android:max="100" android:layout_marginBottom="8dp"/>
-                        <TextView android:id="@+id/tvProgressText" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="12sp" android:textColor="@color/slate"/>
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PAYMENT PROGRESS" android:textSize="11sp" android:textStyle="bold" android:textColor="#1f5d71" android:layout_marginBottom="8dp"/>
+                        <ProgressBar android:id="@+id/pbPaymentProgress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="8dp" android:progressDrawable="@drawable/bg_dark_overlay" android:progressTint="#1f5d71" android:max="100" android:layout_marginBottom="8dp"/>
+                        <TextView android:id="@+id/tvProgressText" android:layout_width="match_parent" android:layout_height="wrap_content" android:textSize="12sp" android:textColor="#6e7071"/>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- DYNAMIC ACCORDIONS CONTAINER -->
                 <LinearLayout
                     android:id="@+id/layoutActionAccordions"
                     android:layout_width="match_parent"
@@ -80,62 +126,89 @@
                     android:visibility="gone"
                     android:layout_marginBottom="24dp">
 
-                    <!-- 1. Payment Schedule (Yearly) -->
+                    <LinearLayout
+                        android:id="@+id/bannerOverdueBalance"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:background="#0FC0392B"
+                        android:padding="16dp"
+                        android:layout_marginBottom="16dp"
+                        android:visibility="gone">
+                        <ImageView android:layout_width="24dp" android:layout_height="24dp" android:src="@android:drawable/ic_dialog_alert" app:tint="#c0392b"/>
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginStart="12dp">
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="OUTSTANDING BALANCE" android:textColor="#922b21" android:textStyle="bold" android:textSize="12sp"/>
+                            <TextView android:id="@+id/tvOverdueBannerText" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#a93226" android:textSize="12sp" android:layout_marginTop="4dp"/>
+                        </LinearLayout>
+                    </LinearLayout>
+
                     <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="12dp" app:cardElevation="1dp" app:strokeColor="#E2E8F0" app:strokeWidth="1dp" android:layout_marginBottom="16dp">
                         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-                            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Payment Schedule" android:textStyle="bold" android:textColor="@color/teal_deep" android:background="#F8FAFC" android:padding="16dp"/>
+                            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Payment Schedule" android:textStyle="bold" android:textColor="#1f5d71" android:background="#F8FAFC" android:padding="16dp"/>
                             <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#E2E8F0"/>
                             <LinearLayout android:id="@+id/containerPaymentSchedule" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp"/>
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
 
-                    <!-- 2. Payment History -->
                     <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="12dp" app:cardElevation="1dp" app:strokeColor="#E2E8F0" app:strokeWidth="1dp" android:layout_marginBottom="16dp">
                         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                             <LinearLayout android:id="@+id/btnToggleHistory" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:padding="16dp" android:gravity="center_vertical" android:clickable="true" android:focusable="true">
-                                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Payment History" android:textStyle="bold" android:textColor="@color/teal_deep"/>
-                                <TextView android:id="@+id/tvHistoryChevron" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="▼" android:textColor="@color/teal_deep"/>
+                                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Payment History" android:textStyle="bold" android:textColor="#1f5d71"/>
+                                <TextView android:id="@+id/tvHistoryChevron" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="▼" android:textColor="#1f5d71"/>
                             </LinearLayout>
                             <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#E2E8F0"/>
                             <LinearLayout android:id="@+id/containerPaymentHistory" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp" android:visibility="gone"/>
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
 
-                    <!-- 3. Extensions -->
-                    <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="12dp" app:cardElevation="1dp" app:strokeColor="#E2E8F0" app:strokeWidth="1dp">
+                    <com.google.android.material.card.MaterialCardView android:id="@+id/cardExtensions" android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="12dp" app:cardElevation="1dp" app:strokeColor="#E2E8F0" app:strokeWidth="1dp">
                         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                             <LinearLayout android:id="@+id/btnToggleExtensions" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="?attr/selectableItemBackground" android:padding="16dp" android:gravity="center_vertical" android:clickable="true" android:focusable="true">
-                                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Lease Extension Requests" android:textStyle="bold" android:textColor="@color/teal_deep"/>
-                                <TextView android:id="@+id/tvExtensionsChevron" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="▼" android:textColor="@color/teal_deep"/>
+                                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Lease Extension Requests" android:textStyle="bold" android:textColor="#1f5d71"/>
+                                <TextView android:id="@+id/tvExtensionsChevron" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="▼" android:textColor="#1f5d71"/>
                             </LinearLayout>
                             <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#E2E8F0"/>
                             <LinearLayout android:id="@+id/containerExtensionsBody" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp" android:visibility="gone">
                                 <LinearLayout android:id="@+id/containerExtensionsList" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="8dp"/>
-                                <Button android:id="@+id/btnRequestExtension" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="+ Request Extension" android:textColor="@color/teal_deep" android:backgroundTint="#F0F4F5" app:strokeColor="@color/teal_aero" app:strokeWidth="1dp" style="?attr/materialButtonOutlinedStyle"/>
+                                <Button android:id="@+id/btnRequestExtension" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="+ Request Extension" android:textColor="#1f5d71" android:backgroundTint="#F0F4F5" />
+
                                 <LinearLayout android:id="@+id/layoutExtensionForm" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
-                                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Months" android:textSize="11sp" android:textStyle="bold" android:textColor="@color/teal_deep"/>
-                                    <EditText android:id="@+id/etExtMonths" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="number" android:text="1" android:background="@drawable/bg_dark_overlay" android:backgroundTint="#F8FBFB" android:padding="12dp" android:layout_marginVertical="8dp"/>
-                                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Reason" android:textSize="11sp" android:textStyle="bold" android:textColor="@color/teal_deep"/>
-                                    <EditText android:id="@+id/etExtReason" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_dark_overlay" android:backgroundTint="#F8FBFB" android:padding="12dp" android:layout_marginVertical="8dp"/>
-                                    <Button android:id="@+id/btnSubmitExtension" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Submit Request" android:backgroundTint="@color/teal_deep"/>
+                                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ADDITIONAL MONTHS" android:textSize="11sp" android:textStyle="bold" android:textColor="#1f5d71" android:layout_marginBottom="8dp"/>
+                                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:background="@drawable/bg_border_outline" android:padding="8dp" android:layout_marginBottom="12dp">
+                                        <ImageButton android:id="@+id/btnExtMinus" android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/ic_media_rew" android:background="?attr/selectableItemBackgroundBorderless" app:tint="#1f5d71"/>
+                                        <TextView android:id="@+id/tvExtMonths" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:gravity="center" android:text="1" android:textSize="18sp" android:textStyle="bold" android:textColor="#1f5d71"/>
+                                        <ImageButton android:id="@+id/btnExtPlus" android:layout_width="40dp" android:layout_height="40dp" android:src="@android:drawable/ic_media_ff" android:background="?attr/selectableItemBackgroundBorderless" app:tint="#1f5d71"/>
+                                    </LinearLayout>
+
+                                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="REASON (OPTIONAL)" android:textSize="11sp" android:textStyle="bold" android:textColor="#1f5d71"/>
+                                    <EditText android:id="@+id/etExtReason" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@drawable/bg_border_outline" android:padding="12dp" android:layout_marginVertical="8dp"/>
+                                    <Button android:id="@+id/btnSubmitExtension" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Submit Request" android:backgroundTint="#1f5d71"/>
                                 </LinearLayout>
                             </LinearLayout>
                         </LinearLayout>
                     </com.google.android.material.card.MaterialCardView>
                 </LinearLayout>
 
-                <!-- TENANT REVIEWS -->
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="TENANT REVIEWS" android:textSize="13sp" android:textStyle="bold" android:textColor="@color/teal_deep" android:layout_marginBottom="12dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="⭐ TENANT REVIEWS" android:textSize="13sp" android:textStyle="bold" android:textColor="#1f5d71" android:layout_marginBottom="12dp"/>
                 <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="wrap_content" app:cardCornerRadius="16dp" app:cardBackgroundColor="@color/white" app:cardElevation="2dp" android:layout_marginBottom="24dp">
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
-                        <!-- Public Reviews -->
-                        <TextView android:id="@+id/tvReviewsSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Loading reviews..." android:textColor="@color/slate" android:textSize="14sp" android:layout_marginBottom="12dp"/>
-                        <LinearLayout android:id="@+id/containerPublicReviews" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="16dp"/>
 
-                        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F0F4F5" android:layout_marginBottom="16dp"/>
+                        <LinearLayout android:id="@+id/layoutReviewStats" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp" android:visibility="gone">
+                            <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center" android:layout_marginEnd="16dp">
+                                <TextView android:id="@+id/tvAverageRating" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0.0" android:textSize="36sp" android:textStyle="bold" android:textColor="#1f5d71"/>
+                                <TextView android:id="@+id/tvTotalReviews" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="0 reviews" android:textSize="12sp" android:textColor="#6e7071"/>
+                            </LinearLayout>
+                            <LinearLayout android:id="@+id/containerStarBars" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"/>
+                        </LinearLayout>
 
-                        <!-- Rate This Property (User Form) -->
-                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="⭐ RATE THIS PROPERTY" android:textStyle="bold" android:textColor="@color/teal_deep" android:textSize="13sp" android:layout_marginBottom="12dp"/>
+                        <TextView android:id="@+id/tvReviewsSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Loading reviews..." android:textColor="#6e7071" android:textSize="14sp" android:layout_marginBottom="12dp"/>
+                        <LinearLayout android:id="@+id/containerPublicReviews" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="8dp"/>
+
+                        <Button android:id="@+id/btnViewAllReviews" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="View All Reviews" android:textColor="#1f5d71" android:backgroundTint="#0D53A4A3" android:visibility="gone"/>
+
+                        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F0F4F5" android:layout_marginVertical="16dp"/>
+
+                        <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="RATE THIS PROPERTY" android:textStyle="bold" android:textColor="#1f5d71" android:textSize="13sp" android:layout_marginBottom="12dp"/>
                         <LinearLayout android:id="@+id/layoutReviewForm" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
                             <LinearLayout android:id="@+id/layoutStarPicker" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center" android:layout_marginBottom="12dp">
                                 <ImageView android:id="@+id/star1" android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/btn_star_big_off" app:tint="#DDDDDD"/>
@@ -144,23 +217,20 @@
                                 <ImageView android:id="@+id/star4" android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/btn_star_big_off" app:tint="#DDDDDD"/>
                                 <ImageView android:id="@+id/star5" android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/btn_star_big_off" app:tint="#DDDDDD"/>
                             </LinearLayout>
-                            <EditText android:id="@+id/etReviewComment" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Share your experience..." android:background="@drawable/bg_dark_overlay" android:backgroundTint="#F8FBFB" android:padding="12dp" android:lines="2" android:gravity="top" android:layout_marginBottom="12dp"/>
-                            <Button android:id="@+id/btnSubmitReview" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Submit Review" android:backgroundTint="@color/teal_deep"/>
+                            <EditText android:id="@+id/etReviewComment" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Share your experience..." android:background="@drawable/bg_border_outline" android:padding="12dp" android:lines="2" android:gravity="top" android:layout_marginBottom="12dp"/>
+                            <Button android:id="@+id/btnSubmitReview" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Submit Review" android:backgroundTint="#1f5d71"/>
                         </LinearLayout>
-                        <!-- Submitted State -->
                         <LinearLayout android:id="@+id/layoutReviewSubmitted" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone" android:background="#0D1A7A4A" android:padding="16dp">
                             <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="✓ Review Submitted" android:textColor="#1A7A4A" android:textStyle="bold" android:layout_marginBottom="4dp"/>
                             <TextView android:id="@+id/tvMyReviewStars" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#B78E42" android:textSize="18sp" android:layout_marginBottom="4dp"/>
-                            <TextView android:id="@+id/tvMyReviewComment" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/slate" android:textStyle="italic"/>
+                            <TextView android:id="@+id/tvMyReviewComment" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#6e7071" android:textStyle="italic"/>
                         </LinearLayout>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- MAP SECTION -->
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🗺️ LOCATION" android:textSize="13sp" android:textStyle="bold" android:textColor="@color/teal_deep" android:layout_marginBottom="12dp"/>
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🗺️ LOCATION" android:textSize="13sp" android:textStyle="bold" android:textColor="#1f5d71" android:layout_marginBottom="12dp"/>
                 <com.google.android.material.card.MaterialCardView android:layout_width="match_parent" android:layout_height="220dp" app:cardCornerRadius="16dp" app:cardElevation="2dp">
                     <TextView android:id="@+id/tvMapLoading" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="📍 Finding location..." android:background="#F0F4F5"/>
-                    <!-- Added settings for map to work reliably -->
                     <WebView android:id="@+id/webViewMap" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone"/>
                 </com.google.android.material.card.MaterialCardView>
 

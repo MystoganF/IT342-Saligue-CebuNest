@@ -7,7 +7,8 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface RentalRequestRepository extends JpaRepository<RentalRequest, Long> {
+public interface
+RentalRequestRepository extends JpaRepository<RentalRequest, Long> {
 
     List<RentalRequest> findByTenantIdOrderByCreatedAtDesc(Long tenantId);
     List<RentalRequest> findByPropertyIdOrderByCreatedAtDesc(Long propertyId);
@@ -27,5 +28,5 @@ public interface RentalRequestRepository extends JpaRepository<RentalRequest, Lo
             Long tenantId, Long propertyId);
 
     List<RentalRequest> findByPropertyIdInOrderByCreatedAtDesc(List<Long> propertyIds);
-
+    List<RentalRequest> findByStatus(RentalRequest.RentalStatus status);
 }

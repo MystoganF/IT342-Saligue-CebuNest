@@ -1,8 +1,10 @@
 package edu.cit.saligue.cebunest.rentals.shared;
 
+import edu.cit.saligue.cebunest.payments.shared.RentalPayment;
 import edu.cit.saligue.cebunest.payments.shared.RentalPaymentDTO;
 import lombok.*;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Data
@@ -21,8 +23,6 @@ public class RentalRequestDTO {
     private Long    ownerId;
     private String  ownerName;
     private String  ownerEmail;
-
-    // ── ADDED: Social Media Fields ──
     private String  ownerFacebookUrl;
     private String  ownerInstagramUrl;
     private String  ownerTwitterUrl;
@@ -39,6 +39,9 @@ public class RentalRequestDTO {
     private String  tenantInstagramUrl;
     private String  tenantTwitterUrl;
 
+    // ── ADDED: Flag to tell frontend if this lease has debt ──
+    private boolean hasOverdue;
+
     // Payments only populated when fetching detail
     private List<RentalPaymentDTO> payments;
 
@@ -47,6 +50,14 @@ public class RentalRequestDTO {
                 ? r.getProperty().getImages().get(0).getImageUrl()
                 : null;
 
+        // 1. Calculate Overdue Status
+        boolean isOverdue = false;
+        if (r.getPayments() != null) {
+            isOverdue = r.getPayments().stream()
+                    .anyMatch(p -> p.getStatus() == RentalPayment.PaymentStatus.OVERDUE);
+        }
+
+        // 2. Build the DTO
         return RentalRequestDTO.builder()
                 .id(r.getId())
                 .propertyId(r.getProperty().getId())
@@ -58,26 +69,27 @@ public class RentalRequestDTO {
                 .ownerId(r.getProperty().getOwner().getId())
                 .ownerName(r.getProperty().getOwner().getName())
                 .ownerEmail(r.getProperty().getOwner().getEmail())
-
-                // ── ADDED: Map the Social Media URLs from the Owner (User entity) ──
                 .ownerFacebookUrl(r.getProperty().getOwner().getFacebookUrl())
                 .ownerInstagramUrl(r.getProperty().getOwner().getInstagramUrl())
                 .ownerTwitterUrl(r.getProperty().getOwner().getTwitterUrl())
 
+                .tenantId(r.getTenant().getId())
+                .tenantName(r.getTenant().getName())
+                .tenantEmail(r.getTenant().getEmail())
                 .tenantFacebookUrl(r.getTenant().getFacebookUrl())
                 .tenantInstagramUrl(r.getTenant().getInstagramUrl())
                 .tenantTwitterUrl(r.getTenant().getTwitterUrl())
 
-                .tenantId(r.getTenant().getId())
-                .tenantName(r.getTenant().getName())
-                .tenantEmail(r.getTenant().getEmail())
                 .startDate(r.getStartDate() != null ? r.getStartDate().toString() : null)
                 .leaseDurationMonths(r.getLeaseDurationMonths())
                 .status(r.getStatus().name())
                 .paymentPlan(r.getPaymentPlan())
                 .createdAt(r.getCreatedAt() != null
-                        ? r.getCreatedAt().format(java.time.format.DateTimeFormatter.ISO_DATE_TIME)
+                        ? r.getCreatedAt().format(DateTimeFormatter.ISO_DATE_TIME)
                         : null)
+
+                // ── ADDED: Map the overdue boolean ──
+                .hasOverdue(isOverdue)
                 .build();
     }
 }

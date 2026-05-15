@@ -1,5 +1,6 @@
 package edu.cit.saligue.cebunest.rentals.shared;
 
+import edu.cit.saligue.cebunest.payments.shared.RentalPayment;
 import edu.cit.saligue.cebunest.users.shared.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -7,6 +8,7 @@ import edu.cit.saligue.cebunest.properties.shared.Property;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "rental_requests")
@@ -43,6 +45,9 @@ public class RentalRequest {
 
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
+
+    @OneToMany(mappedBy = "rentalRequest", fetch = FetchType.LAZY)
+    private List<RentalPayment> payments;
 
     public enum RentalStatus {
         PENDING,     // submitted by tenant, awaiting owner review

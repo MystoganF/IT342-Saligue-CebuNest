@@ -38,5 +38,7 @@ interface RentalsApi {
     suspend fun submitPropertyReview(@Body data: ReviewPayload): Response<SingleReviewResponse> // <-- Updated
     @GET("api/payments/{paymentId}/cancel")
     suspend fun cancelPayment(@Path("paymentId") paymentId: Int): Response<ConfirmResponse>
+
+
 }
 

@@ -30,7 +30,6 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Image Gallery -->
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="250dp"
@@ -51,7 +50,6 @@
                     android:textColor="@color/white"
                     android:textSize="12sp"
                     android:textStyle="bold" />
-                <!-- Tap to Expand Hint -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -71,7 +69,6 @@
                 android:orientation="vertical"
                 android:padding="20dp">
 
-                <!-- Title & Location -->
                 <TextView
                     android:id="@+id/tvTitle"
                     android:layout_width="match_parent"
@@ -97,7 +94,6 @@
                     android:textSize="28sp"
                     android:textStyle="bold" />
 
-                <!-- STATS ROW (Beds, Baths, SQM) -->
                 <LinearLayout
                     android:id="@+id/layoutStats"
                     android:layout_width="match_parent"
@@ -120,7 +116,6 @@
                     android:layout_marginVertical="20dp"
                     android:background="#E5ECED" />
 
-                <!-- Description -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -138,7 +133,6 @@
                     android:lineSpacingExtra="4dp"
                     android:textSize="14sp" />
 
-                <!-- OWNER INFO -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -170,11 +164,10 @@
                         android:layout_weight="1"
                         android:layout_marginStart="12dp"
                         android:orientation="vertical">
-                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="LISTED BY" android:textSize="10sp" android:textStyle="bold" android:textColor="@color/teal_aero"/>
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="LISTED BY" android:textSize="10sp" android:textStyle="bold" android:textColor="#53A4A3"/>
                         <TextView android:id="@+id/tvOwnerName" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/teal_deep" android:textStyle="bold" android:textSize="15sp"/>
                     </LinearLayout>
 
-                    <!-- Social Icons -->
                     <ImageView android:id="@+id/btnFb" android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_facebook" android:visibility="gone" />
                     <ImageView android:id="@+id/btnIg" android:layout_width="32dp" android:layout_height="32dp" android:layout_marginStart="8dp" android:src="@drawable/ic_instagram" android:visibility="gone" />
                     <ImageView android:id="@+id/btnTw" android:layout_width="32dp" android:layout_height="32dp" android:layout_marginStart="8dp" android:src="@drawable/ic_x" android:visibility="gone" />
@@ -182,7 +175,6 @@
 
                 <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="24dp" android:background="#E5ECED" />
 
-                <!-- REVIEWS SECTION -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -201,16 +193,25 @@
                     android:textSize="14sp"
                     android:layout_marginBottom="12dp"/>
 
-                <!-- Container for dynamic review items -->
                 <LinearLayout
                     android:id="@+id/layoutReviewsList"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical" />
 
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnViewAllReviews"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="View All Reviews"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:textColor="@color/teal_deep"
+                    app:strokeColor="#53A4A3"
+                    android:visibility="gone"/>
+
                 <View android:layout_width="match_parent" android:layout_height="1dp" android:layout_marginVertical="24dp" android:background="#E5ECED" />
 
-                <!-- MAP SECTION -->
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -244,7 +245,6 @@
                         android:visibility="gone"/>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- DYNAMIC ACTION CARD (Booking or Payments) -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/cardAction"
                     android:layout_width="match_parent"
@@ -272,14 +272,12 @@
                             android:textStyle="bold"
                             android:layout_marginBottom="16dp"/>
 
-                        <!-- Booking Form -->
                         <LinearLayout
                             android:id="@+id/layoutBooking"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:orientation="vertical">
 
-                            <!-- Move-in Date Picker -->
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
@@ -305,7 +303,6 @@
                                 app:drawableEndCompat="@android:drawable/ic_menu_today"
                                 app:drawableTint="@color/slate" />
 
-                            <!-- Lease Duration -->
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
@@ -329,7 +326,6 @@
                                     android:text="1"/>
                             </com.google.android.material.textfield.TextInputLayout>
 
-                            <!-- The Summary Box -->
                             <LinearLayout
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
@@ -371,7 +367,6 @@
                                 app:cornerRadius="12dp"/>
                         </LinearLayout>
 
-                        <!-- Payment Next Step -->
                         <LinearLayout
                             android:id="@+id/layoutPayments"
                             android:layout_width="match_parent"
@@ -380,11 +375,19 @@
                             android:visibility="gone">
 
                             <Button
-                                android:id="@+id/btnPayNext"
+                                android:id="@+id/btnConfirmRental"
                                 android:layout_width="match_parent"
                                 android:layout_height="56dp"
-                                android:text="Pay Next Installment"
-                                android:backgroundTint="#0F766E"/>
+                                android:text="Confirm Rental"
+                                android:backgroundTint="#0F766E"
+                                app:cornerRadius="12dp"/>
+
+                            <androidx.recyclerview.widget.RecyclerView
+                                android:id="@+id/rvPaymentSchedule"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:nestedScrollingEnabled="false"
+                                android:visibility="gone"/>
                         </LinearLayout>
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>

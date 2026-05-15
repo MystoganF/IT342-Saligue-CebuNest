@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
+import { Lock, Eye, EyeOff, AlertTriangle, CheckCircle, ArrowLeft } from "lucide-react";
 import styles from "./ForgotPassword.module.css";
-import logo from "../../../assets/images/cebunest-logo.png";
-
 import { passwordApi } from "./password.api";
 
 const ResetPassword: React.FC = () => {
@@ -20,6 +19,7 @@ const ResetPassword: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -31,6 +31,7 @@ const ResetPassword: React.FC = () => {
     if (/[A-Z]/.test(pw)) score++;
     if (/[0-9]/.test(pw)) score++;
     if (/[^A-Za-z0-9]/.test(pw)) score++;
+
     if (score <= 1) return { label: "Weak", level: 1, color: "#c0392b" };
     if (score === 2) return { label: "Fair", level: 2, color: "#b78e42" };
     if (score === 3) return { label: "Good", level: 3, color: "#53a4a3" };
@@ -38,6 +39,7 @@ const ResetPassword: React.FC = () => {
   };
 
   const strength = getStrength(password);
+
   const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
   const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
 
@@ -57,7 +59,6 @@ const ResetPassword: React.FC = () => {
     setLoading(true);
     try {
       const data = await passwordApi.resetPassword({ email, code, newPassword: password });
-
       if (!data.success) {
         setError(data?.error?.message ?? "Failed to reset password. Please try again.");
         return;
@@ -74,194 +75,139 @@ const ResetPassword: React.FC = () => {
   };
 
   return (
-    <div className={styles.page}>
-      {/* ── Left Panel ── */}
-      <div className={styles.leftPanel}>
-        <div className={`${styles.deco} ${styles.deco1}`} />
-        <div className={`${styles.deco} ${styles.deco2}`} />
-        <div className={`${styles.deco} ${styles.deco3}`} />
-        <div className={styles.accentLine} />
-
-        <div className={styles.brandLogo}>
-          <img src={logo} alt="CebuNest Logo" className={styles.logoImg} />
+    <div className={styles.formCard}>
+      <div className={styles.formHeader}>
+        <div className={styles.formEyebrow}>
+          <div className={styles.headerDot} />
+          <span className={styles.headerEyebrowText}>Step 3 of 3</span>
         </div>
-
-        <div className={styles.brandInfo}>
-          <div className={styles.brandEyebrow}>
-            <div className={styles.eyebrowLine} />
-            <span className={styles.eyebrowText}>Account Recovery</span>
-          </div>
-          <h2 className={styles.brandHeading}>Almost There!</h2>
-          <p className={styles.brandBody}>
-            Create a strong new password for your account. Use a mix of letters,
-            numbers, and symbols for the best security.
-          </p>
-        </div>
-
-        <div className={styles.steps}>
-          <div className={styles.step}>
-            <div className={`${styles.stepNum} ${styles.stepDone}`}>✓</div>
-            <div className={styles.stepText}>
-              <span className={styles.stepTitle}>Enter Email</span>
-              <span className={styles.stepDesc}>Done</span>
-            </div>
-          </div>
-          <div className={styles.stepConnector} />
-          <div className={styles.step}>
-            <div className={`${styles.stepNum} ${styles.stepDone}`}>✓</div>
-            <div className={styles.stepText}>
-              <span className={styles.stepTitle}>Verify Code</span>
-              <span className={styles.stepDesc}>Done</span>
-            </div>
-          </div>
-          <div className={styles.stepConnector} />
-          <div className={`${styles.step} ${styles.stepActive}`}>
-            <div className={styles.stepNum}>3</div>
-            <div className={styles.stepText}>
-              <span className={styles.stepTitle}>New Password</span>
-              <span className={styles.stepDesc}>Set your new credentials</span>
-            </div>
-          </div>
-        </div>
+        <h2 className={styles.formHeading}>Set New Password</h2>
+        <p className={styles.formSubheading}>
+          Choose a strong password for <strong>{email}</strong>
+        </p>
       </div>
 
-      {/* ── Right Panel ── */}
-      <div className={styles.rightPanel}>
-        <div className={styles.formCard}>
-          <div className={styles.formHeader}>
-            <div className={styles.formEyebrow}>
-              <div className={styles.headerDot} />
-              <span className={styles.headerEyebrowText}>Step 3 of 3</span>
-            </div>
-            <h2 className={styles.formHeading}>Set New Password</h2>
-            <p className={styles.formSubheading}>
-              Choose a strong password for <strong>{email}</strong>
-            </p>
-          </div>
-
-          <form className={styles.formFields} onSubmit={handleSubmit}>
-            <div className={styles.fieldGroup}>
-              <label className={styles.fieldLabel} htmlFor="rp-password">
-                New Password
-              </label>
-              <div className={styles.fieldWrap}>
-                <span className={styles.fieldIcon}>🔒</span>
-                <input
-                  id="rp-password"
-                  type={showPassword ? "text" : "password"}
-                  className={styles.fieldInput}
-                  placeholder="Min. 8 characters"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setError(null); }}
-                  required
-                  disabled={loading || success}
-                  autoFocus
-                />
-                <button
-                  type="button"
-                  className={styles.togglePassword}
-                  onClick={() => setShowPassword((p) => !p)}
-                  tabIndex={-1}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? "🙈" : "👁"}
-                </button>
-              </div>
-
-              {password.length > 0 && (
-                <div className={styles.strengthWrap}>
-                  <div className={styles.strengthBars}>
-                    {[1, 2, 3, 4].map((level) => (
-                      <div
-                        key={level}
-                        className={styles.strengthBar}
-                        style={{
-                          background: level <= strength.level ? strength.color : "#e5eced",
-                          transition: "background 0.3s",
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <span className={styles.strengthLabel} style={{ color: strength.color }}>
-                    {strength.label}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <div className={styles.fieldGroup}>
-              <label className={styles.fieldLabel} htmlFor="rp-confirm">
-                Confirm Password
-              </label>
-              <div className={styles.fieldWrap}>
-                <span className={styles.fieldIcon}>🔒</span>
-                <input
-                  id="rp-confirm"
-                  type={showConfirm ? "text" : "password"}
-                  className={`${styles.fieldInput} ${passwordsMismatch ? styles.fieldInputError : ""} ${passwordsMatch ? styles.fieldInputSuccess : ""}`}
-                  placeholder="Re-enter your password"
-                  value={confirmPassword}
-                  onChange={(e) => { setConfirmPassword(e.target.value); setError(null); }}
-                  required
-                  disabled={loading || success}
-                />
-                <button
-                  type="button"
-                  className={styles.togglePassword}
-                  onClick={() => setShowConfirm((p) => !p)}
-                  tabIndex={-1}
-                  aria-label={showConfirm ? "Hide" : "Show"}
-                >
-                  {showConfirm ? "🙈" : "👁"}
-                </button>
-              </div>
-              {passwordsMismatch && (
-                <span className={styles.fieldHint} style={{ color: "#c0392b" }}>
-                  ⚠ Passwords do not match
-                </span>
-              )}
-              {passwordsMatch && (
-                <span className={styles.fieldHint} style={{ color: "#1a7a4a" }}>
-                  ✓ Passwords match
-                </span>
-              )}
-            </div>
-
+      <form className={styles.formFields} onSubmit={handleSubmit}>
+        <div className={styles.fieldGroup}>
+          <label className={styles.fieldLabel} htmlFor="rp-password">
+            New Password
+          </label>
+          <div className={styles.fieldWrap}>
+            <span className={styles.fieldIcon}><Lock size={18} /></span>
+            <input
+              id="rp-password"
+              type={showPassword ? "text" : "password"}
+              className={styles.fieldInput}
+              placeholder="Min. 8 characters"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(null); }}
+              required
+              disabled={loading || success}
+              autoFocus
+            />
             <button
-              type="submit"
-              className={`${styles.submitBtn} ${success ? styles.submitBtnSuccess : ""}`}
-              disabled={loading || success || passwordsMismatch}
+              type="button"
+              className={styles.togglePassword}
+              onClick={() => setShowPassword((p) => !p)}
+              tabIndex={-1}
+              aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {loading ? (
-                <span className={styles.spinner} />
-              ) : success ? (
-                <span className={styles.btnSuccessContent}>
-                  <span className={styles.successCheck}>✓</span> Password Reset!
-                </span>
-              ) : (
-                "Reset Password"
-              )}
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
-
-            {error && (
-              <div className={`${styles.message} ${styles.messageError}`}>
-                <span>⚠</span> {error}
-              </div>
-            )}
-
-            {success && (
-              <div className={`${styles.message} ${styles.messageSuccess}`}>
-                <span>✓</span> Password updated successfully! Redirecting to login…
-              </div>
-            )}
-          </form>
-
-          <div className={styles.links}>
-            <Link to="/" className={styles.link}>
-              ← Back to Sign In
-            </Link>
           </div>
+
+          {password.length > 0 && (
+            <div className={styles.strengthWrap}>
+              <div className={styles.strengthBars}>
+                {[1, 2, 3, 4].map((level) => (
+                  <div
+                    key={level}
+                    className={styles.strengthBar}
+                    style={{
+                      background: level <= strength.level ? strength.color : "#e5eced",
+                      transition: "background 0.3s",
+                    }}
+                  />
+                ))}
+              </div>
+              <span className={styles.strengthLabel} style={{ color: strength.color }}>
+                {strength.label}
+              </span>
+            </div>
+          )}
         </div>
+
+        <div className={styles.fieldGroup}>
+          <label className={styles.fieldLabel} htmlFor="rp-confirm">
+            Confirm Password
+          </label>
+          <div className={styles.fieldWrap}>
+            <span className={styles.fieldIcon}><Lock size={18} /></span>
+            <input
+              id="rp-confirm"
+              type={showConfirm ? "text" : "password"}
+              className={`${styles.fieldInput} ${passwordsMismatch ? styles.fieldInputError : ""} ${passwordsMatch ? styles.fieldInputSuccess : ""}`}
+              placeholder="Re-enter your password"
+              value={confirmPassword}
+              onChange={(e) => { setConfirmPassword(e.target.value); setError(null); }}
+              required
+              disabled={loading || success}
+            />
+            <button
+              type="button"
+              className={styles.togglePassword}
+              onClick={() => setShowConfirm((p) => !p)}
+              tabIndex={-1}
+              aria-label={showConfirm ? "Hide password" : "Show password"}
+            >
+              {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+          {passwordsMismatch && (
+            <span className={styles.fieldHint} style={{ color: "#c0392b" }}>
+              <AlertTriangle size={14} /> Passwords do not match
+            </span>
+          )}
+          {passwordsMatch && (
+            <span className={styles.fieldHint} style={{ color: "#1a7a4a" }}>
+              <CheckCircle size={14} /> Passwords match
+            </span>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          className={`${styles.submitBtn} ${success ? styles.submitBtnSuccess : ""}`}
+          disabled={loading || success || passwordsMismatch}
+        >
+          {loading ? (
+            <span className={styles.spinner} />
+          ) : success ? (
+            <>
+              <CheckCircle size={18} /> Password Reset!
+            </>
+          ) : (
+            "Reset Password"
+          )}
+        </button>
+
+        {error && (
+          <div className={`${styles.message} ${styles.messageError}`}>
+            <span className={styles.messageIcon}><AlertTriangle size={18} /></span> {error}
+          </div>
+        )}
+
+        {success && (
+          <div className={`${styles.message} ${styles.messageSuccess}`}>
+            <span className={styles.messageIcon}><CheckCircle size={18} /></span> Password updated! Redirecting to login…
+          </div>
+        )}
+      </form>
+
+      <div className={styles.links}>
+        <Link to="/" className={styles.link}>
+          <ArrowLeft size={16} /> Back to Sign In
+        </Link>
       </div>
     </div>
   );

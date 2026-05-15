@@ -16,11 +16,15 @@ data class RentalRequest(
     val propertyPrice: Double,
     val propertyImage: String?,
     val ownerId: Int,
-    val ownerName: String,
-    val startDate: String,
+    val ownerName: String?,
+    val ownerEmail: String?,
+    val ownerFacebookUrl: String? = null,
+    val ownerInstagramUrl: String? = null,
+    val ownerTwitterUrl: String? = null,
+    val startDate: String?,
     val leaseDurationMonths: Int,
     val status: String,
-    val createdAt: String
+    val createdAt: String?
 )
 
 data class ConfirmPayload(val requestId: Int)

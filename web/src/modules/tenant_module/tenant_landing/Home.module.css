@@ -1,21 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700;800&display=swap");
 
 /* ─────────────────────────────────────
    CSS VARIABLES & PAGE WRAPPER
 ───────────────────────────────────── */
 .page {
-  --teal-deep:  #1f5d71;
-  --teal-aero:  #53a4a3;
-  --teal-soft:  #98c1c1;
-  --gold:       #b78e42;
+  --teal-deep: #1f5d71;
+  --teal-aero: #53a4a3;
+  --teal-soft: #98c1c1;
+  --gold: #b78e42;
   --gold-light: #d4ab6a;
-  --slate:      #6e7071;
-  --cloud:      #dcdddd;
-  --bg:         #f0f4f5;
+  --slate: #6e7071;
+  --cloud: #dcdddd;
+  --bg: #f0f4f5;
 
   min-height: 100vh;
   background: var(--bg);
-  font-family: 'DM Sans', sans-serif;
+  font-family: "DM Sans", sans-serif;
   font-size: 16px;
   color: #1a2a2e;
 }
@@ -24,9 +24,7 @@
 .page *::before,
 .page *::after {
   box-sizing: border-box;
-  
 }
-
 
 /* ─────────────────────────────────────
    HERO SECTION
@@ -41,34 +39,46 @@
   justify-content: center;
 }
 
-/* Background decorative arcs */
 .heroDeco {
   position: absolute;
   border-radius: 50%;
   pointer-events: none;
 }
 .heroDeco1 {
-  width: 600px; height: 600px;
-  top: -200px; right: -150px;
+  width: 600px;
+  height: 600px;
+  top: -200px;
+  right: -150px;
   border: 1px solid rgba(83, 164, 163, 0.15);
 }
 .heroDeco2 {
-  width: 360px; height: 360px;
-  bottom: -120px; left: -80px;
+  width: 360px;
+  height: 360px;
+  bottom: -120px;
+  left: -80px;
   border: 1px solid rgba(183, 142, 66, 0.18);
 }
 .heroDeco3 {
-  width: 180px; height: 180px;
-  top: 40px; left: 38%;
+  width: 180px;
+  height: 180px;
+  top: 40px;
+  left: 38%;
   border: 1px solid rgba(83, 164, 163, 0.1);
 }
 
-/* Gold top strip */
 .heroAccent {
   position: absolute;
-  top: 0; left: 0; right: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   height: 3px;
-  background: linear-gradient(90deg, transparent 0%, var(--gold) 40%, var(--gold-light) 60%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--gold) 40%,
+    var(--gold-light) 60%,
+    transparent 100%
+  );
 }
 
 .heroContent {
@@ -98,7 +108,7 @@
 }
 
 .heroHeading {
-  font-family: 'Playfair Display', serif;
+  font-family: "Playfair Display", serif;
   font-size: clamp(36px, 5vw, 58px);
   font-weight: 800;
   color: #fff;
@@ -120,59 +130,6 @@
   margin: 0 auto 40px;
 }
 
-/* ─── Hero Search Bar ─── */
-.heroSearch {
-  display: flex;
-  align-items: center;
-  background: #fff;
-  border-radius: 16px;
-  padding: 6px 6px 6px 20px;
-  box-shadow: 0 8px 32px rgba(10, 24, 30, 0.2);
-  gap: 8px;
-  max-width: 600px;
-  margin: 0 auto;
-  animation: fadeUp 0.7s 0.15s ease both;
-}
-.heroSearchIcon {
-  font-size: 18px;
-  color: var(--teal-aero);
-  flex-shrink: 0;
-}
-.heroSearchInput {
-  flex: 1;
-  border: none;
-  outline: none;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 15px;
-  color: #1a2a2e;
-  background: transparent;
-  padding: 10px 0;
-}
-.heroSearchInput::placeholder {
-  color: #b0bcbe;
-}
-.heroSearchBtn {
-  padding: 12px 24px;
-  background: var(--teal-deep);
-  color: #fff;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  border: none;
-  border-radius: 11px;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.heroSearchBtn:hover {
-  background: #174d5e;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(31, 93, 113, 0.3);
-}
-
-/* ─── Hero Stats Strip ─── */
 .heroStats {
   display: flex;
   justify-content: center;
@@ -189,7 +146,7 @@
   gap: 4px;
 }
 .heroStatNum {
-  font-family: 'Playfair Display', serif;
+  font-family: "Playfair Display", serif;
   font-size: 32px;
   font-weight: 800;
   color: var(--gold-light);
@@ -202,9 +159,8 @@
   text-transform: uppercase;
 }
 
-
 /* ─────────────────────────────────────
-   MAIN CONTENT AREA
+   MAIN CONTENT AREA & HEADER
 ───────────────────────────────────── */
 .main {
   max-width: 1280px;
@@ -212,10 +168,6 @@
   padding: 56px 40px 80px;
 }
 
-
-/* ─────────────────────────────────────
-   SECTION HEADER
-───────────────────────────────────── */
 .sectionHeader {
   display: flex;
   align-items: flex-end;
@@ -223,7 +175,6 @@
   margin-bottom: 32px;
   gap: 16px;
 }
-.sectionTitleGroup {}
 .sectionEyebrow {
   display: flex;
   align-items: center;
@@ -245,40 +196,84 @@
   color: var(--teal-aero);
 }
 .sectionTitle {
-  font-family: 'Playfair Display', serif;
+  font-family: "Playfair Display", serif;
   font-size: 28px;
   font-weight: 700;
   color: var(--teal-deep);
   line-height: 1.2;
 }
-.sectionViewAll {
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--teal-aero);
-  letter-spacing: 0.5px;
-  padding: 8px 16px;
-  border: 1.5px solid rgba(83, 164, 163, 0.3);
-  border-radius: 20px;
-  transition: background 0.2s, color 0.2s, border-color 0.2s;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-.sectionViewAll:hover {
-  background: var(--teal-deep);
-  color: #fff;
-  border-color: var(--teal-deep);
-}
-
 
 /* ─────────────────────────────────────
-   FILTER BAR
+   SEARCH & FILTER SECTION
 ───────────────────────────────────── */
+.filterSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 32px;
+  background: #ffffff;
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid #e5eced;
+  box-shadow: 0 4px 12px rgba(31, 93, 113, 0.04);
+}
+
+.mainSearch {
+  display: flex;
+  align-items: center;
+  background: #f8fafb;
+  border: 1.5px solid #e5eced;
+  border-radius: 12px;
+  padding: 6px 6px 6px 16px;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.mainSearch:focus-within {
+  border-color: var(--teal-deep);
+  box-shadow: 0 0 0 4px rgba(31, 93, 113, 0.1);
+}
+.mainSearchIcon {
+  color: #a0b0b5;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+.mainSearchInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 8px 4px;
+  font-family: inherit;
+  font-size: 15px;
+  outline: none;
+  color: #1a2a2e;
+}
+.mainSearchInput::placeholder {
+  color: #a0b0b5;
+}
+.mainSearchBtn {
+  background: var(--teal-deep);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    transform 0.1s;
+}
+.mainSearchBtn:hover {
+  background: #174d5e;
+}
+.mainSearchBtn:active {
+  transform: scale(0.98);
+}
+
 .filterBar {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 32px;
   flex-wrap: wrap;
 }
 .filterLabel {
@@ -299,7 +294,7 @@
   border: 1.5px solid var(--cloud);
   border-radius: 20px;
   background: #fff;
-  font-family: 'DM Sans', sans-serif;
+  font-family: "DM Sans", sans-serif;
   font-size: 13px;
   font-weight: 600;
   color: var(--slate);
@@ -316,7 +311,6 @@
   color: #fff;
 }
 
-/* Price filter inputs */
 .filterPrice {
   display: flex;
   align-items: center;
@@ -328,7 +322,7 @@
   padding: 7px 12px;
   border: 1.5px solid var(--cloud);
   border-radius: 10px;
-  font-family: 'DM Sans', sans-serif;
+  font-family: "DM Sans", sans-serif;
   font-size: 13px;
   color: #1a2a2e;
   background: #fff;
@@ -343,9 +337,8 @@
   color: var(--slate);
 }
 
-
 /* ─────────────────────────────────────
-   PROPERTY GRID
+   PROPERTY GRID & CARDS
 ───────────────────────────────────── */
 .propertyGrid {
   display: grid;
@@ -353,27 +346,25 @@
   gap: 24px;
 }
 
-
-/* ─────────────────────────────────────
-   PROPERTY CARD
-───────────────────────────────────── */
 .card {
   background: #fff;
   border-radius: 20px;
   overflow: hidden;
+  height: 100%;
   box-shadow: 0 2px 8px rgba(31, 93, 113, 0.06);
-  transition: transform 0.22s, box-shadow 0.22s;
+  transition:
+    transform 0.22s,
+    box-shadow 0.22s;
   cursor: pointer;
-  animation: fadeUp 0.5s ease both;
   display: flex;
   flex-direction: column;
+  animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .card:hover {
   transform: translateY(-4px);
   box-shadow: 0 12px 32px rgba(31, 93, 113, 0.14);
 }
 
-/* Card image area */
 .cardImageWrap {
   position: relative;
   width: 100%;
@@ -386,11 +377,8 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.4s ease;
 }
-.card:hover .cardImage {
-  transform: scale(1.04);
-}
+
 .cardImagePlaceholder {
   width: 100%;
   height: 100%;
@@ -403,8 +391,8 @@
   color: var(--teal-aero);
 }
 .cardImagePlaceholderIcon {
-  font-size: 36px;
-  opacity: 0.5;
+  color: var(--teal-aero);
+  opacity: 0.6;
 }
 .cardImagePlaceholderText {
   font-size: 12px;
@@ -412,12 +400,12 @@
   color: var(--teal-soft);
 }
 
-/* Status badge */
 .cardBadge {
   position: absolute;
   top: 12px;
   left: 12px;
   padding: 4px 10px;
+  z-index: 5;
   border-radius: 20px;
   font-size: 11px;
   font-weight: 700;
@@ -437,11 +425,11 @@
   color: #fff;
 }
 
-/* Type badge */
 .cardTypeBadge {
   position: absolute;
   top: 12px;
   right: 12px;
+  z-index: 5;
   background: rgba(31, 93, 113, 0.82);
   backdrop-filter: blur(4px);
   color: #fff;
@@ -452,7 +440,6 @@
   letter-spacing: 0.3px;
 }
 
-/* Card body */
 .cardBody {
   padding: 20px 20px 16px;
   display: flex;
@@ -460,7 +447,7 @@
   flex: 1;
 }
 .cardTitle {
-  font-family: 'Playfair Display', serif;
+  font-family: "Playfair Display", serif;
   font-size: 17px;
   font-weight: 700;
   color: var(--teal-deep);
@@ -474,14 +461,15 @@
 .cardLocation {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   font-size: 13px;
   color: var(--slate);
   font-weight: 500;
   margin-bottom: 14px;
 }
 .cardLocationIcon {
-  font-size: 13px;
+  color: var(--teal-aero);
+  flex-shrink: 0;
 }
 .cardDesc {
   font-size: 13px;
@@ -495,7 +483,6 @@
   overflow: hidden;
 }
 
-/* Card footer */
 .cardFooter {
   display: flex;
   align-items: center;
@@ -509,7 +496,7 @@
   flex-direction: column;
 }
 .cardPriceAmount {
-  font-family: 'Playfair Display', serif;
+  font-family: "Playfair Display", serif;
   font-size: 20px;
   font-weight: 800;
   color: var(--teal-deep);
@@ -521,16 +508,21 @@
   font-weight: 500;
 }
 .cardViewBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 9px 18px;
   background: var(--teal-deep);
   color: #fff;
-  font-family: 'DM Sans', sans-serif;
+  font-family: "DM Sans", sans-serif;
   font-size: 13px;
   font-weight: 700;
   border: none;
   border-radius: 10px;
   cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
+  transition:
+    background 0.2s,
+    transform 0.15s;
   letter-spacing: 0.3px;
   flex-shrink: 0;
 }
@@ -539,9 +531,42 @@
   transform: translateY(-1px);
 }
 
+/* ─────────────────────────────────────
+   LAZY IMAGE LOADING
+───────────────────────────────────── */
+.imgShimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #dde9eb 25%, #cce0e3 50%, #dde9eb 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s ease-in-out infinite;
+  z-index: 1;
+}
+.cardImagePending {
+  opacity: 0;
+  filter: blur(6px);
+  transform: scale(1.02);
+  transition: none;
+  position: relative;
+  z-index: 2;
+}
+.cardImageLoaded {
+  opacity: 1;
+  filter: blur(0);
+  transform: scale(1);
+  transition:
+    opacity 0.35s ease,
+    filter 0.35s ease,
+    transform 0.35s ease;
+  position: relative;
+  z-index: 2;
+}
+.card:hover .cardImageLoaded {
+  transform: scale(1.04);
+}
 
 /* ─────────────────────────────────────
-   SKELETON LOADER
+   SKELETON LOADER & STATES
 ───────────────────────────────────── */
 .skeleton {
   background: #fff;
@@ -569,18 +594,16 @@
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite;
 }
-.skeletonLineShort { width: 55%; }
-.skeletonLineMid   { width: 75%; }
-.skeletonLineFull  { width: 100%; }
-
-@keyframes shimmer {
-  to { background-position: -200% 0; }
+.skeletonLineShort {
+  width: 55%;
+}
+.skeletonLineMid {
+  width: 75%;
+}
+.skeletonLineFull {
+  width: 100%;
 }
 
-
-/* ─────────────────────────────────────
-   EMPTY / ERROR STATES
-───────────────────────────────────── */
 .stateBox {
   grid-column: 1 / -1;
   display: flex;
@@ -592,11 +615,12 @@
   gap: 14px;
 }
 .stateIcon {
-  font-size: 52px;
-  opacity: 0.6;
+  color: var(--teal-aero);
+  opacity: 0.8;
+  margin-bottom: 8px;
 }
 .stateTitle {
-  font-family: 'Playfair Display', serif;
+  font-family: "Playfair Display", serif;
   font-size: 22px;
   font-weight: 700;
   color: var(--teal-deep);
@@ -612,108 +636,67 @@
   padding: 11px 24px;
   background: var(--teal-deep);
   color: #fff;
-  font-family: 'DM Sans', sans-serif;
+  font-family: "DM Sans", sans-serif;
   font-size: 14px;
   font-weight: 700;
   border: none;
   border-radius: 12px;
   cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
+  transition:
+    background 0.2s,
+    transform 0.15s;
 }
 .stateBtn:hover {
   background: #174d5e;
   transform: translateY(-1px);
 }
 
-
 /* ─────────────────────────────────────
-   KEYFRAMES
+   KEYFRAMES & RESPONSIVE
 ───────────────────────────────────── */
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
 }
 
-
-/* ─────────────────────────────────────
-   RESPONSIVE
-───────────────────────────────────── */
 @media (max-width: 768px) {
-  .hero { padding: 52px 24px 60px; }
-  .heroStats { gap: 28px; }
-  .heroStatNum { font-size: 26px; }
-  .main { padding: 36px 20px 60px; }
-  .sectionHeader { flex-direction: column; align-items: flex-start; gap: 12px; }
-  .filterPrice { margin-left: 0; }
-  .propertyGrid { grid-template-columns: 1fr; }
-}
-
-
-/* ─── Search & Filter Section ────────────────────────────────────────────── */
-
-.filterSection {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-bottom: 32px;
-  background: #ffffff;
-  padding: 20px;
-  border-radius: 16px;
-  border: 1px solid #e5eced;
-  box-shadow: 0 4px 12px rgba(31, 93, 113, 0.04);
-}
-
-.mainSearch {
-  display: flex;
-  align-items: center;
-  background: #f8fafb;
-  border: 1.5px solid #e5eced;
-  border-radius: 12px;
-  padding: 6px 6px 6px 16px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.mainSearch:focus-within {
-  border-color: #1f5d71;
-  box-shadow: 0 0 0 4px rgba(31, 93, 113, 0.1);
-}
-
-.mainSearchIcon {
-  font-size: 16px;
-  opacity: 0.5;
-  margin-right: 8px;
-}
-
-.mainSearchInput {
-  flex: 1;
-  border: none;
-  background: transparent;
-  padding: 8px 4px;
-  font-family: inherit;
-  font-size: 15px;
-  outline: none;
-  color: #1a2a2e;
-}
-
-.mainSearchInput::placeholder {
-  color: #a0b0b5;
-}
-
-.mainSearchBtn {
-  background: #1f5d71;
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  padding: 10px 24px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.1s;
-}
-
-.mainSearchBtn:hover {
-  background: #174d5e;
-}
-
-.mainSearchBtn:active {
-  transform: scale(0.98);
+  .hero {
+    padding: 52px 24px 60px;
+  }
+  .heroStats {
+    gap: 28px;
+  }
+  .heroStatNum {
+    font-size: 26px;
+  }
+  .main {
+    padding: 36px 20px 60px;
+  }
+  .sectionHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .filterPrice {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 8px;
+  }
+  .filterPriceInput {
+    flex: 1;
+  }
+  .propertyGrid {
+    grid-template-columns: 1fr;
+  }
 }

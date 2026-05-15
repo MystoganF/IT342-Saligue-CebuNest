@@ -8,7 +8,7 @@ import edu.cit.saligue.cebunest.infrastructure.mail.EmailService;
 import edu.cit.saligue.cebunest.notifications.core.NotificationService;
 import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.rentals.shared.LeaseExtensionRequestRepository;
-import edu.cit.saligue.cebunest.repository.RentalPaymentRepository; // Ensure this is imported
+import edu.cit.saligue.cebunest.payments.shared.RentalPaymentRepository;
 import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -143,14 +143,14 @@ public class LeaseExtensionService {
             notificationService.send(
                     rental.getTenant(),
                     "EXTENSION_APPROVED",
-                    "🎉 Your lease extension of " + monthsToAdd + " month(s) for \"" + propTitle + "\" was approved! New total: " + newDuration + " month(s).",
+                    "Your lease extension of " + monthsToAdd + " month(s) for \"" + propTitle + "\" was approved! New total: " + newDuration + " month(s).",
                     rental.getId(),
                     propertyId
             );
 
             emailService.sendEmail(
                     rental.getTenant().getEmail(),
-                    "CebuNest – Lease Extension Approved 🎉",
+                    "CebuNest – Lease Extension Approved",
                     "Hi " + tenantName + ",\n\n" +
                             "Your lease extension request of " + monthsToAdd + " month(s) for \"" + propTitle + "\" has been approved.\n" +
                             "New total lease duration: " + newDuration + " month(s).\n\n— CebuNest Team"

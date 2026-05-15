@@ -299,9 +299,14 @@
   color: var(--slate);
 }
 .notifEmptyIcon {
-  font-size: 32px;
-  opacity: 0.4;
+  color: var(--slate);
+  opacity: 0.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
 }
+
 .notifEmptyText {
   font-size: 14px;
   font-weight: 700;
@@ -356,14 +361,12 @@
 }
 
 .notifItemIcon {
-  font-size: 20px;
   flex-shrink: 0;
   width: 36px;
   height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(31, 93, 113, 0.06);
   border-radius: 10px;
 }
 
@@ -372,16 +375,27 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
+  /* Ensure the body doesn't push the icon out of alignment */
+  align-self: center; 
 }
+
 .notifItemMsg {
   font-size: 13px;
   font-weight: 500;
-  color: #1e293b;
-  line-height: 1.45;
+  color: #334155; /* Slightly softer text color for better reading */
+  line-height: 1.5;
   margin: 0;
   word-break: break-word;
+  
+  /* Forces exactly 3 lines of text before truncating with ... */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+
 .notifItemUnread .notifItemMsg {
   font-weight: 600;
 }
@@ -554,8 +568,9 @@
 .dropdownItem {
   display: flex;
   align-items: center;
+  gap: 10px;
   margin-left: 5px;
-  width: 100%;
+  width: calc(100% - 10px);
   padding: 10px 12px;
   border: none;
   background: none;
@@ -566,9 +581,7 @@
   color: var(--slate);
   cursor: pointer;
   text-decoration: none;
-  transition:
-    background 0.15s,
-    color 0.15s;
+  transition: background 0.15s, color 0.15s;
   text-align: left;
   line-height: 1.4;
   box-sizing: border-box;
@@ -591,9 +604,8 @@
   margin: 4px 6px;
 }
 .dropdownItemIcon {
-  font-size: 16px;
-  width: 20px;
-  text-align: center;
+  flex-shrink: 0;
+  opacity: 0.8;
 }
 
 /* ─────────────────────────────────────
@@ -627,9 +639,10 @@
   animation: modalIn 0.25s ease both;
 }
 .modalIcon {
-  font-size: 44px;
   animation: modalBounce 0.5s ease both;
+  margin-bottom: -4px;
 }
+
 .modalTitle {
   font-family: "Playfair Display", serif;
   font-size: 22px;
@@ -736,4 +749,91 @@
     width: calc(100vw - 32px);
     right: -40px;
   }
+}
+
+/* ── Admin Broadcast Modal ── */
+.adminModal {
+  align-items: flex-start;
+  text-align: left;
+  max-width: 500px;
+  font-family: "Inter", "DM Sans", system-ui, sans-serif;
+}
+
+.adminModalHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.adminModalIconBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: 14px;
+}
+
+.adminModalTitleWrap {
+  flex: 1;
+}
+
+.adminModalTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.adminModalBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.adminModalBadgeSystem {
+  font-size: 12px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.adminModalBodyBox {
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 24px;
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+.adminModalMessage {
+  font-size: 14.5px;
+  color: #334155;
+  line-height: 1.7;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.adminModalMeta {
+  margin-top: 16px;
+  font-size: 12px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 12px;
 }

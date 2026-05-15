@@ -90,7 +90,7 @@
   border: none;
 }
 .heroAvatarWrap:hover .heroAvatarOverlay { opacity: 1; }
-.heroAvatarOverlayIcon { font-size: 20px; color: #fff; }
+.heroAvatarOverlayIcon { color: #fff; display: flex; align-items: center; justify-content: center; }
 .heroAvatarOverlayText {
   font-size: 10px;
   font-weight: 700;
@@ -99,7 +99,8 @@
   text-transform: uppercase;
 }
 .heroAvatarUploading {
-  position: absolute; inset: 0;
+  position: absolute;
+  inset: 0;
   border-radius: 50%;
   background: rgba(10,24,30,0.6);
   display: flex;
@@ -130,7 +131,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 14px;
+  padding: 6px 14px;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 700;
@@ -141,13 +142,15 @@
 .heroRoleTenant { background: rgba(83,164,163,0.25); color: var(--teal-soft); border: 1px solid rgba(83,164,163,0.35); }
 .heroRoleOwner  { background: rgba(183,142,66,0.25); color: var(--gold-light); border: 1px solid rgba(183,142,66,0.35); }
 .heroRoleAdmin  { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
-.heroRoleIcon { font-size: 14px; }
 
 .heroEmail {
   font-size: 14px;
   color: var(--teal-soft);
   font-weight: 500;
   margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* Social pills in hero */
@@ -161,8 +164,8 @@
 .heroSocialPill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 12px 4px 6px;
+  gap: 8px;
+  padding: 6px 14px 6px 8px;
   border-radius: 20px;
   background: rgba(255,255,255,0.1);
   border: 1px solid rgba(255,255,255,0.2);
@@ -180,16 +183,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px; height: 18px;
-  border-radius: 4px;
+  width: 20px; height: 20px;
+  border-radius: 6px;
   background: rgba(255,255,255,0.2);
-  font-size: 10px;
-  font-weight: 800;
   color: #fff;
   flex-shrink: 0;
 }
 
-.avatarMsg { font-size: 13px; font-weight: 600; margin-top: 8px; display: block; }
+.avatarMsg { font-size: 13px; font-weight: 600; margin-top: 8px; display: flex; align-items: center; gap: 6px; }
 .avatarMsgSuccess { color: rgba(152,193,193,0.95); }
 .avatarMsgError   { color: #f1948a; }
 
@@ -210,13 +211,25 @@
   gap: 12px;
   background: rgba(31,93,113,0.06);
   border: 1px solid rgba(31,93,113,0.14);
-  border-radius: 14px;
-  padding: 14px 18px;
+  border-radius: 16px;
+  padding: 16px 20px;
   animation: fadeUp 0.5s 0.1s ease both;
 }
-.lockedNoticeIcon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.lockedNoticeIcon { color: var(--teal-deep); flex-shrink: 0; margin-top: 2px; }
 .lockedNoticeText { font-size: 13px; color: var(--teal-deep); line-height: 1.65; font-weight: 500; }
 .lockedNoticeText strong { font-weight: 700; }
+.supportLink {
+  color: var(--teal-deep);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: rgba(83, 164, 163, 0.4);
+  text-underline-offset: 3px;
+  transition: all 0.2s ease;
+}
+.supportLink:hover {
+  color: var(--teal-aero);
+  text-decoration-color: var(--teal-aero);
+}
 
 /* ── Info card ── */
 .infoCard {
@@ -252,7 +265,7 @@
   margin-bottom: 24px;
 }
 
-.field { display: flex; flex-direction: column; gap: 6px; }
+.field { display: flex; flex-direction: column; gap: 8px; }
 
 .fieldLabel {
   font-size: 12px;
@@ -269,19 +282,19 @@
 .fieldBadge {
   font-size: 10px;
   font-weight: 700;
-  padding: 1px 7px;
-  border-radius: 10px;
+  padding: 2px 8px;
+  border-radius: 12px;
   letter-spacing: 0.3px;
   text-transform: uppercase;
 }
 .fieldBadgeEdit   { background: rgba(83,164,163,0.12); color: var(--teal-aero); }
-.fieldBadgeLocked { background: rgba(110,112,113,0.1); color: var(--slate); display: inline-flex; align-items: center; gap: 3px; }
+.fieldBadgeLocked { background: rgba(110,112,113,0.1); color: var(--slate); display: inline-flex; align-items: center; gap: 4px; }
 
 .fieldValue {
   font-size: 15px;
   color: #4a5a60;
   font-weight: 500;
-  padding: 12px 14px;
+  padding: 12px 16px;
   background: #f4f7f8;
   border: 1.5px solid #eaeeef;
   border-radius: 12px;
@@ -291,13 +304,31 @@
   justify-content: space-between;
   gap: 8px;
 }
-.fieldLockIcon { font-size: 12px; opacity: 0.35; flex-shrink: 0; }
+.fieldValueInner { display: flex; align-items: center; gap: 8px; }
+.fieldLockIcon { opacity: 0.4; flex-shrink: 0; color: var(--slate); }
+
+.fieldInputWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.fieldInputIcon {
+  position: absolute;
+  left: 14px;
+  color: var(--slate);
+  opacity: 0.6;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s, opacity 0.2s;
+}
 
 .fieldInput {
   font-size: 15px;
   color: #1a2a2e;
   font-weight: 500;
-  padding: 12px 14px;
+  padding: 12px 14px 12px 42px;
   background: #fff;
   border: 1.5px solid #e5eced;
   border-radius: 12px;
@@ -310,7 +341,11 @@
   border-color: var(--teal-aero);
   box-shadow: 0 0 0 4px rgba(83,164,163,0.1);
 }
-.fieldInput::placeholder { color: #b0bcbe; }
+.fieldInput:focus + .fieldInputIcon {
+  color: var(--teal-aero);
+  opacity: 1;
+}
+.fieldInput::placeholder { color: #b0bcbe; font-weight: 500; }
 
 .cardDivider { height: 1px; background: #f0f4f5; margin: 8px 0 24px; }
 
@@ -319,42 +354,31 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px; height: 18px;
-  border-radius: 4px;
+  width: 20px; height: 20px;
+  border-radius: 6px;
   background: rgba(83,164,163,0.12);
-  font-size: 10px;
-  font-weight: 800;
   color: var(--teal-aero);
   flex-shrink: 0;
 }
 
-.socialInputWrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-.socialInput { padding-right: 44px; }
+.socialInputWrap { position: relative; display: flex; align-items: center; }
+.socialInput { padding: 12px 44px 12px 42px; }
 
 .socialVisitBtn {
   position: absolute;
-  right: 10px;
+  right: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px; height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
   background: rgba(83,164,163,0.1);
   color: var(--teal-aero);
-  font-size: 14px;
-  font-weight: 700;
-  text-decoration: none;
   transition: background 0.2s, color 0.2s;
   flex-shrink: 0;
 }
-.socialVisitBtn:hover {
-  background: var(--teal-aero);
-  color: #fff;
-}
+.socialVisitBtn:hover { background: var(--teal-aero); color: #fff; }
 
 /* ── Save row ── */
 .saveRow {
@@ -362,15 +386,16 @@
   align-items: center;
   justify-content: flex-end;
   gap: 16px;
-  padding-top: 20px;
+  padding-top: 24px;
   border-top: 1px solid #f0f4f5;
+  margin-top: 8px;
 }
-.saveMsg { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.saveMsg { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
 .saveMsgSuccess { color: #2d8c6a; }
 .saveMsgError   { color: #c0392b; }
 
 .saveBtn {
-  padding: 12px 28px;
+  padding: 14px 28px;
   background: var(--teal-deep);
   color: #fff;
   font-family: 'DM Sans', sans-serif;
@@ -384,15 +409,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-width: 130px;
+  min-width: 140px;
   justify-content: center;
   position: relative;
   overflow: hidden;
-}
-.saveBtn::after {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%);
 }
 .saveBtn:hover:not(:disabled) {
   background: #174d5e;
@@ -419,92 +439,80 @@
   justify-content: space-between;
   gap: 20px;
   animation: fadeUp 0.5s 0.2s ease both;
+  border: 1px solid transparent;
+  transition: border-color 0.2s;
 }
-.logoutTitle  { font-size: 15px; font-weight: 700; color: #c0392b; margin-bottom: 4px; }
-.logoutDesc   { font-size: 13px; color: var(--slate); line-height: 1.5; }
+.logoutCard:hover { border-color: rgba(192,57,43,0.15); }
+
+.logoutTitle  { font-size: 16px; font-weight: 700; color: #c0392b; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;}
+.logoutDesc   { font-size: 14px; color: var(--slate); line-height: 1.5; }
 .logoutBtn {
-  padding: 10px 22px;
-  background: none;
-  border: 1.5px solid rgba(192,57,43,0.35);
-  border-radius: 10px;
+  padding: 12px 24px;
+  background: rgba(192,57,43,0.05);
+  border: 1.5px solid rgba(192,57,43,0.2);
+  border-radius: 12px;
   color: #c0392b;
   font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   white-space: nowrap;
   flex-shrink: 0;
 }
 .logoutBtn:hover {
-  background: rgba(192,57,43,0.06);
+  background: #c0392b;
+  color: #fff;
   border-color: #c0392b;
   transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(192,57,43,0.2);
 }
 
 /* ── Modal ── */
 .modalOverlay {
-  position: fixed; inset: 0;
-  background: rgba(10,24,30,0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  animation: overlayIn 0.2s ease both;
+  position: fixed; inset: 0; background: rgba(10,24,30,0.55);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; animation: overlayIn 0.2s ease both; padding: 20px;
 }
 .modal {
-  background: #fff;
-  border-radius: 24px;
-  padding: 36px 32px 28px;
-  width: 100%;
-  max-width: 380px;
-  margin: 0 16px;
+  background: #fff; border-radius: 24px; padding: 40px 36px 32px;
+  width: 100%; max-width: 420px; margin: 0 16px;
   box-shadow: 0 24px 64px rgba(10,24,30,0.22);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 16px; text-align: center;
   animation: modalIn 0.25s ease both;
 }
-.modalIcon  { font-size: 44px; animation: bounce 0.5s ease both; }
-.modalTitle { font-family: 'Playfair Display', serif; font-size: 22px; font-weight: 800; color: var(--teal-deep); letter-spacing: -0.3px; }
-.modalBody  { font-size: 14px; color: var(--slate); line-height: 1.65; max-width: 280px; }
-.modalActions { display: flex; gap: 10px; width: 100%; margin-top: 8px; }
+.modalIconWrap {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: rgba(192,57,43,0.1); color: #c0392b;
+  display: flex; align-items: center; justify-content: center;
+  animation: bounce 0.5s ease both;
+  margin-bottom: 4px;
+}
+.modalTitle { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 800; color: var(--teal-deep); margin: 0; }
+.modalBody  { font-size: 14px; color: var(--slate); line-height: 1.6; max-width: 300px; margin: 0; }
+
+.modalActions { display: flex; gap: 12px; width: 100%; margin-top: 12px; }
 .modalCancelBtn {
-  flex: 1; padding: 13px;
-  background: #f0f4f5;
-  border: 1.5px solid #e5eced;
-  border-radius: 12px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px; font-weight: 700;
-  color: var(--slate);
-  cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
+  flex: 1; padding: 14px; background: #f0f4f5; border: 1.5px solid #e5eced; border-radius: 12px;
+  font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700; color: var(--slate);
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
 }
 .modalCancelBtn:hover { background: #e5eced; border-color: var(--cloud); }
 .modalConfirmBtn {
-  flex: 1; padding: 13px;
-  background: #c0392b;
-  border: none;
-  border-radius: 12px;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px; font-weight: 700;
-  color: #fff;
-  cursor: pointer;
-  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  flex: 1; padding: 14px; background: #c0392b; border: none; border-radius: 12px;
+  font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700; color: #fff;
+  cursor: pointer; transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
 }
-.modalConfirmBtn:hover {
-  background: #a93226;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(192,57,43,0.3);
-}
+.modalConfirmBtn:hover { background: #a93226; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(192,57,43,0.3); }
 
 /* ── Keyframes ── */
 @keyframes spin    { to { transform: rotate(360deg); } }
-@keyframes fadeUp  { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeUp  { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes modalIn { from { opacity: 0; transform: translateY(20px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes bounce  { 0% { transform: scale(0.5); opacity: 0; } 60% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }
@@ -515,6 +523,7 @@
   .heroInner  { flex-direction: column; align-items: center; text-align: center; gap: 20px; }
   .main       { padding: 24px 20px 60px; }
   .fieldsGrid { grid-template-columns: 1fr; }
-  .logoutCard { flex-direction: column; align-items: flex-start; }
+  .logoutCard { flex-direction: column; align-items: stretch; text-align: center; }
+  .logoutTitle { justify-content: center; }
   .heroSocialRow { justify-content: center; }
 }

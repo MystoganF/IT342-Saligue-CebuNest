@@ -2,6 +2,23 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useOutletContext } from "react-router-dom";
 import { notificationsApi } from "./notifications.api";
 import styles from "./admin_notification.module.css";
+import {
+  Megaphone,
+  Wrench,
+  FileText,
+  AlertTriangle,
+  CreditCard,
+  Bell,
+  BellOff,
+  Home,
+  Key,
+  Check,
+  Send,
+  Clock,
+  User,
+  RefreshCw,
+  Loader2
+} from "lucide-react";
 
 interface AdminUser { id: number; name: string; email: string; role: string; avatarUrl?: string | null; }
 
@@ -16,27 +33,25 @@ interface BroadcastRecord {
 }
 
 const NOTIFICATION_TYPES = [
-  { value: "ADMIN_BROADCAST",  label: "📢 General Broadcast"  },
-  { value: "MAINTENANCE",      label: "🔧 Maintenance Notice"  },
-  { value: "POLICY_UPDATE",    label: "📋 Policy Update"       },
-  { value: "PAYMENT_REMINDER", label: "💳 Payment Reminder"    },
-  { value: "EMERGENCY",        label: "🚨 Emergency Alert"     },
+  { value: "ADMIN_BROADCAST",  label: "General Broadcast"  },
+  { value: "MAINTENANCE",      label: "Maintenance Notice" },
+  { value: "POLICY_UPDATE",    label: "Policy Update"      },
+  { value: "EMERGENCY",        label: "Emergency Alert"    },
 ];
 
 function typeColor(type: string): string {
   if (type === "EMERGENCY")        return "#c0392b";
   if (type === "MAINTENANCE")      return "#b78e42";
-  if (type === "PAYMENT_REMINDER") return "#2d8c6a";
   return "#1f5d71";
 }
 
-function typeIcon(type: string): string {
-  if (type === "ADMIN_BROADCAST")  return "📢";
-  if (type === "MAINTENANCE")      return "🔧";
-  if (type === "POLICY_UPDATE")    return "📋";
-  if (type === "PAYMENT_REMINDER") return "💳";
-  if (type === "EMERGENCY")        return "🚨";
-  return "🔔";
+function getNotifIcon(type: string, size = 18) {
+  if (type === "ADMIN_BROADCAST")  return <Megaphone size={size} />;
+  if (type === "MAINTENANCE")      return <Wrench size={size} />;
+  if (type === "POLICY_UPDATE")    return <FileText size={size} />;
+  if (type === "PAYMENT_REMINDER") return <CreditCard size={size} />;
+  if (type === "EMERGENCY")        return <AlertTriangle size={size} />;
+  return <Bell size={size} />;
 }
 
 function typeBg(type: string): string {
@@ -130,8 +145,6 @@ const AdminNotifications: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      {/* ── AdminSidebar removed (Handled by AdminLayout) ── */}
-
       <div className={styles.main}>
         <div className={styles.pageHeader}>
           <div>
@@ -146,8 +159,10 @@ const AdminNotifications: React.FC = () => {
         <div className={styles.layout}>
           {/* ── Compose Panel ── */}
           <div className={styles.composeCard}>
-            <div className={styles.composeHeader}>
-              <span className={styles.composeHeaderIcon}>📣</span>
+            <div className={styles.composeHeader} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span className={styles.composeHeaderIcon} style={{ display: "flex" }}>
+                <Megaphone size={28} color="#1f5d71" />
+              </span>
               <div>
                 <h2 className={styles.composeTitle}>New Broadcast</h2>
                 <p className={styles.composeSubtitle}>Appears in-app for all selected active users</p>
@@ -160,8 +175,12 @@ const AdminNotifications: React.FC = () => {
                 {NOTIFICATION_TYPES.map((t) => (
                   <button key={t.value} type="button"
                     className={`${styles.typeChip} ${type === t.value ? styles.typeChipActive : ""}`}
-                    style={type === t.value ? { borderColor: typeColor(t.value), color: typeColor(t.value), background: typeBg(t.value) } : {}}
+                    style={{
+                      ...(type === t.value ? { borderColor: typeColor(t.value), color: typeColor(t.value), background: typeBg(t.value) } : {}),
+                      display: "flex", alignItems: "center", gap: "6px", justifyContent: "center"
+                    }}
                     onClick={() => setType(t.value)} disabled={submitting}>
+                    {getNotifIcon(t.value, 16)}
                     {t.label}
                   </button>
                 ))}
@@ -173,13 +192,21 @@ const AdminNotifications: React.FC = () => {
               <div className={styles.recipientRow}>
                 <button type="button"
                   className={`${styles.recipientChip} ${targetOwner ? styles.recipientOwnerActive : ""}`}
-                  onClick={() => setOwner((v) => !v)} disabled={submitting}>
-                  <span className={styles.recipientCheck}>{targetOwner ? "✓" : ""}</span>🏠 Owners
+                  onClick={() => setOwner((v) => !v)} disabled={submitting}
+                  style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span className={styles.recipientCheck} style={{ display: "flex" }}>
+                    {targetOwner ? <Check size={16} /> : <span style={{ width: 16 }} />}
+                  </span>
+                  <Home size={16} /> Owners
                 </button>
                 <button type="button"
                   className={`${styles.recipientChip} ${targetTenant ? styles.recipientTenantActive : ""}`}
-                  onClick={() => setTenant((v) => !v)} disabled={submitting}>
-                  <span className={styles.recipientCheck}>{targetTenant ? "✓" : ""}</span>🔑 Tenants
+                  onClick={() => setTenant((v) => !v)} disabled={submitting}
+                  style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span className={styles.recipientCheck} style={{ display: "flex" }}>
+                    {targetTenant ? <Check size={16} /> : <span style={{ width: 16 }} />}
+                  </span>
+                  <Key size={16} /> Tenants
                 </button>
               </div>
             </div>
@@ -195,39 +222,42 @@ const AdminNotifications: React.FC = () => {
               </div>
             </div>
 
-            {formError  && <p className={styles.formError}>⚠ {formError}</p>}
-            {successMsg && <p className={styles.formSuccess}>✓ {successMsg}</p>}
+            {formError  && <p className={styles.formError} style={{ display: "flex", alignItems: "center", gap: "6px" }}><AlertTriangle size={16} /> {formError}</p>}
+            {successMsg && <p className={styles.formSuccess} style={{ display: "flex", alignItems: "center", gap: "6px" }}><Check size={16} /> {successMsg}</p>}
 
             <button className={styles.sendBtn} type="button"
-              onClick={handleSend} disabled={submitting || !message.trim()}>
-              {submitting ? <><span className={styles.spinner} />Sending…</> : "📤 Send Notification"}
+              onClick={handleSend} disabled={submitting || !message.trim()}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+              {submitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+              {submitting ? "Sending…" : "Send Notification"}
             </button>
           </div>
 
           {/* ── Persistent History Panel ── */}
           <div className={styles.historyPanel}>
-            <div className={styles.historyHeaderRow}>
+            <div className={styles.historyHeaderRow} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <h2 className={styles.historyTitle}>Broadcast History</h2>
               <button className={styles.refreshBtn} onClick={fetchHistory}
-                disabled={historyLoading} type="button" title="Refresh">
-                {historyLoading ? <span className={styles.spinnerSm} /> : "↻"}
+                disabled={historyLoading} type="button" title="Refresh"
+                style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <RefreshCw size={18} className={historyLoading ? "animate-spin" : ""} />
               </button>
             </div>
 
             {historyLoading && history.length === 0 ? (
-              <div className={styles.historyEmpty}>
-                <span className={styles.spinnerMd} />
+              <div className={styles.historyEmpty} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                <Loader2 size={24} className="animate-spin" color="var(--slate)" />
                 <p>Loading history…</p>
               </div>
             ) : historyError ? (
-              <div className={styles.historyEmpty}>
-                <span className={styles.historyEmptyIcon}>⚠️</span>
+              <div className={styles.historyEmpty} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                <span className={styles.historyEmptyIcon} style={{ display: "flex" }}><AlertTriangle size={32} color="#c0392b" /></span>
                 <p>{historyError}</p>
                 <button className={styles.retryBtn} onClick={fetchHistory} type="button">Try Again</button>
               </div>
             ) : history.length === 0 ? (
-              <div className={styles.historyEmpty}>
-                <span className={styles.historyEmptyIcon}>🔔</span>
+              <div className={styles.historyEmpty} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                <span className={styles.historyEmptyIcon} style={{ display: "flex", opacity: 0.5 }}><BellOff size={32} color="var(--slate)" /></span>
                 <p>No broadcasts sent yet.</p>
                 <p className={styles.historyEmptyHint}>Sent notifications will appear here permanently.</p>
               </div>
@@ -236,20 +266,20 @@ const AdminNotifications: React.FC = () => {
                 {history.map((item) => (
                   <div key={item.id} className={styles.historyItem}>
 
-                    <div className={styles.historyItemHeader}>
+                    <div className={styles.historyItemHeader} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                       <span
                         className={styles.historyTypeIcon}
-                        style={{ background: typeBg(item.type) }}
+                        style={{ background: typeBg(item.type), display: "flex", alignItems: "center", justifyContent: "center", color: typeColor(item.type), width: 32, height: 32, borderRadius: 8 }}
                       >
-                        {typeIcon(item.type)}
+                        {getNotifIcon(item.type, 16)}
                       </span>
                       <span
                         className={styles.historyTypeName}
-                        style={{ color: typeColor(item.type) }}
+                        style={{ color: typeColor(item.type), fontWeight: 600 }}
                       >
                         {item.type.replace(/_/g, " ")}
                       </span>
-                      <div className={styles.historyRoles}>
+                      <div className={styles.historyRoles} style={{ display: "flex", gap: "6px", marginLeft: "auto" }}>
                         {item.targetRoles.map((r) => (
                           <span key={r} className={`${styles.historyRoleBadge} ${r === "OWNER" ? styles.ownerBadge : styles.tenantBadge}`}>
                             {r}
@@ -258,14 +288,14 @@ const AdminNotifications: React.FC = () => {
                       </div>
                     </div>
 
-                    <p className={styles.historyMessage}>{item.message}</p>
+                    <p className={styles.historyMessage} style={{ margin: "12px 0", color: "#334155" }}>{item.message}</p>
 
-                    <div className={styles.historyMeta}>
-                      <span className={styles.historyTime}>
-                        🕐 {timeAgo(item.sentAt)}
+                    <div className={styles.historyMeta} style={{ display: "flex", alignItems: "center", gap: "16px", color: "var(--slate)", fontSize: 12 }}>
+                      <span className={styles.historyTime} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <Clock size={14} /> {timeAgo(item.sentAt)}
                       </span>
-                      <span className={styles.historyRecipients}>
-                        👤 {item.recipientCount} recipient{item.recipientCount !== 1 ? "s" : ""}
+                      <span className={styles.historyRecipients} style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                        <User size={14} /> {item.recipientCount} recipient{item.recipientCount !== 1 ? "s" : ""}
                       </span>
                       <span className={styles.historySentBy}>
                         by {item.sentByName}
