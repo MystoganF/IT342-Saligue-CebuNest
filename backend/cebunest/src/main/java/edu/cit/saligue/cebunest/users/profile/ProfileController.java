@@ -1,10 +1,12 @@
 package edu.cit.saligue.cebunest.users.profile;
 
+import edu.cit.saligue.cebunest.users.shared.User;
 import edu.cit.saligue.cebunest.users.shared.UserDTO;
 import edu.cit.saligue.cebunest.infrastructure.storage.SupabaseStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -63,7 +65,13 @@ public class ProfileController {
     @PostMapping("/{id}/avatar")
     public ResponseEntity<?> uploadAvatar(
             @PathVariable Long id,
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal User currentUser) { // <-- 1. Added currentUser
+
+        // 2. Security Check: Ensure the user is updating their own profile
+        if (currentUser == null || !currentUser.getId().equals(id)) {
+            return buildError("AUTH-001", "Not authorized to update this profile.", HttpStatus.UNAUTHORIZED);
+        }
 
         if (file.isEmpty()) {
             return buildError("VALID-001", "File is required.", HttpStatus.BAD_REQUEST);
@@ -79,16 +87,11 @@ public class ProfileController {
         }
 
         try {
-            String avatarUrl = storageService.uploadAvatar(id, file);
-
-            UpdateProfileRequest req = UpdateProfileRequest.builder()
-                    .avatarUrl(avatarUrl)
-                    .build();
-
-            UserDTO updated = profileService.updateProfile(id, req);
+            // 3. Use your clean ProfileService method instead of doing it manually here
+            UserDTO updated = profileService.uploadAvatar(id, file);
 
             Map<String, Object> responseData = new HashMap<>();
-            responseData.put("avatarUrl", avatarUrl);
+            responseData.put("avatarUrl", updated.getAvatarUrl());
             responseData.put("user", updated);
 
             Map<String, Object> resp = new HashMap<>();
@@ -96,9 +99,12 @@ public class ProfileController {
             resp.put("data", responseData);
             resp.put("error", null);
             resp.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME));
+
             return ResponseEntity.ok(resp);
 
-        } catch (IOException e) {
+        } catch (Exception e) {
+            // 4. THE FIX: Catch 'Exception', not 'IOException'.
+            // This stops Supabase 401 errors from logging out the Android app!
             return buildError("SYSTEM-001", "Upload failed: " + e.getMessage(),
                     HttpStatus.INTERNAL_SERVER_ERROR);
         }

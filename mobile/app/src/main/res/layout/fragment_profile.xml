@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- HERO SECTION -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/teal_deep"
+            android:padding="32dp">
+
+            <View
+                android:id="@+id/heroAccent"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:background="#D4AB6A"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <!-- Avatar -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardAvatar"
+                android:layout_width="110dp"
+                android:layout_height="110dp"
+                android:layout_marginTop="24dp"
+                app:cardCornerRadius="55dp"
+                app:cardBackgroundColor="#1AFFFFFF"
+                app:strokeWidth="3dp"
+                app:strokeColor="#4DFFFFFF"
+                app:layout_constraintTop_toBottomOf="@id/heroAccent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <TextView
+                    android:id="@+id/tvInitials"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:textColor="@color/white"
+                    android:textSize="36sp"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:id="@+id/ivAvatar"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <Button
+                android:id="@+id/btnChangeAvatar"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_marginTop="-18dp"
+                android:text="📷 Change"
+                android:textSize="10sp"
+                android:textColor="@color/white"
+                android:backgroundTint="#800A181E"
+                app:cornerRadius="18dp"
+                app:layout_constraintTop_toBottomOf="@id/cardAvatar"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+            <!-- User Info -->
+            <TextView
+                android:id="@+id/tvName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:textAlignment="center"
+                android:textColor="@color/white"
+                android:textSize="28sp"
+                android:textStyle="bold"
+                app:layout_constraintTop_toBottomOf="@id/btnChangeAvatar" />
+
+            <TextView
+                android:id="@+id/tvRole"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_dark_overlay"
+                android:backgroundTint="#4053A4A3"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="4dp"
+                android:text="TENANT"
+                android:textColor="#98C1C1"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                app:layout_constraintTop_toBottomOf="@id/tvName"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+            <TextView
+                android:id="@+id/tvEmail"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textAlignment="center"
+                android:textColor="#98C1C1"
+                android:textSize="14sp"
+                app:layout_constraintTop_toBottomOf="@id/tvRole" />
+
+            <ProgressBar
+                android:id="@+id/pbAvatarLoading"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:visibility="gone"
+                android:indeterminateTint="@color/white"
+                app:layout_constraintTop_toTopOf="@id/cardAvatar"
+                app:layout_constraintBottom_toBottomOf="@id/cardAvatar"
+                app:layout_constraintStart_toStartOf="@id/cardAvatar"
+                app:layout_constraintEnd_toEndOf="@id/cardAvatar"/>
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <!-- MAIN CONTENT -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <!-- Notice -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="#0F1F5D71"
+                android:padding="16dp"
+                android:layout_marginBottom="24dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ℹ️ " android:textSize="16sp"/>
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Email and Role cannot be changed. You can freely edit your name, phone number, and social links below."
+                    android:textColor="@color/teal_deep"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- Inputs Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardCornerRadius="20dp"
+                app:cardElevation="2dp"
+                app:cardBackgroundColor="@color/white">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="24dp">
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ACCOUNT INFORMATION" android:textSize="11sp" android:textStyle="bold" android:textColor="@color/teal_deep" android:layout_marginBottom="16dp"/>
+
+                    <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Full Name" style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox" android:layout_marginBottom="16dp">
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/etName" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textPersonName"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Phone Number" style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox" android:layout_marginBottom="24dp">
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/etPhone" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="phone"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#F0F4F5" android:layout_marginBottom="24dp"/>
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SOCIAL LINKS" android:textSize="11sp" android:textStyle="bold" android:textColor="@color/teal_deep" android:layout_marginBottom="16dp"/>
+
+                    <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Facebook URL" style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox" android:layout_marginBottom="16dp">
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/etFb" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textUri"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Instagram URL" style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox" android:layout_marginBottom="16dp">
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/etIg" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textUri"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="X / Twitter URL" style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox" android:layout_marginBottom="24dp">
+                        <com.google.android.material.textfield.TextInputEditText android:id="@+id/etTw" android:layout_width="match_parent" android:layout_height="wrap_content" android:inputType="textUri"/>
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <Button
+                        android:id="@+id/btnSave"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:text="Save Changes"
+                        android:backgroundTint="@color/teal_deep"
+                        app:cornerRadius="12dp"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Logout Card -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:layout_marginBottom="40dp"
+                app:cardCornerRadius="16dp"
+                app:cardElevation="1dp"
+                app:cardBackgroundColor="@color/white">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="20dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Sign Out" android:textColor="#C0392B" android:textStyle="bold" android:textSize="16sp"/>
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Your session will be cleared." android:textColor="@color/slate" android:textSize="13sp"/>
+                    </LinearLayout>
+
+                    <Button
+                        android:id="@+id/btnLogout"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Logout"
+                        android:textColor="#C0392B"
+                        android:backgroundTint="#0FC0392B"
+                        app:strokeWidth="1dp"
+                        app:strokeColor="#C0392B"
+                        app:cornerRadius="8dp"
+                        style="?attr/materialButtonOutlinedStyle"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </LinearLayout>
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>
