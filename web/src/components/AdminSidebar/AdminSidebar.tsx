@@ -22,7 +22,7 @@ interface Props {
 }
 
 const DEFAULT_NAV: NavItem[] = [
-  { path: "/admin/rental-requests", icon: "📋", label: "Rental Requests" },
+  { path: "/admin/rental-requests", icon: "📋", label: "Rental Property Requests" },
   { path: "/admin/properties",      icon: "🏘️", label: "All Properties"  },
   { path: "/admin/users",           icon: "👥", label: "Users"           },
 ];

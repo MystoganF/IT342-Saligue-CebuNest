@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useOutletContext } from "react-router-dom";
-import { adminApi } from "../adminApi";
+import { adminUsersApi } from "./admin_users.api";
 import styles from "./AdminUsers.module.css";
 
 const PAGE_SIZE = 20;
@@ -41,7 +41,7 @@ const AdminUsers: React.FC = () => {
   const fetchUsers = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const data = await adminApi.getAllUsers();
+      const data = await adminUsersApi.getAllUsers();
       if (!data.success) { setError(data?.error?.message ?? "Failed."); return; }
       setAllUsers(data.data.users ?? []);
       setPage(1);
@@ -89,7 +89,7 @@ const AdminUsers: React.FC = () => {
     
     setSubmitting(true); setModalError(null);
     try {
-      const data = await adminApi.createUser(form);
+      const data = await adminUsersApi.createUser(form);
       if (!data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
       await fetchUsers(); 
       closeModal();
@@ -104,7 +104,7 @@ const AdminUsers: React.FC = () => {
     if (!target) return;
     setSubmitting(true); setModalError(null);
     try {
-      const data = await adminApi.updateUserRole(target.id, { role: newRole });
+      const data = await adminUsersApi.updateUserRole(target.id, { role: newRole });
       if (!data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
       await fetchUsers(); 
       closeModal();
@@ -120,7 +120,7 @@ const AdminUsers: React.FC = () => {
     if (!newEmail.trim()) { setModalError("Email is required."); return; }
     setSubmitting(true); setModalError(null);
     try {
-      const data = await adminApi.updateUserEmail(target.id, { email: newEmail });
+      const data = await adminUsersApi.updateUserEmail(target.id, { email: newEmail });
       if (!data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
       await fetchUsers(); 
       closeModal();
@@ -135,7 +135,7 @@ const AdminUsers: React.FC = () => {
     if (!target) return;
     setSubmitting(true); setModalError(null);
     try {
-      const data = await adminApi.toggleUserActiveStatus(target.id, { active: !target.active });
+      const data = await adminUsersApi.toggleUserActiveStatus(target.id, { active: !target.active });
       if (!data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
       await fetchUsers(); 
       closeModal();

@@ -1,19 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
-import { sharedApi } from "../../api/sharedApi";
 import styles from "./Profile.module.css";
 
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-  phoneNumber?: string | null;
-  avatarUrl?: string | null;
-  facebookUrl?: string | null;
-  instagramUrl?: string | null;
-  twitterUrl?: string | null;
-}
+// Import from your specific profile slice
+import type { User } from "./profile.types";
+import { profileApi } from "./profile.api";
 
 function getInitials(name: string): string {
   return name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
@@ -82,7 +73,8 @@ const Profile: React.FC = () => {
     setAvatarMsg(null);
 
     try {
-      const data = await sharedApi.updateAvatar(activeUser.id, file);
+      // Use the new isolated profileApi
+      const data = await profileApi.updateAvatar(activeUser.id, file);
 
       if (!data.success) {
         setAvatarMsg({ type: "error", text: data?.error?.message ?? "Upload failed." });
@@ -94,8 +86,9 @@ const Profile: React.FC = () => {
       setActiveUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser)); // Keep local storage in sync
       setAvatarMsg({ type: "success", text: "Profile picture updated!" });
-    } catch {
-      setAvatarMsg({ type: "error", text: "Upload failed. Please try again." });
+    } catch (err: any) {
+      const backendMessage = err.response?.data?.error?.message;
+      setAvatarMsg({ type: "error", text: backendMessage || "Upload failed. Please try again." });
       setAvatarPreview(activeUser.avatarUrl ?? null);
     } finally {
       setAvatarUploading(false);
@@ -116,7 +109,8 @@ const Profile: React.FC = () => {
     setSaveMsg(null);
 
     try {
-      const data = await sharedApi.updateProfile(activeUser.id, {
+      // Use the new isolated profileApi
+      const data = await profileApi.updateProfile(activeUser.id, {
         name:         name.trim(),
         phoneNumber:  phoneNumber.trim() || null,
         avatarUrl:    null, 
@@ -142,8 +136,9 @@ const Profile: React.FC = () => {
       setActiveUser(updatedUser);
       localStorage.setItem("user", JSON.stringify(updatedUser)); // Keep local storage in sync
       setSaveMsg({ type: "success", text: "Changes saved successfully." });
-    } catch {
-      setSaveMsg({ type: "error", text: "Network error. Please try again." });
+    } catch (err: any) {
+      const backendMessage = err.response?.data?.error?.message;
+      setSaveMsg({ type: "error", text: backendMessage || "Network error. Please try again." });
     } finally {
       setSaving(false);
     }

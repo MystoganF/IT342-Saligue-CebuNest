@@ -1,0 +1,402 @@
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate, useOutletContext, Link } from "react-router-dom";
+import { propertiesApi } from "./properties.api";
+import styles from "./Owner_properties.module.css";
+
+// ─── types ─────────────────────────────────────────────────────────────────
+interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  avatarUrl?: string | null;
+}
+
+interface Property {
+  id: number;
+  title: string;
+  description: string;
+  price: number;
+  location: string;
+  type: string;
+  status: string;
+  beds: number | null;
+  baths: number | null;
+  sqm: number | null;
+  images: { imageUrl: string }[];
+  hasActiveTenant: boolean;
+  rejectionReason?: string | null;
+}
+
+// ─── helpers ───────────────────────────────────────────────────────────────
+function formatPrice(price: number): string {
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency", currency: "PHP",
+    minimumFractionDigits: 0, maximumFractionDigits: 0,
+  }).format(price);
+}
+
+function getStatusBadge(status: string, hasActiveTenant: boolean, s: typeof styles): string {
+  if (hasActiveTenant) return s.badgeOccupied;
+  switch (status?.toUpperCase()) {
+    case "AVAILABLE":     return s.badgeAvailable;
+    case "UNAVAILABLE":   return s.badgeUnavailable;
+    case "REJECTED":      return s.badgeRejected;
+    default:              return s.badgePending;
+  }
+}
+
+function getStatusLabel(status: string, hasActiveTenant: boolean): string {
+  if (hasActiveTenant) return "Occupied";
+  if (status?.toUpperCase() === "PENDING_REVIEW") return "Pending Review";
+  return status?.charAt(0) + status?.slice(1).toLowerCase();
+}
+
+// ─── component ─────────────────────────────────────────────────────────────
+const OwnerProperties: React.FC = () => {
+  const navigate = useNavigate();
+  
+  // Grab user from OwnerLayout context
+  const { user } = useOutletContext<{ user: User }>();
+
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [error, setError]           = useState<string | null>(null);
+
+  // Filters
+  const [searchInput, setSearchInput]   = useState("");
+  const [searchQuery, setSearchQuery]   = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [minPrice, setMinPrice]         = useState("");
+  const [maxPrice, setMaxPrice]         = useState("");
+
+  // Delete modal
+  const [deleteTarget, setDeleteTarget] = useState<Property | null>(null);
+  const [deleting, setDeleting]         = useState(false);
+  const [deleteError, setDeleteError]   = useState<string | null>(null);
+
+  // ── Fetch properties ───────────────────────────────────────────────────
+  const fetchProperties = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params: Record<string, string> = {};
+      if (searchQuery)  params.search   = searchQuery;
+      if (statusFilter) params.status   = statusFilter;
+      if (minPrice)     params.minPrice = minPrice;
+      if (maxPrice)     params.maxPrice = maxPrice;
+
+      const data = await propertiesApi.getMyProperties(params);
+      if (!data.success) { setError("Failed to load properties."); return; }
+      setProperties(data.data.properties ?? []);
+    } catch {
+      setError("Unable to connect to server.");
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery, statusFilter, minPrice, maxPrice]);
+
+  useEffect(() => { fetchProperties(); }, [fetchProperties]);
+
+  // ── Delete ─────────────────────────────────────────────────────────────
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const data = await propertiesApi.deleteProperty(deleteTarget.id);
+      if (!data.success) {
+        setDeleteError(data?.error?.message ?? "Delete failed.");
+        return;
+      }
+      setProperties((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch {
+      setDeleteError("Network error. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSearchQuery(searchInput.trim());
+  };
+
+  const handleClearFilters = () => {
+    setSearchInput("");
+    setSearchQuery("");
+    setStatusFilter("");
+    setMinPrice("");
+    setMaxPrice("");
+  };
+
+  if (!user) return null;
+
+  return (
+    <div className={styles.page}>
+
+      {/* ── Delete Confirmation Modal ── */}
+      {deleteTarget && (
+        <div className={styles.modalOverlay} onClick={() => !deleting && setDeleteTarget(null)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalIcon}>🗑️</div>
+            <h3 className={styles.modalTitle}>Delete Property?</h3>
+            <p className={styles.modalBody}>
+              Are you sure you want to delete{" "}
+              <span className={styles.modalPropertyName}>"{deleteTarget.title}"</span>?
+              This action cannot be undone.
+            </p>
+            {deleteTarget.hasActiveTenant && (
+              <p className={styles.modalTenantWarning}>
+                ⚠️ This property has an active tenant. You must end the lease before deleting.
+              </p>
+            )}
+            {deleteError && (
+              <p className={styles.modalDeleteError}>⚠ {deleteError}</p>
+            )}
+            <div className={styles.modalActions}>
+              <button
+                className={styles.modalCancelBtn}
+                onClick={() => { setDeleteTarget(null); setDeleteError(null); }}
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.modalDeleteBtn}
+                onClick={handleDelete}
+                disabled={deleting || deleteTarget.hasActiveTenant}
+              >
+                {deleting
+                  ? <><span className={styles.modalSpinner} /> Deleting…</>
+                  : "Yes, Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Page Header ── */}
+      <div className={styles.pageBar}>
+        <div className={styles.pageBarDeco} />
+        <div className={styles.pageBarAccent} />
+        <div className={styles.pageBarInner}>
+          <div>
+            <h1 className={styles.pageBarTitle}>My Properties</h1>
+            <p className={styles.pageBarSub}>
+              {loading ? "Loading…" : `${properties.length} listing${properties.length !== 1 ? "s" : ""}`}
+            </p>
+          </div>
+          <button
+            className={styles.addBtn}
+            onClick={() => navigate("/owner/properties/new")}
+            type="button"
+          >
+            + Add Property
+          </button>
+        </div>
+      </div>
+
+      {/* ── Main ── */}
+      <main className={styles.main}>
+
+        {/* Filter bar */}
+        <div className={styles.filterBar}>
+          
+          {/* Isolated Form for Search Input */}
+          <form 
+            className={styles.searchWrap} 
+            style={{ display: 'flex', flexDirection: 'row' }} 
+            onSubmit={handleSearchSubmit}
+          >
+            <div style={{ position: 'relative', width: '100%' }}>
+              <span className={styles.searchIcon}>🔍</span>
+              <input
+                type="text"
+                className={styles.searchInput}
+                placeholder="Search by title or location…"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+            </div>
+            <button type="submit" className={styles.searchBtn}>
+              Search
+            </button>
+          </form>
+          
+          {/* Dropdown Filter */}
+          <select 
+            className={styles.filterSelect}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="">All Status</option>
+            <option value="AVAILABLE">Available</option>
+            <option value="UNAVAILABLE">Occupied</option>
+            <option value="PENDING_REVIEW">Pending Review</option>
+            <option value="REJECTED">Rejected</option>
+          </select>
+
+          {/* Price Filters */}
+          <div className={styles.filterPrice}>
+            <input
+              type="number"
+              className={styles.filterPriceInput}
+              placeholder="Min ₱"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+              min={0}
+            />
+            <span className={styles.filterPriceSep}>–</span>
+            <input
+              type="number"
+              className={styles.filterPriceInput}
+              placeholder="Max ₱"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              min={0}
+            />
+          </div>
+        </div>
+
+        {/* Grid */}
+        <div className={styles.propertyGrid}>
+
+          {/* Skeletons */}
+          {loading && Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className={styles.skeletonCard}>
+              <div className={styles.skeletonImg} />
+              <div className={styles.skeletonBody}>
+                <div className={`${styles.skeletonLine} ${styles.skeletonLineMd}`} />
+                <div className={`${styles.skeletonLine} ${styles.skeletonLineSm}`} />
+                <div className={`${styles.skeletonLine} ${styles.skeletonLineFull}`} />
+              </div>
+            </div>
+          ))}
+
+          {/* Error */}
+          {!loading && error && (
+            <div className={styles.stateBox}>
+              <span className={styles.stateIcon}>⚠️</span>
+              <h3 className={styles.stateTitle}>Failed to load</h3>
+              <p className={styles.stateBody}>{error}</p>
+              <button className={styles.stateBtn} onClick={fetchProperties}>Try Again</button>
+            </div>
+          )}
+
+          {/* Empty / No Results */}
+          {!loading && !error && properties.length === 0 && (
+            <div className={styles.stateBox}>
+              <span className={styles.stateIcon}>🏘️</span>
+              <h3 className={styles.stateTitle}>No properties found</h3>
+              <p className={styles.stateBody}>
+                {searchQuery || statusFilter || minPrice || maxPrice
+                  ? "Try adjusting your search or filters."
+                  : "You haven't added any properties yet."}
+              </p>
+              {searchQuery || statusFilter || minPrice || maxPrice ? (
+                <button
+                  className={styles.stateBtn}
+                  onClick={handleClearFilters}
+                  type="button"
+                >
+                  Clear Filters
+                </button>
+              ) : (
+                <button
+                  className={styles.stateBtn}
+                  onClick={() => navigate("/owner/properties/new")}
+                  type="button"
+                >
+                  + Add Your First Property
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Property cards */}
+          {!loading && !error && properties.map((p, i) => {
+            const img        = p.images?.[0]?.imageUrl;
+            const isRejected = p.status?.toUpperCase() === "REJECTED";
+
+            return (
+              <div
+                key={p.id}
+                className={`${styles.card} ${isRejected ? styles.cardRejected : ""}`}
+                style={{ animationDelay: `${i * 50}ms` }}
+              >
+                {/* Image */}
+                <div className={styles.cardImageWrap}>
+                  {img ? (
+                    <img src={img} alt={p.title} className={styles.cardImage} loading="lazy" />
+                  ) : (
+                    <div className={styles.cardImagePlaceholder}>
+                      <span className={styles.cardImagePlaceholderIcon}>🏠</span>
+                      <span className={styles.cardImagePlaceholderText}>No photo</span>
+                    </div>
+                  )}
+                  <span className={`${styles.cardStatusBadge} ${getStatusBadge(p.status, p.hasActiveTenant, styles)}`}>
+                    {getStatusLabel(p.status, p.hasActiveTenant)}
+                  </span>
+                  {p.type && (
+                    <span className={styles.cardTypeBadge}>{p.type}</span>
+                  )}
+                </div>
+
+                {/* Rejection notice inline on card */}
+                {isRejected && (
+                  <div className={styles.cardRejectedBanner}>
+                    <span>❌</span>
+                    <span>Rejected by admin{p.rejectionReason ? ` — "${p.rejectionReason}"` : ""}. Cannot be deleted.</span>
+                  </div>
+                )}
+
+                {/* Body */}
+                <div className={styles.cardBody}>
+                  <h3 className={styles.cardTitle}>{p.title}</h3>
+                  <div className={styles.cardLocation}>📍 {p.location}</div>
+
+                  {(p.beds || p.baths || p.sqm) && (
+                    <div className={styles.cardMeta}>
+                      {p.beds  != null && <span className={styles.cardMetaItem}>🛏 {p.beds}</span>}
+                      {p.baths != null && <span className={styles.cardMetaItem}>🚿 {p.baths}</span>}
+                      {p.sqm   != null && <span className={styles.cardMetaItem}>📐 {p.sqm} sqm</span>}
+                    </div>
+                  )}
+
+                  <div className={styles.cardFooter}>
+                    <div>
+                      <div className={styles.cardPrice}>{formatPrice(p.price)}</div>
+                      <div className={styles.cardPriceLabel}>/ month</div>
+                    </div>
+                    <div className={styles.cardActions}>
+                      <Link
+                          to={`/owner/properties/${p.id}/edit`}
+                          className={styles.cardEditBtn}
+                        >
+                          {isRejected ? "👁 View" : " View"}
+                        </Link>
+                      <button
+                        className={styles.cardDeleteBtn}
+                        onClick={() => { setDeleteTarget(p); setDeleteError(null); }}
+                        type="button"
+                        disabled={isRejected || p.hasActiveTenant}
+                        title={isRejected ? "Rejected properties cannot be deleted" : undefined}
+                      >
+                        🗑️ Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default OwnerProperties;

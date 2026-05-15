@@ -1,0 +1,83 @@
+package edu.cit.saligue.cebunest.rentals.shared;
+
+import edu.cit.saligue.cebunest.payments.shared.RentalPaymentDTO;
+import lombok.*;
+
+import java.util.List;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class RentalRequestDTO {
+
+    private Long    id;
+    private Long    propertyId;
+    private String  propertyTitle;
+    private String  propertyLocation;
+    private Double  propertyPrice;
+    private String  propertyImage;
+
+    private Long    ownerId;
+    private String  ownerName;
+    private String  ownerEmail;
+
+    // ── ADDED: Social Media Fields ──
+    private String  ownerFacebookUrl;
+    private String  ownerInstagramUrl;
+    private String  ownerTwitterUrl;
+
+    private Long    tenantId;
+    private String  tenantName;
+    private String  tenantEmail;
+    private String  startDate;
+    private Integer leaseDurationMonths;
+    private String  status;
+    private String  paymentPlan;   // "MONTHLY" | "FULL" | null (not yet chosen)
+    private String  createdAt;
+    private String  tenantFacebookUrl;
+    private String  tenantInstagramUrl;
+    private String  tenantTwitterUrl;
+
+    // Payments only populated when fetching detail
+    private List<RentalPaymentDTO> payments;
+
+    public static RentalRequestDTO from(RentalRequest r) {
+        String img = (r.getProperty().getImages() != null && !r.getProperty().getImages().isEmpty())
+                ? r.getProperty().getImages().get(0).getImageUrl()
+                : null;
+
+        return RentalRequestDTO.builder()
+                .id(r.getId())
+                .propertyId(r.getProperty().getId())
+                .propertyTitle(r.getProperty().getTitle())
+                .propertyLocation(r.getProperty().getLocation())
+                .propertyPrice(r.getProperty().getPrice())
+                .propertyImage(img)
+
+                .ownerId(r.getProperty().getOwner().getId())
+                .ownerName(r.getProperty().getOwner().getName())
+                .ownerEmail(r.getProperty().getOwner().getEmail())
+
+                // ── ADDED: Map the Social Media URLs from the Owner (User entity) ──
+                .ownerFacebookUrl(r.getProperty().getOwner().getFacebookUrl())
+                .ownerInstagramUrl(r.getProperty().getOwner().getInstagramUrl())
+                .ownerTwitterUrl(r.getProperty().getOwner().getTwitterUrl())
+
+                .tenantFacebookUrl(r.getTenant().getFacebookUrl())
+                .tenantInstagramUrl(r.getTenant().getInstagramUrl())
+                .tenantTwitterUrl(r.getTenant().getTwitterUrl())
+
+                .tenantId(r.getTenant().getId())
+                .tenantName(r.getTenant().getName())
+                .tenantEmail(r.getTenant().getEmail())
+                .startDate(r.getStartDate() != null ? r.getStartDate().toString() : null)
+                .leaseDurationMonths(r.getLeaseDurationMonths())
+                .status(r.getStatus().name())
+                .paymentPlan(r.getPaymentPlan())
+                .createdAt(r.getCreatedAt() != null
+                        ? r.getCreatedAt().format(java.time.format.DateTimeFormatter.ISO_DATE_TIME)
+                        : null)
+                .build();
+    }
+}

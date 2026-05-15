@@ -1,7 +1,7 @@
 package com.cebunest.app
 
 import android.app.Application
-import com.cebunest.app.util.SessionManager
+import com.cebunest.app.core.session.SessionManager
 
 class CebuNestApp : Application() {
     override fun onCreate() {
