@@ -17,7 +17,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/rental-requests")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class TenantRentalController {
 
     private final TenantRentalService tenantRentalService;

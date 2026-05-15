@@ -15,7 +15,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/analytics")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class OwnerAnalyticsController {
 
     private final OwnerAnalyticsService analyticsService;

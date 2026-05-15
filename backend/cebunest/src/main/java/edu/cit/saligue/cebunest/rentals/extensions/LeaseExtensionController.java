@@ -18,7 +18,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/lease-extensions")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class LeaseExtensionController {
 
     private final LeaseExtensionService leaseExtensionService;

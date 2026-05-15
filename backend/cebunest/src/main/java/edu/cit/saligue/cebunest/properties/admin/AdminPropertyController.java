@@ -18,7 +18,6 @@ import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class AdminPropertyController {
 
     private final AdminPropertyService adminPropertyService;

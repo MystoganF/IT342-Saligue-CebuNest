@@ -18,7 +18,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/rental-requests") // Kept as original to avoid frontend breakage
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class OwnerRentalController {
 
     private final OwnerRentalService ownerRentalService;

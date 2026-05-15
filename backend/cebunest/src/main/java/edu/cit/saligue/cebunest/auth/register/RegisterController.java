@@ -14,7 +14,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth/register")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class RegisterController {
 
     private final RegisterService registerService;

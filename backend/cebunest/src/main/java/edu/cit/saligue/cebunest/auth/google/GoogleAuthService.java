@@ -94,20 +94,30 @@ public class GoogleAuthService {
 
     private Map<String, Object> fetchGoogleProfile(String token) {
         RestTemplate restTemplate = new RestTemplate();
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(token);
-        HttpEntity<String> entity = new HttpEntity<>(headers);
 
         try {
-            ResponseEntity<Map> response = restTemplate.exchange(
-                    "https://www.googleapis.com/oauth2/v3/userinfo",
-                    HttpMethod.GET,
-                    entity,
-                    Map.class
-            );
+            // First Attempt: Treat it as an ID Token (Standard <GoogleLogin> button)
+            String idTokenUrl = "https://oauth2.googleapis.com/tokeninfo?id_token=" + token;
+            ResponseEntity<Map> response = restTemplate.getForEntity(idTokenUrl, Map.class);
             return response.getBody();
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Google token verification failed.");
+
+        } catch (Exception e1) {
+            try {
+                // Second Attempt: Treat it as an Access Token (useGoogleLogin hook)
+                HttpHeaders headers = new HttpHeaders();
+                headers.setBearerAuth(token);
+                HttpEntity<String> entity = new HttpEntity<>(headers);
+
+                ResponseEntity<Map> response = restTemplate.exchange(
+                        "https://www.googleapis.com/oauth2/v3/userinfo",
+                        HttpMethod.GET,
+                        entity,
+                        Map.class
+                );
+                return response.getBody();
+            } catch (Exception e2) {
+                throw new IllegalArgumentException("Google token verification failed. Token is invalid or expired.");
+            }
         }
     }
 

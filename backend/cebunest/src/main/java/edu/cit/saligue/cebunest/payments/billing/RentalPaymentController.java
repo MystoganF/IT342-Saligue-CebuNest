@@ -19,7 +19,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/payments")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class RentalPaymentController {
 
     private final RentalPaymentService rentalPaymentService;

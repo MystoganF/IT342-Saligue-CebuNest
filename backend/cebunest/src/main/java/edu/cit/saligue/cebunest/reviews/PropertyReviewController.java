@@ -16,7 +16,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/property-reviews")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class PropertyReviewController {
 
     private final PropertyReviewService reviewService;
