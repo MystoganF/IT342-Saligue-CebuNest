@@ -200,6 +200,13 @@ function ClickableMap({ coords, setCoords, onLocationSelect }: {
   useMapEvents({
     click(e) {
       const { lat, lng } = e.latlng;
+      const inBounds =
+        lat >= CEBU_CITY_BOUNDS.minLat && lat <= CEBU_CITY_BOUNDS.maxLat &&
+        lng >= CEBU_CITY_BOUNDS.minLon && lng <= CEBU_CITY_BOUNDS.maxLon;
+      if (!inBounds) {
+        onLocationSelect(lat, lng); // still call to trigger the error message
+        return;                     // but skip setCoords so no marker is placed
+      }
       setCoords({ lat, lon: lng });
       onLocationSelect(lat, lng);
     },
@@ -436,17 +443,24 @@ const EditProperty: React.FC = () => {
   };
 
   const handleMapClick = async (lat: number, lon: number) => {
-    if (lat < CEBU_CITY_BOUNDS.minLat || lat > CEBU_CITY_BOUNDS.maxLat || lon < CEBU_CITY_BOUNDS.minLon || lon > CEBU_CITY_BOUNDS.maxLon) { 
-      setMapError("Please select a location within Cebu City.");
-      return; 
-    }
-    setMapSearching(true); setMapError(null);
-    try {
-      const address = await reverseGeocode(lat, lon);
-      if (address) setLocation(address);
-    } catch { setMapError("Could not retrieve address for this location."); }
-    finally { setMapSearching(false); }
-  };
+  if (
+    lat < CEBU_CITY_BOUNDS.minLat || lat > CEBU_CITY_BOUNDS.maxLat ||
+    lon < CEBU_CITY_BOUNDS.minLon || lon > CEBU_CITY_BOUNDS.maxLon
+  ) {
+    setMapError("Cannot place a pin here — please select a location on land within Cebu City.");
+    return;
+  }
+  setMapSearching(true); setMapError(null);
+  try {
+    const address = await reverseGeocode(lat, lon);
+    if (address) setLocation(address);
+    else setMapError("Could not retrieve address for this location.");
+  } catch {
+    setMapError("Could not retrieve address for this location.");
+  } finally {
+    setMapSearching(false);
+  }
+}
 
   const addFiles = (files: FileList | null) => {
     if (!files) return;
@@ -528,7 +542,30 @@ const EditProperty: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   if (!id) return;
-  setSubmitting(true); setSubmitMsg(null);
+  setSubmitMsg(null);
+
+  // Validate location is within Cebu City before submitting
+  if (isBlockedLocation(location.trim())) {
+    setSubmitMsg({ type: "error", text: "Only Cebu City addresses are allowed." });
+    setActiveTab("property");
+    return;
+  }
+  if (!mapCoords) {
+    setSubmitMsg({ type: "error", text: "Please pin your property location on the map before saving." });
+    setActiveTab("property");
+    return;
+  }
+  const inBounds =
+    mapCoords.lat >= CEBU_CITY_BOUNDS.minLat && mapCoords.lat <= CEBU_CITY_BOUNDS.maxLat &&
+    mapCoords.lon >= CEBU_CITY_BOUNDS.minLon && mapCoords.lon <= CEBU_CITY_BOUNDS.maxLon;
+  if (!inBounds) {
+    setSubmitMsg({ type: "error", text: "Location must be within Cebu City." });
+    setMapError("This location is outside Cebu City.");
+    setActiveTab("property");
+    return;
+  }
+
+  setSubmitting(true);
  
   const payload = {
     title:       title.trim(),

@@ -10,6 +10,7 @@ import java.util.Optional;
 public interface
 RentalRequestRepository extends JpaRepository<RentalRequest, Long> {
 
+    long countByPropertyId(Long propertyId);
     List<RentalRequest> findByTenantIdOrderByCreatedAtDesc(Long tenantId);
     List<RentalRequest> findByPropertyIdOrderByCreatedAtDesc(Long propertyId);
 

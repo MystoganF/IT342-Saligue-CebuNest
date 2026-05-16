@@ -4,8 +4,8 @@ import { propertiesApi } from "./properties.api";
 import styles from "./Owner_properties.module.css";
 import { VirtuosoGrid } from "react-virtuoso";
 import {
-  Search, Plus, Trash2, AlertTriangle, Home, MapPin, 
-  Bed, Bath, Maximize, Edit, Eye, XCircle, Loader2, UserPlus
+  Search, Plus, Trash2, AlertTriangle, Home, MapPin,
+  Bed, Bath, Maximize, Edit, Eye, XCircle, Loader2, UserPlus, History
 } from "lucide-react";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
@@ -32,6 +32,7 @@ interface Property {
   hasActiveTenant: boolean;
   rejectionReason?: string | null;
   pendingRequestsCount?: number;
+  rentalRequestsCount?: number;
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -45,10 +46,10 @@ function formatPrice(price: number): string {
 function getStatusBadge(status: string, hasActiveTenant: boolean, s: typeof styles): string {
   if (hasActiveTenant) return s.badgeOccupied;
   switch (status?.toUpperCase()) {
-    case "AVAILABLE":     return s.badgeAvailable;
-    case "UNAVAILABLE":   return s.badgeUnavailable;
-    case "REJECTED":      return s.badgeRejected;
-    default:              return s.badgePending;
+    case "AVAILABLE":   return s.badgeAvailable;
+    case "UNAVAILABLE": return s.badgeUnavailable;
+    case "REJECTED":    return s.badgeRejected;
+    default:            return s.badgePending;
   }
 }
 
@@ -68,8 +69,7 @@ const LazyImage: React.FC<{ src: string; alt: string; isPriority?: boolean }> = 
         src={src}
         alt={alt}
         loading={isPriority ? "eager" : "lazy"}
-        // @ts-expect-error fetchpriority
-        fetchpriority={isPriority ? "high" : "auto"}
+        fetchPriority={isPriority ? "high" : "auto"}
         decoding="async"
         className={loaded ? styles.cardImageLoaded : styles.cardImagePending}
         onLoad={() => setLoaded(true)}
@@ -172,13 +172,13 @@ const OwnerProperties: React.FC = () => {
             </p>
             {deleteTarget.hasActiveTenant && (
               <p className={styles.modalTenantWarning}>
-                <AlertTriangle size={16} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }}/> 
+                <AlertTriangle size={16} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }}/>
                 This property has an active tenant. You must end the lease before deleting.
               </p>
             )}
             {deleteError && (
               <p className={styles.modalDeleteError}>
-                <AlertTriangle size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }}/> 
+                <AlertTriangle size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'middle' }}/>
                 {deleteError}
               </p>
             )}
@@ -232,9 +232,9 @@ const OwnerProperties: React.FC = () => {
 
         {/* Filter bar */}
         <div className={styles.filterBar}>
-          <form 
-            className={styles.searchWrap} 
-            style={{ display: 'flex', flexDirection: 'row' }} 
+          <form
+            className={styles.searchWrap}
+            style={{ display: 'flex', flexDirection: 'row' }}
             onSubmit={handleSearchSubmit}
           >
             <div style={{ position: 'relative', width: '100%' }}>
@@ -253,8 +253,8 @@ const OwnerProperties: React.FC = () => {
               Search
             </button>
           </form>
-          
-          <select 
+
+          <select
             className={styles.filterSelect}
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -318,19 +318,11 @@ const OwnerProperties: React.FC = () => {
                 : "You haven't added any properties yet."}
             </p>
             {searchQuery || statusFilter || minPrice || maxPrice ? (
-              <button
-                className={styles.stateBtn}
-                onClick={handleClearFilters}
-                type="button"
-              >
+              <button className={styles.stateBtn} onClick={handleClearFilters} type="button">
                 Clear Filters
               </button>
             ) : (
-              <button
-                className={styles.stateBtn}
-                onClick={() => navigate("/owner/properties/new")}
-                type="button"
-              >
+              <button className={styles.stateBtn} onClick={() => navigate("/owner/properties/new")} type="button">
                 + Add Your First Property
               </button>
             )}
@@ -351,6 +343,8 @@ const OwnerProperties: React.FC = () => {
               const img        = p.images?.[0]?.thumbnailUrl || p.images?.[0]?.imageUrl;
               const isRejected = p.status?.toUpperCase() === "REJECTED";
               const hasPending = (p.pendingRequestsCount ?? 0) > 0;
+              const hasHistory = (p.rentalRequestsCount ?? 0) > 0;
+              const canDelete  = !isRejected && !p.hasActiveTenant && !hasHistory;
 
               return (
                 <div
@@ -379,15 +373,23 @@ const OwnerProperties: React.FC = () => {
                     <span className={`${styles.cardStatusBadge} ${getStatusBadge(p.status, p.hasActiveTenant, styles)}`}>
                       {getStatusLabel(p.status, p.hasActiveTenant)}
                     </span>
-                    
+
                     {p.type && <span className={styles.cardTypeBadge}>{p.type}</span>}
                   </div>
 
-                  {/* Rejection notice inline on card */}
+                  {/* Rejection notice */}
                   {isRejected && (
                     <div className={styles.cardRejectedBanner}>
                       <XCircle size={14} style={{ flexShrink: 0, marginTop: '2px' }}/>
                       <span>Rejected by admin{p.rejectionReason ? ` — "${p.rejectionReason}"` : ""}. Cannot be deleted.</span>
+                    </div>
+                  )}
+
+                  {/* Rental history notice */}
+                  {!isRejected && hasHistory && (
+                    <div className={styles.cardHistoryBanner}>
+                      <History size={13} style={{ flexShrink: 0 }}/>
+                      <span>Has rental history — listing cannot be deleted.</span>
                     </div>
                   )}
 
@@ -411,17 +413,22 @@ const OwnerProperties: React.FC = () => {
                       </div>
                       <div className={styles.cardActions}>
                         <Link
-                            to={`/owner/properties/${p.id}/edit`}
-                            className={styles.cardEditBtn}
+                          to={`/owner/properties/${p.id}/edit`}
+                          className={styles.cardEditBtn}
                         >
-                            {isRejected ? <><Eye size={14} /> View</> : <><Edit size={14} /> View</>}
+                          {isRejected ? <><Eye size={14} /> View</> : <><Edit size={14} /> View</>}
                         </Link>
                         <button
                           className={styles.cardDeleteBtn}
                           onClick={() => { setDeleteTarget(p); setDeleteError(null); }}
                           type="button"
-                          disabled={isRejected || p.hasActiveTenant}
-                          title={isRejected ? "Rejected properties cannot be deleted" : undefined}
+                          disabled={!canDelete}
+                          title={
+                            isRejected        ? "Rejected properties cannot be deleted"
+                            : p.hasActiveTenant ? "End the active lease before deleting"
+                            : hasHistory        ? "Has rental history — cannot be deleted"
+                            : undefined
+                          }
                         >
                           <Trash2 size={14} /> Delete
                         </button>

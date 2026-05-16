@@ -37,6 +37,7 @@ public class PropertyDTO {
     private boolean isAdminDisabled;
     private String  adminNote;
     // ---------------------------
+    private long rentalRequestsCount;
 
     private String ownerFacebookUrl;
     private String ownerInstagramUrl;
