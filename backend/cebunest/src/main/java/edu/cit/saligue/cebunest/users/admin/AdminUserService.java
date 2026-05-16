@@ -72,6 +72,19 @@ public class AdminUserService {
     }
 
     @Transactional
+    public UserDTO adminUpdateProfile(Long userId, String name, String phoneNumber,
+                                      String facebookUrl, String instagramUrl, String twitterUrl) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found."));
+        if (name != null && !name.isBlank()) user.setName(name.trim());
+        user.setPhoneNumber(phoneNumber != null ? phoneNumber.trim() : null);
+        user.setFacebookUrl(facebookUrl != null ? facebookUrl.trim() : null);
+        user.setInstagramUrl(instagramUrl != null ? instagramUrl.trim() : null);
+        user.setTwitterUrl(twitterUrl != null ? twitterUrl.trim() : null);
+        return UserDTO.from(userRepository.save(user));
+    }
+
+    @Transactional
     public UserDTO adminUpdateEmail(Long userId, String newEmail) {
         String trimmed = newEmail.trim().toLowerCase();
 

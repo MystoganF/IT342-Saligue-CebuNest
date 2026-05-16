@@ -19,8 +19,8 @@
 
 /* ── Main Layout & Header ── */
 .main {
-  padding: 36px 40px 80px; 
-  max-width: 1400px; 
+  padding: 36px 40px 80px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
@@ -67,19 +67,19 @@
   display: flex; align-items: center;
 }
 .searchInput {
-  width: 100%; 
-  padding: 10px 40px; /* Adjusted padding for consistent height */
-  border: 1.5px solid #e5eced; 
-  border-radius: 10px; /* Matched to Property Management */
-  font-family: 'DM Sans', sans-serif; 
-  font-size: 14px; 
+  width: 100%;
+  padding: 10px 40px;
+  border: 1.5px solid #e5eced;
+  border-radius: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
   color: #1a2a2e;
-  background: #fff; 
-  outline: none; 
+  background: #fff;
+  outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .searchInput:focus {
-  border-color: var(--teal-aero); 
+  border-color: var(--teal-aero);
   box-shadow: 0 0 0 4px rgba(83, 164, 163, 0.1);
 }
 .searchClear {
@@ -90,28 +90,26 @@
 .searchClear:hover { opacity: 1; }
 
 .filterSelect {
-  padding: 10px 36px 10px 16px; /* Right padding makes room for the chevron */
-  border: 1.5px solid #e5eced; 
-  border-radius: 10px; /* Matched to Property Management */
-  font-family: 'DM Sans', sans-serif; 
-  font-size: 14px; 
-  font-weight: 500; /* Changed from 600 to 500 for a cleaner look */
+  padding: 10px 36px 10px 16px;
+  border: 1.5px solid #e5eced;
+  border-radius: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
   color: #1a2a2e;
-  background-color: #fff; 
-  /* Custom chevron to override the native OS design */
+  background-color: #fff;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236e7071' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 14px;
-  appearance: none; /* Removes native Windows/Mac dropdown styling */
+  appearance: none;
   -webkit-appearance: none;
-  outline: none; 
-  cursor: pointer; 
+  outline: none;
+  cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-
 .filterSelect:focus {
-  border-color: var(--teal-aero); 
+  border-color: var(--teal-aero);
   box-shadow: 0 0 0 4px rgba(83, 164, 163, 0.1);
 }
 
@@ -178,6 +176,7 @@
 }
 .modal {
   background: #fff; border-radius: 24px; padding: 32px; width: 100%; max-width: 440px;
+  max-height: 90vh; overflow-y: auto;
   box-shadow: 0 24px 64px rgba(10, 24, 30, 0.22);
   animation: modalIn 0.25s ease both; display: flex; flex-direction: column; gap: 16px;
 }
@@ -222,6 +221,26 @@
 .detailActionBtnGreen { color: #2d8c6a; }
 .detailActionBtnGreen:hover { background: rgba(45,140,106,0.08); border-color: #2d8c6a; }
 
+/* ── Profile Section Divider (social links separator) ── */
+.profileSectionDivider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--slate);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin: 4px 0 0;
+}
+.profileSectionDivider::before,
+.profileSectionDivider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e5eced;
+}
+
 /* Forms */
 .field { display: flex; flex-direction: column; gap: 6px; }
 .fieldLabel { font-size: 12px; font-weight: 700; color: var(--teal-deep); text-transform: uppercase; letter-spacing: 0.5px; }
@@ -231,6 +250,7 @@
   outline: none; transition: border-color 0.2s; background: #fff;
 }
 .fieldInput:focus, .fieldSelectLg:focus { border-color: var(--teal-aero); box-shadow: 0 0 0 4px rgba(83, 164, 163, 0.1); }
+.fieldInput:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .modalActions { display: flex; gap: 10px; width: 100%; margin-top: 12px; }
 .modalCancelBtn {
@@ -282,4 +302,5 @@
   .main { padding: 24px 20px 60px; }
   .grid { grid-template-columns: 1fr; }
   .searchWrap { min-width: 100%; }
+  .modal { padding: 24px 20px; }
 }

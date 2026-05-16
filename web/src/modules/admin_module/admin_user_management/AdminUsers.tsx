@@ -3,7 +3,8 @@ import { useOutletContext } from "react-router-dom";
 import { adminUsersApi } from "./admin_users.api";
 import styles from "./AdminUsers.module.css";
 import {
-  Search, Users, AlertTriangle, UserPlus, X, Mail, Shield, ShieldAlert, Power, CheckCircle, Loader2
+  Search, Users, AlertTriangle, UserPlus, X, Mail, Shield, ShieldAlert,
+  Power, CheckCircle, Loader2, Phone, User, Link2
 } from "lucide-react";
 
 const PAGE_SIZE = 20;
@@ -11,17 +12,17 @@ const PAGE_SIZE = 20;
 interface AdminUser { id: number; name: string; email: string; role: string; avatarUrl?: string | null; }
 interface UserEntry {
   id: number; name: string; email: string; phoneNumber?: string | null; role: string;
-  avatarUrl?: string | null; active: boolean; createdAt?: string;
+  avatarUrl?: string | null; facebookUrl?: string | null; instagramUrl?: string | null;
+  twitterUrl?: string | null; active: boolean; createdAt?: string;
 }
 
-type ModalMode = "detail" | "create" | "edit-role" | "edit-email" | "deactivate" | null;
+type ModalMode = "detail" | "create" | "edit-role" | "edit-email" | "edit-profile" | "deactivate" | null;
 
 const ROLES = ["TENANT", "OWNER", "ADMIN"];
 const roleBg:    Record<string, string> = { ADMIN: "rgba(31,93,113,0.12)",  OWNER: "rgba(183,142,66,0.12)", TENANT: "rgba(45,140,106,0.12)" };
 const roleColor: Record<string, string> = { ADMIN: "#1f5d71", OWNER: "#b78e42", TENANT: "#2d8c6a" };
 
 const AdminUsers: React.FC = () => {
-  // Grab admin user from Layout context
   const { user: admin } = useOutletContext<{ user: AdminUser }>();
 
   const [allUsers, setAllUsers]       = useState<UserEntry[]>([]);
@@ -43,16 +44,18 @@ const AdminUsers: React.FC = () => {
   const [newRole, setNewRole]         = useState("");
   const [newEmail, setNewEmail]       = useState("");
 
+  // Profile edit form state
+  const [profileForm, setProfileForm] = useState({
+    name: "", phoneNumber: "", facebookUrl: "", instagramUrl: "", twitterUrl: ""
+  });
+
   const fetchUsers = useCallback(async () => {
     setLoading(true); setError(null);
     try {
       const data = await adminUsersApi.getAllUsers();
       if (!data.success) { setError(data?.error?.message ?? "Failed."); return; }
-      
-      // Filter out the current admin so they don't see themselves in the list
       const usersList = data.data.users ?? [];
       const filteredUsers = usersList.filter((u: UserEntry) => u.id !== admin?.id);
-      
       setAllUsers(filteredUsers);
       setPage(1);
     } catch {
@@ -91,6 +94,18 @@ const AdminUsers: React.FC = () => {
   const openCreate   = () => { setForm({ name: "", email: "", password: "", role: "TENANT" }); setModalError(null); setModal("create"); };
   const openEditRole = (u: UserEntry) => { setTarget(u); setNewRole(u.role); setModalError(null); setModal("edit-role"); };
   const openEditEmail = (u: UserEntry) => { setTarget(u); setNewEmail(u.email); setModalError(null); setModal("edit-email"); };
+  const openEditProfile = (u: UserEntry) => {
+    setTarget(u);
+    setProfileForm({
+      name:         u.name         ?? "",
+      phoneNumber:  u.phoneNumber  ?? "",
+      facebookUrl:  u.facebookUrl  ?? "",
+      instagramUrl: u.instagramUrl ?? "",
+      twitterUrl:   u.twitterUrl   ?? "",
+    });
+    setModalError(null);
+    setModal("edit-profile");
+  };
   const openToggle   = (u: UserEntry) => { setTarget(u); setModalError(null); setModal("deactivate"); };
   const closeModal   = () => { if (!submitting) { setModal(null); setTarget(null); } };
 
@@ -99,18 +114,14 @@ const AdminUsers: React.FC = () => {
     if (!form.name.trim())     { setModalError("Name is required."); return; }
     if (!form.email.trim())    { setModalError("Email is required."); return; }
     if (!form.password.trim()) { setModalError("Password is required."); return; }
-    
     setSubmitting(true); setModalError(null);
     try {
       const data = await adminUsersApi.createUser(form);
       if (!data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
-      await fetchUsers(); 
-      closeModal();
-    } catch (err: any) { 
+      await fetchUsers(); closeModal();
+    } catch (err: any) {
       setModalError(err.response?.data?.error?.message || "Network error.");
-    } finally { 
-      setSubmitting(false); 
-    }
+    } finally { setSubmitting(false); }
   };
 
   const handleEditRole = async () => {
@@ -119,13 +130,10 @@ const AdminUsers: React.FC = () => {
     try {
       const data = await adminUsersApi.updateUserRole(target.id, { role: newRole });
       if (!data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
-      await fetchUsers(); 
-      closeModal();
-    } catch (err: any) { 
+      await fetchUsers(); closeModal();
+    } catch (err: any) {
       setModalError(err.response?.data?.error?.message || "Network error.");
-    } finally { 
-      setSubmitting(false); 
-    }
+    } finally { setSubmitting(false); }
   };
 
   const handleEditEmail = async () => {
@@ -135,13 +143,23 @@ const AdminUsers: React.FC = () => {
     try {
       const data = await adminUsersApi.updateUserEmail(target.id, { email: newEmail });
       if (!data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
-      await fetchUsers(); 
-      closeModal();
-    } catch (err: any) { 
+      await fetchUsers(); closeModal();
+    } catch (err: any) {
       setModalError(err.response?.data?.error?.message || "Network error.");
-    } finally { 
-      setSubmitting(false); 
-    }
+    } finally { setSubmitting(false); }
+  };
+
+  const handleEditProfile = async () => {
+    if (!target) return;
+    if (!profileForm.name.trim()) { setModalError("Full name is required."); return; }
+    setSubmitting(true); setModalError(null);
+    try {
+      const data = await adminUsersApi.updateUserProfile(target.id, profileForm);
+      if (!data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
+      await fetchUsers(); closeModal();
+    } catch (err: any) {
+      setModalError(err.response?.data?.error?.message || "Network error.");
+    } finally { setSubmitting(false); }
   };
 
   const handleToggleActive = async () => {
@@ -150,13 +168,10 @@ const AdminUsers: React.FC = () => {
     try {
       const data = await adminUsersApi.toggleUserActiveStatus(target.id, { active: !target.active });
       if (!data.success) { setModalError(data?.error?.message ?? "Failed."); return; }
-      await fetchUsers(); 
-      closeModal();
-    } catch (err: any) { 
+      await fetchUsers(); closeModal();
+    } catch (err: any) {
       setModalError(err.response?.data?.error?.message || "Network error.");
-    } finally { 
-      setSubmitting(false); 
-    }
+    } finally { setSubmitting(false); }
   };
 
   if (!admin) return null;
@@ -164,7 +179,7 @@ const AdminUsers: React.FC = () => {
   return (
     <div className={styles.page}>
       <div className={styles.main}>
-        
+
         {/* ── Page Header ── */}
         <div className={styles.pageHeader}>
           <div>
@@ -182,12 +197,12 @@ const AdminUsers: React.FC = () => {
         <div className={styles.filterBar}>
           <div className={styles.searchWrap}>
             <span className={styles.searchIcon}><Search size={16} /></span>
-            <input 
-              className={styles.searchInput} 
+            <input
+              className={styles.searchInput}
               type="text"
-              placeholder="Search by name or email…" 
+              placeholder="Search by name or email…"
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }} 
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             />
             {search && (
               <button className={styles.searchClear} onClick={() => { setSearch(""); setPage(1); }} type="button">
@@ -195,9 +210,9 @@ const AdminUsers: React.FC = () => {
               </button>
             )}
           </div>
-          
-          <select 
-            className={styles.filterSelect} 
+
+          <select
+            className={styles.filterSelect}
             value={roleFilter}
             onChange={(e) => { setRoleFilter(e.target.value); setPage(1); }}
           >
@@ -205,8 +220,8 @@ const AdminUsers: React.FC = () => {
             {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
 
-          <select 
-            className={styles.filterSelect} 
+          <select
+            className={styles.filterSelect}
             value={statusFilter}
             onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
           >
@@ -324,6 +339,9 @@ const AdminUsers: React.FC = () => {
                 </div>
 
                 <div className={styles.detailActions}>
+                  <button className={styles.detailActionBtn} onClick={() => openEditProfile(target)} type="button">
+                    <User size={16} className={styles.detailActionBtnIcon}/> Edit Profile
+                  </button>
                   <button className={styles.detailActionBtn} onClick={() => openEditRole(target)} type="button">
                     <Shield size={16} className={styles.detailActionBtnIcon}/> Change Role
                   </button>
@@ -332,7 +350,7 @@ const AdminUsers: React.FC = () => {
                   </button>
                   <button className={`${styles.detailActionBtn} ${target.active ? styles.detailActionBtnDanger : styles.detailActionBtnGreen}`}
                     onClick={() => openToggle(target)} type="button">
-                    {target.active ? <Power size={16} /> : <CheckCircle size={16} />} 
+                    {target.active ? <Power size={16} /> : <CheckCircle size={16} />}
                     {target.active ? "Deactivate User" : "Activate User"}
                   </button>
                 </div>
@@ -369,11 +387,113 @@ const AdminUsers: React.FC = () => {
                 </div>
 
                 {modalError && <p className={styles.modalError}><AlertTriangle size={14}/> {modalError}</p>}
-                
+
                 <div className={styles.modalActions}>
                   <button className={styles.modalCancelBtn} onClick={closeModal} disabled={submitting} type="button">Cancel</button>
                   <button className={styles.modalConfirmBtn} onClick={handleCreate} disabled={submitting} type="button">
                     {submitting ? <><Loader2 size={16} className={styles.spinner} /> Creating…</> : "Create User"}
+                  </button>
+                </div>
+              </div>
+            </>}
+
+            {/* EDIT PROFILE */}
+            {modal === "edit-profile" && target && <>
+              <div className={styles.modalHeader}>
+                <div className={styles.modalTitleGroup}>
+                  <div className={styles.modalIcon}><User size={24} /></div>
+                  <div>
+                    <h3 className={styles.modalTitle}>Edit Profile</h3>
+                    <p className={styles.modalSubtitle}>{target.name}</p>
+                  </div>
+                </div>
+                <button className={styles.modalCloseBtn} onClick={closeModal} type="button"><X size={20}/></button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* Full Name */}
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>
+                    <User size={11} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                    Full Name <span style={{ color: '#c0392b' }}>*</span>
+                  </label>
+                  <input
+                    className={styles.fieldInput}
+                    type="text"
+                    placeholder="Full name"
+                    value={profileForm.name}
+                    onChange={(e) => setProfileForm((f) => ({ ...f, name: e.target.value }))}
+                    disabled={submitting}
+                  />
+                </div>
+
+                {/* Phone Number */}
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>
+                    <Phone size={11} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                    Phone Number
+                  </label>
+                  <input
+                    className={styles.fieldInput}
+                    type="tel"
+                    placeholder="+63 900 000 0000"
+                    value={profileForm.phoneNumber}
+                    onChange={(e) => setProfileForm((f) => ({ ...f, phoneNumber: e.target.value }))}
+                    disabled={submitting}
+                  />
+                </div>
+
+                {/* Social links divider */}
+                <div className={styles.profileSectionDivider}>
+                  <Link2 size={12} />
+                  <span>Social Links</span>
+                </div>
+
+                {/* Facebook */}
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>Facebook URL</label>
+                  <input
+                    className={styles.fieldInput}
+                    type="url"
+                    placeholder="https://facebook.com/username"
+                    value={profileForm.facebookUrl}
+                    onChange={(e) => setProfileForm((f) => ({ ...f, facebookUrl: e.target.value }))}
+                    disabled={submitting}
+                  />
+                </div>
+
+                {/* Instagram */}
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>Instagram URL</label>
+                  <input
+                    className={styles.fieldInput}
+                    type="url"
+                    placeholder="https://instagram.com/username"
+                    value={profileForm.instagramUrl}
+                    onChange={(e) => setProfileForm((f) => ({ ...f, instagramUrl: e.target.value }))}
+                    disabled={submitting}
+                  />
+                </div>
+
+                {/* Twitter / X */}
+                <div className={styles.field}>
+                  <label className={styles.fieldLabel}>Twitter / X URL</label>
+                  <input
+                    className={styles.fieldInput}
+                    type="url"
+                    placeholder="https://twitter.com/username"
+                    value={profileForm.twitterUrl}
+                    onChange={(e) => setProfileForm((f) => ({ ...f, twitterUrl: e.target.value }))}
+                    disabled={submitting}
+                  />
+                </div>
+
+                {modalError && <p className={styles.modalError}><AlertTriangle size={14}/> {modalError}</p>}
+
+                <div className={styles.modalActions}>
+                  <button className={styles.modalCancelBtn} onClick={closeModal} disabled={submitting} type="button">Cancel</button>
+                  <button className={styles.modalConfirmBtn} onClick={handleEditProfile} disabled={submitting} type="button">
+                    {submitting ? <><Loader2 size={16} className={styles.spinner} /> Saving…</> : "Save Profile"}
                   </button>
                 </div>
               </div>
@@ -400,7 +520,7 @@ const AdminUsers: React.FC = () => {
                 </div>
 
                 {modalError && <p className={styles.modalError} style={{ marginTop: '12px' }}><AlertTriangle size={14}/> {modalError}</p>}
-                
+
                 <div className={styles.modalActions}>
                   <button className={styles.modalCancelBtn} onClick={closeModal} disabled={submitting} type="button">Cancel</button>
                   <button className={styles.modalConfirmBtn} onClick={handleEditRole} disabled={submitting} type="button">
@@ -430,7 +550,7 @@ const AdminUsers: React.FC = () => {
                 </div>
 
                 {modalError && <p className={styles.modalError} style={{ marginTop: '12px' }}><AlertTriangle size={14}/> {modalError}</p>}
-                
+
                 <div className={styles.modalActions}>
                   <button className={styles.modalCancelBtn} onClick={closeModal} disabled={submitting} type="button">Cancel</button>
                   <button className={styles.modalConfirmBtn} onClick={handleEditEmail} disabled={submitting} type="button">
@@ -461,7 +581,7 @@ const AdminUsers: React.FC = () => {
                 </p>
 
                 {modalError && <p className={styles.modalError} style={{ marginTop: '12px' }}><AlertTriangle size={14}/> {modalError}</p>}
-                
+
                 <div className={styles.modalActions}>
                   <button className={styles.modalCancelBtn} onClick={closeModal} disabled={submitting} type="button">Cancel</button>
                   <button className={target.active ? styles.modalWarnBtn : styles.modalConfirmBtn}

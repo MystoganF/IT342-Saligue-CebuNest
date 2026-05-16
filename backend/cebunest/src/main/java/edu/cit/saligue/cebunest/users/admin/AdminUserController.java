@@ -153,4 +153,25 @@ public class AdminUserController {
             return bad("BUSINESS-001", e.getMessage());
         }
     }
+
+    @Data public static class ProfileUpdateDTO {
+        private String name, phoneNumber, facebookUrl, instagramUrl, twitterUrl;
+    }
+    @PutMapping("/{id}/profile")
+    public ResponseEntity<?> updateProfile(
+            @PathVariable Long id,
+            @RequestBody ProfileUpdateDTO body,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (!isAdmin(currentUser)) return forbidden();
+        if (blank(body.getName())) return bad("VALID-001", "Name is required.");
+        try {
+            return ResponseEntity.ok(success(Map.of("user", adminUserService.adminUpdateProfile(
+                    id, body.getName(), body.getPhoneNumber(),
+                    body.getFacebookUrl(), body.getInstagramUrl(), body.getTwitterUrl()
+            ))));
+        } catch (IllegalArgumentException e) {
+            return bad("BUSINESS-001", e.getMessage());
+        }
+    }
 }
