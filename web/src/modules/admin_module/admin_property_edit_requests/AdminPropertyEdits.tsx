@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { propertyEditsApi } from "./admin_property_edits.api";
-import styles from "./admin_edit_request.module.css"; // reuse existing CSS
-import editStyles from "./AdminPropertyEdits.module.css"; // supplemental
+import styles from "./AdminPropertyEdits.module.css";
 import {
   RefreshCw, MapPin, Tag, User, Clock, ArrowRight,
   AlertTriangle, CheckCircle, FilePen,
@@ -17,12 +16,10 @@ interface EditRequest {
   submittedByName: string;
   submittedByEmail: string;
   editStatus: string;
-  // Proposed values (shown as preview)
   proposedTitle: string;
   proposedLocation: string;
   proposedPrice: number;
   proposedTypeName: string;
-  // Diff flags
   titleChanged: boolean;
   descriptionChanged: boolean;
   priceChanged: boolean;
@@ -91,7 +88,7 @@ const AdminPropertyEdits: React.FC = () => {
     <div className={styles.page}>
       <div className={styles.main}>
 
-        {/* Header */}
+        {/* ── Header ── */}
         <div className={styles.pageHeader}>
           <div>
             <h1 className={styles.pageTitle}>Property Edit Requests</h1>
@@ -144,10 +141,8 @@ const AdminPropertyEdits: React.FC = () => {
                   onClick={() => navigate(`/admin/property-edit-requests/${r.id}`)}
                 >
                   <div className={styles.cardTop}>
-
-                    {/* Icon placeholder instead of image (edits don't have a new image) */}
-                    <div className={`${styles.cardThumb} ${editStyles.editThumb}`}>
-                      <FilePen size={32} className={editStyles.editThumbIcon} />
+                    <div className={styles.cardThumb}>
+                      <FilePen size={32} />
                     </div>
 
                     <div className={styles.cardInfo}>
@@ -156,9 +151,9 @@ const AdminPropertyEdits: React.FC = () => {
                           <h3 className={styles.cardTitle}>{r.proposedTitle}</h3>
                           <div className={styles.cardMeta}>
                             <span className={styles.metaItem}><MapPin size={14} /> {r.proposedLocation}</span>
-                            <span className={styles.metaItem}><Tag size={14} /> {r.proposedTypeName}</span>
-                            <span className={styles.metaItem}><User size={14} /> {r.submittedByName}</span>
-                            <span className={styles.metaItem}><Clock size={14} /> {timeAgo(r.createdAt)}</span>
+                            <span className={styles.metaItem}><Tag    size={14} /> {r.proposedTypeName}</span>
+                            <span className={styles.metaItem}><User   size={14} /> {r.submittedByName}</span>
+                            <span className={styles.metaItem}><Clock  size={14} /> {timeAgo(r.createdAt)}</span>
                           </div>
                         </div>
                         <div className={styles.cardPrice}>
@@ -166,19 +161,18 @@ const AdminPropertyEdits: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Changed fields pill strip */}
-                      <div className={editStyles.changedPills}>
-                        <span className={editStyles.changesCount}>
+                      <div className={styles.changedPills}>
+                        <span className={styles.changesCount}>
                           {changesCount} field{changesCount !== 1 ? "s" : ""} changed
                         </span>
-                        {r.titleChanged       && <span className={editStyles.pill}>Title</span>}
-                        {r.descriptionChanged && <span className={editStyles.pill}>Description</span>}
-                        {r.priceChanged       && <span className={editStyles.pill}>Price</span>}
-                        {r.locationChanged    && <span className={editStyles.pill}>Location</span>}
-                        {r.typeChanged        && <span className={editStyles.pill}>Type</span>}
-                        {r.bedsChanged        && <span className={editStyles.pill}>Beds</span>}
-                        {r.bathsChanged       && <span className={editStyles.pill}>Baths</span>}
-                        {r.sqmChanged         && <span className={editStyles.pill}>Sqm</span>}
+                        {r.titleChanged       && <span className={styles.pill}>Title</span>}
+                        {r.descriptionChanged && <span className={styles.pill}>Description</span>}
+                        {r.priceChanged       && <span className={styles.pill}>Price</span>}
+                        {r.locationChanged    && <span className={styles.pill}>Location</span>}
+                        {r.typeChanged        && <span className={styles.pill}>Type</span>}
+                        {r.bedsChanged        && <span className={styles.pill}>Beds</span>}
+                        {r.bathsChanged       && <span className={styles.pill}>Baths</span>}
+                        {r.sqmChanged         && <span className={styles.pill}>Sqm</span>}
                       </div>
                     </div>
                   </div>
@@ -187,10 +181,7 @@ const AdminPropertyEdits: React.FC = () => {
                     <button
                       className={styles.detailBtn}
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/admin/property-edit-requests/${r.id}`);
-                      }}
+                      onClick={(e) => { e.stopPropagation(); navigate(`/admin/property-edit-requests/${r.id}`); }}
                     >
                       Review Changes <ArrowRight size={16} />
                     </button>

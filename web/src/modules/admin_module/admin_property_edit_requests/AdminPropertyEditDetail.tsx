@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams, useOutletContext } from "react-router-dom";
 import { propertyEditsApi } from "./admin_property_edits.api";
-import styles from "./admin_edit_request.module.css";
-import editStyles from "./AdminPropertyEdits.module.css";
+import styles from "./AdminPropertyEditDetail.module.css";
 import {
   ChevronLeft, RefreshCw, CheckCircle2, XCircle, AlertTriangle, Loader2,
   Check, X, User, Mail, Clock, MapPin, Tag, BedDouble, Bath, Maximize,
@@ -72,26 +71,30 @@ function DiffRow({
   changed: boolean;
 }) {
   const fmt = (v: string | number | null | undefined) =>
-    v == null || v === "" ? <span style={{ color: "#b0bcbe", fontStyle: "italic" }}>None</span> : String(v);
+    v == null || v === "" ? (
+      <span style={{ color: "#b0bcbe", fontStyle: "italic" }}>None</span>
+    ) : (
+      <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{String(v)}</span>
+    );
 
   return (
-    <div className={`${editStyles.diffRow} ${changed ? editStyles.diffRowChanged : ""}`}>
-      <div className={editStyles.diffLabel}>
-        <span className={editStyles.diffLabelIcon}>{icon}</span>
+    <div className={`${styles.diffRow} ${changed ? styles.diffRowChanged : ""}`}>
+      <div className={styles.diffLabel}>
+        <span className={styles.diffLabelIcon}>{icon}</span>
         {label}
-        {changed && <span className={editStyles.diffChangedBadge}>Changed</span>}
+        {changed && <span className={styles.diffChangedBadge}>Changed</span>}
       </div>
-      <div className={editStyles.diffCols}>
-        <div className={`${editStyles.diffCol} ${editStyles.diffColOld}`}>
-          <span className={editStyles.diffColHeader}>Current (live)</span>
-          <span className={`${editStyles.diffVal} ${changed ? editStyles.diffValOld : ""}`}>
+      <div className={styles.diffCols}>
+        <div className={`${styles.diffCol} ${styles.diffColOld}`}>
+          <span className={styles.diffColHeader}>Current (live)</span>
+          <span className={`${styles.diffVal} ${changed ? styles.diffValOld : ""}`}>
             {fmt(oldVal)}
           </span>
         </div>
-        <div className={editStyles.diffArrow}>→</div>
-        <div className={`${editStyles.diffCol} ${editStyles.diffColNew}`}>
-          <span className={editStyles.diffColHeader}>Proposed</span>
-          <span className={`${editStyles.diffVal} ${changed ? editStyles.diffValNew : ""}`}>
+        <div className={styles.diffArrow}>→</div>
+        <div className={`${styles.diffCol} ${styles.diffColNew}`}>
+          <span className={styles.diffColHeader}>Proposed</span>
+          <span className={`${styles.diffVal} ${changed ? styles.diffValNew : ""}`}>
             {fmt(newVal)}
           </span>
         </div>
@@ -109,7 +112,6 @@ const AdminPropertyEditDetail: React.FC = () => {
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState<string | null>(null);
 
-  // Modal state
   const [modal, setModal]             = useState<"APPROVED" | "REJECTED" | null>(null);
   const [reason, setReason]           = useState("");
   const [submitting, setSubmitting]   = useState(false);
@@ -159,21 +161,17 @@ const AdminPropertyEditDetail: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      <div className={styles.main} style={{ maxWidth: 900 }}>
+      <div className={styles.main}>
 
         {/* ── Decision Modal ── */}
         {modal && (
-          <div className={styles.modalOverlay} onClick={closeModal} style={{ zIndex: 1000 }}>
-            <div
-              className={styles.modal}
-              onClick={(e) => e.stopPropagation()}
-              style={{ maxWidth: 460 }}
-            >
-              <div className={`${editStyles.modalHeader} ${modal === "APPROVED" ? editStyles.modalHeaderApprove : editStyles.modalHeaderReject}`}>
+          <div className={styles.modalOverlay} onClick={closeModal}>
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div className={`${styles.modalHeader} ${modal === "APPROVED" ? styles.modalHeaderApprove : styles.modalHeaderReject}`}>
                 {modal === "APPROVED"
                   ? <CheckCircle2 size={24} style={{ color: "#1a7a4a" }} />
                   : <XCircle size={24} style={{ color: "#c0392b" }} />}
-                <h3 className={editStyles.modalTitle}>
+                <h3 className={styles.modalTitle}>
                   {modal === "APPROVED" ? "Approve Edit Request" : "Reject Edit Request"}
                 </h3>
               </div>
@@ -187,9 +185,11 @@ const AdminPropertyEditDetail: React.FC = () => {
 
                 {modal === "APPROVED" ? (
                   <div>
-                    <label className={editStyles.inputLabel}>Note for owner <span style={{ color: "#6e7071", fontWeight: 400 }}>(optional)</span></label>
+                    <label className={styles.inputLabel}>
+                      Note for owner <span style={{ color: "#6e7071", fontWeight: 400 }}>(optional)</span>
+                    </label>
                     <input
-                      className={editStyles.reasonInput}
+                      className={styles.reasonInput}
                       type="text"
                       placeholder="e.g. Changes look great!"
                       value={reason}
@@ -198,9 +198,11 @@ const AdminPropertyEditDetail: React.FC = () => {
                   </div>
                 ) : (
                   <div>
-                    <label className={editStyles.inputLabel}>Rejection reason <span style={{ color: "#c0392b" }}>*</span></label>
+                    <label className={styles.inputLabel}>
+                      Rejection reason <span style={{ color: "#c0392b" }}>*</span>
+                    </label>
                     <textarea
-                      className={editStyles.reasonInput}
+                      className={styles.reasonInput}
                       style={{ minHeight: 90, resize: "vertical" }}
                       placeholder="Explain why this edit request is being rejected…"
                       value={reason}
@@ -217,22 +219,17 @@ const AdminPropertyEditDetail: React.FC = () => {
               </div>
 
               <div style={{ display: "flex", gap: 10, padding: "12px 24px 20px", justifyContent: "flex-end" }}>
-                <button
-                  className={editStyles.modalCancelBtn}
-                  onClick={closeModal}
-                  disabled={submitting}
-                  type="button"
-                >
+                <button className={styles.modalCancelBtn} onClick={closeModal} disabled={submitting} type="button">
                   Cancel
                 </button>
                 <button
-                  className={modal === "APPROVED" ? editStyles.modalApproveBtn : editStyles.modalRejectBtn}
+                  className={modal === "APPROVED" ? styles.modalApproveBtn : styles.modalRejectBtn}
                   onClick={handleDecision}
                   disabled={submitting}
                   type="button"
                 >
                   {submitting
-                    ? <><Loader2 size={16} className={editStyles.spinner} /> Processing…</>
+                    ? <><span className={styles.spinner} /> Processing…</>
                     : modal === "APPROVED"
                       ? <><Check size={16} /> Approve Changes</>
                       : <><X size={16} /> Reject Changes</>}
@@ -243,12 +240,8 @@ const AdminPropertyEditDetail: React.FC = () => {
         )}
 
         {/* ── Back + Refresh ── */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, animation: "fadeUp 0.4s ease both" }}>
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", fontSize: 14, fontWeight: 700, color: "#1f5d71", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", padding: 0 }}
-          >
+        <div className={styles.pageHeader}>
+          <button type="button" className={styles.backBtn} onClick={() => navigate(-1)}>
             <ChevronLeft size={18} /> Back to Edit Requests
           </button>
           <button className={styles.refreshBtn} onClick={fetchDetail} disabled={loading} type="button">
@@ -279,87 +272,52 @@ const AdminPropertyEditDetail: React.FC = () => {
         ) : editRequest ? (
           <>
             {/* ── Header card ── */}
-            <div className={editStyles.headerCard}>
-              <div className={editStyles.headerCardIcon}><FilePen size={28} /></div>
-              <div className={editStyles.headerCardInfo}>
-                <h2 className={editStyles.headerCardTitle}>Edit Request #{editRequest.id}</h2>
-                <div className={editStyles.headerCardMeta}>
+            <div className={styles.headerCard}>
+              <div className={styles.headerCardIcon}><FilePen size={28} /></div>
+              <div className={styles.headerCardInfo}>
+                <h2 className={styles.headerCardTitle}>Edit Request #{editRequest.id}</h2>
+                <div className={styles.headerCardMeta}>
                   <span><User size={13} /> {editRequest.submittedByName}</span>
                   <span><Mail size={13} /> {editRequest.submittedByEmail}</span>
                   <span><Clock size={13} /> Submitted {formatDate(editRequest.createdAt)}</span>
                 </div>
               </div>
-              <span className={`${editStyles.statusBadge} ${editStyles.statusPending}`}>
+              <span className={`${styles.statusBadge} ${styles.statusPending}`}>
                 PENDING REVIEW
               </span>
             </div>
 
             {/* ── Diff table ── */}
-            <div className={editStyles.diffCard}>
-              <div className={editStyles.diffCardTitle}>
+            <div className={styles.diffCard}>
+              <div className={styles.diffCardTitle}>
                 Field-by-Field Changes
-                <span className={editStyles.diffCardSub}>
-                  Highlighted rows have proposed changes
-                </span>
+                <span className={styles.diffCardSub}>Highlighted rows have proposed changes</span>
               </div>
 
-              <DiffRow
-                label="Title" icon={<FileText size={14} />}
-                oldVal={editRequest.previousTitle} newVal={editRequest.proposedTitle}
-                changed={editRequest.titleChanged}
-              />
-              <DiffRow
-                label="Description" icon={<FileText size={14} />}
-                oldVal={editRequest.previousDescription} newVal={editRequest.proposedDescription}
-                changed={editRequest.descriptionChanged}
-              />
-              <DiffRow
-                label="Price / month" icon={<DollarSign size={14} />}
-                oldVal={formatPrice(editRequest.previousPrice)}
-                newVal={formatPrice(editRequest.proposedPrice)}
-                changed={editRequest.priceChanged}
-              />
-              <DiffRow
-                label="Location" icon={<MapPin size={14} />}
-                oldVal={editRequest.previousLocation} newVal={editRequest.proposedLocation}
-                changed={editRequest.locationChanged}
-              />
-              <DiffRow
-                label="Property Type" icon={<Tag size={14} />}
-                oldVal={editRequest.previousTypeName} newVal={editRequest.proposedTypeName}
-                changed={editRequest.typeChanged}
-              />
-              <DiffRow
-                label="Bedrooms" icon={<BedDouble size={14} />}
-                oldVal={editRequest.previousBeds} newVal={editRequest.proposedBeds}
-                changed={editRequest.bedsChanged}
-              />
-              <DiffRow
-                label="Bathrooms" icon={<Bath size={14} />}
-                oldVal={editRequest.previousBaths} newVal={editRequest.proposedBaths}
-                changed={editRequest.bathsChanged}
-              />
-              <DiffRow
-                label="Floor Area (sqm)" icon={<Maximize size={14} />}
-                oldVal={editRequest.previousSqm} newVal={editRequest.proposedSqm}
-                changed={editRequest.sqmChanged}
-              />
+              <DiffRow label="Title"            icon={<FileText size={14} />}
+                oldVal={editRequest.previousTitle}       newVal={editRequest.proposedTitle}       changed={editRequest.titleChanged} />
+              <DiffRow label="Description"      icon={<FileText size={14} />}
+                oldVal={editRequest.previousDescription} newVal={editRequest.proposedDescription} changed={editRequest.descriptionChanged} />
+              <DiffRow label="Price / month"    icon={<DollarSign size={14} />}
+                oldVal={formatPrice(editRequest.previousPrice)} newVal={formatPrice(editRequest.proposedPrice)} changed={editRequest.priceChanged} />
+              <DiffRow label="Location"         icon={<MapPin size={14} />}
+                oldVal={editRequest.previousLocation}   newVal={editRequest.proposedLocation}    changed={editRequest.locationChanged} />
+              <DiffRow label="Property Type"    icon={<Tag size={14} />}
+                oldVal={editRequest.previousTypeName}   newVal={editRequest.proposedTypeName}    changed={editRequest.typeChanged} />
+              <DiffRow label="Bedrooms"         icon={<BedDouble size={14} />}
+                oldVal={editRequest.previousBeds}       newVal={editRequest.proposedBeds}        changed={editRequest.bedsChanged} />
+              <DiffRow label="Bathrooms"        icon={<Bath size={14} />}
+                oldVal={editRequest.previousBaths}      newVal={editRequest.proposedBaths}       changed={editRequest.bathsChanged} />
+              <DiffRow label="Floor Area (sqm)" icon={<Maximize size={14} />}
+                oldVal={editRequest.previousSqm}        newVal={editRequest.proposedSqm}         changed={editRequest.sqmChanged} />
             </div>
 
-            {/* ── Action buttons ── */}
-            <div className={editStyles.actionRow}>
-              <button
-                type="button"
-                className={editStyles.rejectBtn}
-                onClick={() => openModal("REJECTED")}
-              >
+            {/* ── Action buttons — bottom ── */}
+            <div className={styles.actionRow}>
+              <button type="button" className={styles.rejectBtn} onClick={() => openModal("REJECTED")}>
                 <X size={16} /> Reject Changes
               </button>
-              <button
-                type="button"
-                className={editStyles.approveBtn}
-                onClick={() => openModal("APPROVED")}
-              >
+              <button type="button" className={styles.approveBtn} onClick={() => openModal("APPROVED")}>
                 <Check size={16} /> Approve Changes
               </button>
             </div>

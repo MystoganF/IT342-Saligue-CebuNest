@@ -31,6 +31,14 @@ function formatPrice(price: number): string {
   }).format(price);
 }
 
+// Normalise action strings — handles both "APPROVED" and "PROPERTY_APPROVED"
+function isApprovedAction(action: string): boolean {
+  return action === "PROPERTY_APPROVED" || action === "APPROVED" || action === "PROPERTY_EDIT_APPROVED";
+}
+function isRejectedAction(action: string): boolean {
+  return action === "PROPERTY_REJECTED" || action === "REJECTED" || action === "PROPERTY_EDIT_REJECTED"; ;
+}
+
 const AdminAuditLog: React.FC = () => {
   const { user: admin } = useOutletContext<{ user: AdminUser }>();
 
@@ -42,7 +50,7 @@ const AdminAuditLog: React.FC = () => {
   const [page, setPage]               = useState(0);
   const [totalPages, setTotalPages]   = useState(1);
   const [search, setSearch]           = useState("");
-  const [filter, setFilter]           = useState<"ALL" | "PROPERTY_APPROVED" | "PROPERTY_REJECTED">("ALL");
+  const [filter, setFilter]           = useState<"ALL" | "APPROVED" | "REJECTED">("ALL");
   const [expanded, setExpanded]       = useState<number | null>(null);
 
   const [detailLog, setDetailLog]         = useState<AuditEntry | null>(null);
@@ -88,13 +96,11 @@ const AdminAuditLog: React.FC = () => {
       setPropertyError("Cannot load property: The Audit Log is missing the property ID.");
       return;
     }
-
     setDetailLog(log);
     setProperty(null);
     setPropertyError(null);
     setActiveImg(0);
     setPropertyLoading(true);
-    
     try {
       const data = await auditLogApi.getRentalRequestById(log.targetId);
       if (!data.success) {
@@ -116,12 +122,18 @@ const AdminAuditLog: React.FC = () => {
 
   const filtered = logs.filter((l) => {
     const q = search.toLowerCase();
-    const matchSearch = (l.targetTitle || "").toLowerCase().includes(q)
-      || (l.ownerName || "").toLowerCase().includes(q)
-      || (l.ownerEmail || "").toLowerCase().includes(q)
-      || (l.adminName || "").toLowerCase().includes(q);
-      
-    const matchFilter = filter === "ALL" || l.action === filter;
+    const matchSearch =
+      (l.targetTitle || "").toLowerCase().includes(q) ||
+      (l.ownerName   || "").toLowerCase().includes(q) ||
+      (l.ownerEmail  || "").toLowerCase().includes(q) ||
+      (l.adminName   || "").toLowerCase().includes(q);
+
+    // Match both "PROPERTY_APPROVED" and "APPROVED" (and likewise for REJECTED)
+    const matchFilter =
+      filter === "ALL" ||
+      (filter === "APPROVED" && isApprovedAction(l.action)) ||
+      (filter === "REJECTED" && isRejectedAction(l.action));
+
     return matchSearch && matchFilter;
   });
 
@@ -150,16 +162,20 @@ const AdminAuditLog: React.FC = () => {
             <input className={styles.searchInput} type="text"
               placeholder="Search by property, owner, or admin…"
               value={search} onChange={(e) => setSearch(e.target.value)} />
-            {search && <button type="button" className={styles.searchClear} onClick={() => setSearch("")}><X size={14} /></button>}
+            {search && (
+              <button type="button" className={styles.searchClear} onClick={() => setSearch("")}>
+                <X size={14} />
+              </button>
+            )}
           </div>
-          <select 
-            className={styles.filterSelect} 
+          <select
+            className={styles.filterSelect}
             value={filter}
-            onChange={(e) => setFilter(e.target.value as "ALL" | "PROPERTY_APPROVED" | "PROPERTY_REJECTED")}
+            onChange={(e) => setFilter(e.target.value as "ALL" | "APPROVED" | "REJECTED")}
           >
             <option value="ALL">All Actions</option>
-            <option value="PROPERTY_APPROVED">Approved</option>
-            <option value="PROPERTY_REJECTED">Rejected</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
           </select>
         </div>
 
@@ -185,13 +201,13 @@ const AdminAuditLog: React.FC = () => {
           <>
             <div className={styles.logList}>
               {filtered.map((log, i) => {
-                const isApproved = log.action === "PROPERTY_APPROVED";
+                const isApproved = isApprovedAction(log.action);
                 const isExpanded = expanded === log.id;
-                
+
                 return (
                   <div key={log.id} className={styles.logCard} style={{ animationDelay: `${i * 20}ms` }}>
                     <div className={styles.logCardMain}>
-                      
+
                       {/* Circular Status Icon */}
                       <div className={`${styles.logStatusIcon} ${isApproved ? styles.statusIconApprove : styles.statusIconReject}`}>
                         {isApproved ? <CheckCircle size={22} /> : <XCircle size={22} />}
@@ -266,11 +282,12 @@ const AdminAuditLog: React.FC = () => {
         <div className={styles.overlay} onClick={closeDetail}>
           <div className={styles.detailModal} onClick={(e) => e.stopPropagation()}>
 
-            <div className={`${styles.detailModalHeader} ${detailLog.action === "PROPERTY_APPROVED" ? styles.detailModalHeaderApprove : styles.detailModalHeaderReject}`}>
+            <div className={`${styles.detailModalHeader} ${isApprovedAction(detailLog.action) ? styles.detailModalHeaderApprove : styles.detailModalHeaderReject}`}>
               <div className={styles.detailModalHeaderLeft}>
-                <span className={`${styles.statusTextApprove} ${detailLog.action === "PROPERTY_APPROVED" ? '' : styles.statusTextReject}`} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {detailLog.action === "PROPERTY_APPROVED" ? <CheckCircle size={14}/> : <XCircle size={14}/>}
-                  {detailLog.action === "PROPERTY_APPROVED" ? "Approved" : "Rejected"}
+                <span className={isApprovedAction(detailLog.action) ? styles.statusTextApprove : styles.statusTextReject}
+                  style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  {isApprovedAction(detailLog.action) ? <CheckCircle size={14}/> : <XCircle size={14}/>}
+                  {isApprovedAction(detailLog.action) ? "Approved" : "Rejected"}
                 </span>
                 <h3 className={styles.detailModalTitle}>{detailLog.targetTitle}</h3>
                 <p className={styles.detailModalSub}>
@@ -355,9 +372,9 @@ const AdminAuditLog: React.FC = () => {
                       </div>
 
                       <div className={styles.specRow}>
-                        {property.beds != null && <div className={styles.specCard}><BedDouble size={20} className={styles.specIcon} /><span className={styles.specVal}>{property.beds}</span><span className={styles.specLbl}>Beds</span></div>}
+                        {property.beds  != null && <div className={styles.specCard}><BedDouble size={20} className={styles.specIcon} /><span className={styles.specVal}>{property.beds}</span><span className={styles.specLbl}>Beds</span></div>}
                         {property.baths != null && <div className={styles.specCard}><Bath size={20} className={styles.specIcon} /><span className={styles.specVal}>{property.baths}</span><span className={styles.specLbl}>Baths</span></div>}
-                        {property.sqm != null && <div className={styles.specCard}><Maximize size={20} className={styles.specIcon} /><span className={styles.specVal}>{property.sqm}</span><span className={styles.specLbl}>sqm</span></div>}
+                        {property.sqm   != null && <div className={styles.specCard}><Maximize size={20} className={styles.specIcon} /><span className={styles.specVal}>{property.sqm}</span><span className={styles.specLbl}>sqm</span></div>}
                         <div className={styles.specCard}><ImageIcon size={20} className={styles.specIcon} /><span className={styles.specVal}>{property.images.length}</span><span className={styles.specLbl}>Photos</span></div>
                       </div>
 
@@ -386,9 +403,10 @@ const AdminAuditLog: React.FC = () => {
                         <div className={styles.sideCardLabel}>Audit Details</div>
                         <div className={styles.auditInfoRow}>
                           <span className={styles.auditInfoKey}>Action</span>
-                          <span className={detailLog.action === "PROPERTY_APPROVED" ? styles.statusTextApprove : styles.statusTextReject} style={{ display: 'flex', alignItems: 'center', gap: '4px'}}>
-                            {detailLog.action === "PROPERTY_APPROVED" ? <CheckCircle size={12}/> : <XCircle size={12}/>}
-                            {detailLog.action === "PROPERTY_APPROVED" ? "Approved" : "Rejected"}
+                          <span className={isApprovedAction(detailLog.action) ? styles.statusTextApprove : styles.statusTextReject}
+                            style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                            {isApprovedAction(detailLog.action) ? <CheckCircle size={12}/> : <XCircle size={12}/>}
+                            {isApprovedAction(detailLog.action) ? "Approved" : "Rejected"}
                           </span>
                         </div>
                         <div className={styles.auditInfoRow}>
@@ -407,13 +425,13 @@ const AdminAuditLog: React.FC = () => {
                             {new Date(detailLog.createdAt).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
                           </span>
                         </div>
-                        
+
                         {detailLog.reason && (
                           <div className={styles.auditReasonBlock}>
                             <span className={styles.auditInfoKey}>
-                              {detailLog.action === "PROPERTY_APPROVED" ? "Approval Note" : "Rejection Reason"}
+                              {isApprovedAction(detailLog.action) ? "Approval Note" : "Rejection Reason"}
                             </span>
-                            <p className={`${styles.auditReasonText} ${detailLog.action === "PROPERTY_APPROVED" ? styles.auditReasonTextApprove : styles.auditReasonTextReject}`}>
+                            <p className={`${styles.auditReasonText} ${isApprovedAction(detailLog.action) ? styles.auditReasonTextApprove : styles.auditReasonTextReject}`}>
                               {detailLog.reason}
                             </p>
                           </div>
@@ -428,50 +446,34 @@ const AdminAuditLog: React.FC = () => {
         </div>
       )}
 
-      {/* ── Lightbox Modal ── */}
+      {/* ── Lightbox ── */}
       {isLightboxOpen && property && (
-        <div 
-          onClick={() => setIsLightboxOpen(false)}
-          style={{
-            position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
-            backgroundColor: "rgba(18, 18, 18, 0.95)", zIndex: 99999,
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center"
-          }}
-        >
+        <div onClick={() => setIsLightboxOpen(false)} style={{
+          position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh",
+          backgroundColor: "rgba(18,18,18,0.95)", zIndex: 99999,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        }}>
           <div style={{ position: "absolute", top: 0, width: "100%", padding: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", color: "white", boxSizing: "border-box" }}>
             <span style={{ fontSize: "14px", fontWeight: "bold", letterSpacing: "1px" }}>
               {activeImg + 1} / {property.images.length}
             </span>
-            <button 
-              onClick={() => setIsLightboxOpen(false)}
-              style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "white", width: "44px", height: "44px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.2s" }}
-            >
+            <button onClick={() => setIsLightboxOpen(false)} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "white", width: "44px", height: "44px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <X size={24} />
             </button>
           </div>
 
           <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
             {property.images.length > 1 && (
-              <button 
-                onClick={(e) => { e.stopPropagation(); setActiveImg((i) => Math.max(0, i - 1)); }}
-                style={{ position: "absolute", left: "24px", background: "rgba(255,255,255,0.1)", border: "none", color: "white", width: "56px", height: "56px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: activeImg === 0 ? 0.3 : 1, pointerEvents: activeImg === 0 ? "none" : "auto", transition: "background 0.2s" }}
-              >
+              <button onClick={(e) => { e.stopPropagation(); setActiveImg((i) => Math.max(0, i - 1)); }}
+                style={{ position: "absolute", left: "24px", background: "rgba(255,255,255,0.1)", border: "none", color: "white", width: "56px", height: "56px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: activeImg === 0 ? 0.3 : 1, pointerEvents: activeImg === 0 ? "none" : "auto" }}>
                 <ChevronLeft size={32} />
               </button>
             )}
-
-            <img 
-              src={property.images[activeImg]?.imageUrl} 
-              alt="Fullscreen property" 
-              onClick={(e) => e.stopPropagation()} 
-              style={{ maxWidth: "85%", maxHeight: "85vh", objectFit: "contain", borderRadius: "8px", boxShadow: "0 10px 40px rgba(0,0,0,0.6)" }} 
-            />
-
+            <img src={property.images[activeImg]?.imageUrl} alt="Fullscreen property" onClick={(e) => e.stopPropagation()}
+              style={{ maxWidth: "85%", maxHeight: "85vh", objectFit: "contain", borderRadius: "8px", boxShadow: "0 10px 40px rgba(0,0,0,0.6)" }} />
             {property.images.length > 1 && (
-              <button 
-                onClick={(e) => { e.stopPropagation(); setActiveImg((i) => Math.min(property.images.length - 1, i + 1)); }}
-                style={{ position: "absolute", right: "24px", background: "rgba(255,255,255,0.1)", border: "none", color: "white", width: "56px", height: "56px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: activeImg === property.images.length - 1 ? 0.3 : 1, pointerEvents: activeImg === property.images.length - 1 ? "none" : "auto", transition: "background 0.2s" }}
-              >
+              <button onClick={(e) => { e.stopPropagation(); setActiveImg((i) => Math.min(property.images.length - 1, i + 1)); }}
+                style={{ position: "absolute", right: "24px", background: "rgba(255,255,255,0.1)", border: "none", color: "white", width: "56px", height: "56px", borderRadius: "50%", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: activeImg === property.images.length - 1 ? 0.3 : 1, pointerEvents: activeImg === property.images.length - 1 ? "none" : "auto" }}>
                 <ChevronRight size={32} />
               </button>
             )}

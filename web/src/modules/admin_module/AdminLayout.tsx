@@ -31,7 +31,7 @@ const AdminLayout: React.FC = () => {
 
   const navItems = [
     { path: "/admin/rental-requests", icon: "", label: "Property Requests" },
-    { path: "/admin/property-edit-requests", icon: "", label: "Property Edit Requests"   },
+    { path: "/admin/property-edit-requests", icon: "", label: "Edit Requests"   },
     { path: "/admin/properties",      icon: "", label: "All Properties"  },
     { path: "/admin/users",           icon: "", label: "Users"           },
     { path: "/admin/audit-log",       icon: "", label: "Audit Log"       },
