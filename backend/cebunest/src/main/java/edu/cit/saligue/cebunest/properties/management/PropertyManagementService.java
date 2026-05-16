@@ -8,9 +8,9 @@ import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
 import edu.cit.saligue.cebunest.properties.shared.PropertyImageRepository;
 import edu.cit.saligue.cebunest.properties.shared.PropertyTypeRepository;
 import edu.cit.saligue.cebunest.users.shared.User;
-import edu.cit.saligue.cebunest.infrastructure.storage.SupabaseStorageService; // Keep here for now
-import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository; // Keep here for now
-import edu.cit.saligue.cebunest.rentals.shared.RentalRequest; // Keep here for now
+import edu.cit.saligue.cebunest.infrastructure.storage.SupabaseStorageService;
+import edu.cit.saligue.cebunest.rentals.shared.RentalRequestRepository;
+import edu.cit.saligue.cebunest.rentals.shared.RentalRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,10 +37,15 @@ public class PropertyManagementService {
         return propertyRepository.findByOwnerFiltered(owner.getId(), cleanSearch, minPrice, maxPrice, cleanStatus)
                 .stream().map(p -> {
                     PropertyDTO dto = PropertyDTO.from(p);
+
                     boolean hasActiveTenant = rentalRequestRepository
                             .findByPropertyIdAndStatus(p.getId(), RentalRequest.RentalStatus.CONFIRMED)
                             .isPresent();
                     dto.setHasActiveTenant(hasActiveTenant);
+
+                    long rentalRequestsCount = rentalRequestRepository.countByPropertyId(p.getId());
+                    dto.setRentalRequestsCount(rentalRequestsCount);
+
                     return dto;
                 }).toList();
     }
@@ -151,14 +156,13 @@ public class PropertyManagementService {
         if (!property.getOwner().getId().equals(owner.getId()))
             throw new IllegalArgumentException("You do not own this property.");
 
-        rentalRequestRepository
-                .findByPropertyIdAndStatus(propertyId, RentalRequest.RentalStatus.CONFIRMED)
-                .ifPresent(r -> {
-                    throw new IllegalArgumentException(
-                            "Cannot delete this property while it has an active tenant. " +
-                                    "Please end the lease first before deleting."
-                    );
-                });
+        // Block if any rental history exists — preserve records
+        long requestCount = rentalRequestRepository.countByPropertyId(propertyId);
+        if (requestCount > 0)
+            throw new IllegalArgumentException(
+                    "This property has rental history and cannot be deleted to preserve records. " +
+                            "You can mark it as Unavailable instead."
+            );
 
         propertyRepository.delete(property);
     }

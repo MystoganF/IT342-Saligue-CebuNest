@@ -67,6 +67,6 @@ public class Property {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     public enum PropertyStatus {
-        AVAILABLE, UNAVAILABLE, PENDING_REVIEW, APPROVED, REJECTED
+        AVAILABLE, UNAVAILABLE, PENDING_REVIEW, APPROVED, REJECTED, PENDING_EDIT_REVIEW
     }
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useParams, useOutletContext } from "react-router-dom";
 import { editPropertyApi } from "./edit_property.api";
+import { ownerEditRequestApi } from "../../admin_module/admin_property_edit_requests/admin_property_edits.api";
 import styles from "./owner_edit_property.module.css";
 import tabStyles from "./owner_edit_property_tabs.module.css";
 import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
@@ -199,6 +200,13 @@ function ClickableMap({ coords, setCoords, onLocationSelect }: {
   useMapEvents({
     click(e) {
       const { lat, lng } = e.latlng;
+      const inBounds =
+        lat >= CEBU_CITY_BOUNDS.minLat && lat <= CEBU_CITY_BOUNDS.maxLat &&
+        lng >= CEBU_CITY_BOUNDS.minLon && lng <= CEBU_CITY_BOUNDS.maxLon;
+      if (!inBounds) {
+        onLocationSelect(lat, lng); // still call to trigger the error message
+        return;                     // but skip setCoords so no marker is placed
+      }
       setCoords({ lat, lon: lng });
       onLocationSelect(lat, lng);
     },
@@ -435,17 +443,24 @@ const EditProperty: React.FC = () => {
   };
 
   const handleMapClick = async (lat: number, lon: number) => {
-    if (lat < CEBU_CITY_BOUNDS.minLat || lat > CEBU_CITY_BOUNDS.maxLat || lon < CEBU_CITY_BOUNDS.minLon || lon > CEBU_CITY_BOUNDS.maxLon) { 
-      setMapError("Please select a location within Cebu City.");
-      return; 
-    }
-    setMapSearching(true); setMapError(null);
-    try {
-      const address = await reverseGeocode(lat, lon);
-      if (address) setLocation(address);
-    } catch { setMapError("Could not retrieve address for this location."); }
-    finally { setMapSearching(false); }
-  };
+  if (
+    lat < CEBU_CITY_BOUNDS.minLat || lat > CEBU_CITY_BOUNDS.maxLat ||
+    lon < CEBU_CITY_BOUNDS.minLon || lon > CEBU_CITY_BOUNDS.maxLon
+  ) {
+    setMapError("Cannot place a pin here — please select a location on land within Cebu City.");
+    return;
+  }
+  setMapSearching(true); setMapError(null);
+  try {
+    const address = await reverseGeocode(lat, lon);
+    if (address) setLocation(address);
+    else setMapError("Could not retrieve address for this location.");
+  } catch {
+    setMapError("Could not retrieve address for this location.");
+  } finally {
+    setMapSearching(false);
+  }
+}
 
   const addFiles = (files: FileList | null) => {
     if (!files) return;
@@ -525,30 +540,83 @@ const EditProperty: React.FC = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!id) return;
-    setSubmitting(true); setSubmitMsg(null);
-    try {
-      const updateData = await editPropertyApi.updateProperty(id, {
-        title: title.trim(), description: description.trim(), price: parseFloat(price),
-        location: location.trim(), typeId: parseInt(typeId),
-        beds: beds ? parseInt(beds) : null, baths: baths ? parseInt(baths) : null, sqm: sqm ? parseInt(sqm) : null,
-        status: currentStatus === "AVAILABLE" || currentStatus === "UNAVAILABLE" ? status : undefined,
-        removedImageIds: removedImageIds.length > 0 ? removedImageIds : undefined,
-      });
-      if (!updateData.success) { setSubmitMsg({ type: "error", text: updateData?.error?.message ?? "Failed to update property." }); return; }
-      
-      if (newImageFiles.length > 0) {
-        const formData = new FormData();
-        newImageFiles.forEach((f) => formData.append("files", f));
-        const imgData = await editPropertyApi.uploadPropertyImages(id, formData);
-        if (!imgData.success) { setSubmitMsg({ type: "warning", text: "Property updated! Some images failed to upload." }); setTimeout(() => navigate("/owner/properties"), 2000); return; }
-      }
-      setSubmitMsg({ type: "success", text: "Property updated successfully! Redirecting…" });
-      setTimeout(() => navigate("/owner/properties"), 1500);
-    } catch { setSubmitMsg({ type: "error", text: "Network error. Please try again." }); }
-    finally { setSubmitting(false); }
+  e.preventDefault();
+  if (!id) return;
+  setSubmitMsg(null);
+
+  // Validate location is within Cebu City before submitting
+  if (isBlockedLocation(location.trim())) {
+    setSubmitMsg({ type: "error", text: "Only Cebu City addresses are allowed." });
+    setActiveTab("property");
+    return;
+  }
+  if (!mapCoords) {
+    setSubmitMsg({ type: "error", text: "Please pin your property location on the map before saving." });
+    setActiveTab("property");
+    return;
+  }
+  const inBounds =
+    mapCoords.lat >= CEBU_CITY_BOUNDS.minLat && mapCoords.lat <= CEBU_CITY_BOUNDS.maxLat &&
+    mapCoords.lon >= CEBU_CITY_BOUNDS.minLon && mapCoords.lon <= CEBU_CITY_BOUNDS.maxLon;
+  if (!inBounds) {
+    setSubmitMsg({ type: "error", text: "Location must be within Cebu City." });
+    setMapError("This location is outside Cebu City.");
+    setActiveTab("property");
+    return;
+  }
+
+  setSubmitting(true);
+ 
+  const payload = {
+    title:       title.trim(),
+    description: description.trim(),
+    price:       parseFloat(price),
+    location:    location.trim(),
+    typeId:      parseInt(typeId),
+    beds:        beds  ? parseInt(beds)  : null,
+    baths:       baths ? parseInt(baths) : null,
+    sqm:         sqm   ? parseInt(sqm)   : null,
   };
+ 
+  try {
+    // Submit as an edit request (requires admin approval) instead of a direct PUT.
+    // Image uploads are NOT part of the edit-request flow; they still use the direct API.
+    const data = await ownerEditRequestApi.submitEditRequest(id, payload);
+ 
+    if (!data.success) {
+      setSubmitMsg({ type: "error", text: data?.error?.message ?? "Failed to submit edit request." });
+      return;
+    }
+ 
+    // Upload any new images directly (these don't require admin approval)
+    if (newImageFiles.length > 0) {
+      const formData = new FormData();
+      newImageFiles.forEach((f) => formData.append("files", f));
+      const imgData = await editPropertyApi.uploadPropertyImages(id, formData);
+      if (!imgData.success) {
+        setSubmitMsg({
+          type: "warning",
+          text: "Edit request submitted! Some images failed to upload.",
+        });
+        setTimeout(() => navigate("/owner/properties"), 2200);
+        return;
+      }
+    }
+ 
+    setSubmitMsg({
+      type: "success",
+      text: "Edit request submitted! Your changes are pending admin review.",
+    });
+    // Update local status so the banner appears immediately
+    setCurrentStatus("PENDING_EDIT_REVIEW");
+    setTimeout(() => navigate("/owner/properties"), 2200);
+ 
+  } catch {
+    setSubmitMsg({ type: "error", text: "Network error. Please try again." });
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   // Derived Receipt Data
   const activeReceipt = useMemo(() => {
@@ -559,7 +627,10 @@ const EditProperty: React.FC = () => {
   if (!user) return null;
 
   // ── Derived values ──
-  const isRejected = currentStatus === "REJECTED";
+  const isRejected          = currentStatus === "REJECTED";
+  const isPendingReview     = currentStatus === "PENDING_REVIEW";
+  const isPendingEditReview = currentStatus === "PENDING_EDIT_REVIEW";
+  const isLocked            = isRejected || isPendingReview || isPendingEditReview;
   const canToggleStatus = currentStatus === "AVAILABLE" || currentStatus === "UNAVAILABLE";
   const visibleExisting = existingImages.filter((img) => !removedImageIds.includes(img.id));
   const totalPhotos = visibleExisting.length + newImageFiles.length;
@@ -584,6 +655,7 @@ const EditProperty: React.FC = () => {
   const submitIcon = submitMsg?.type === "success" ? <Check size={16} /> : submitMsg?.type === "warning" ? <AlertTriangle size={16} /> : <X size={16} />;
   const submitMsgClass = submitMsg?.type === "success" ? styles.submitMsgSuccess : submitMsg?.type === "warning" ? styles.submitMsgWarning : styles.submitMsgError;
 
+  
   // ── Tab configuration ──
   const tabs: Tab[] = [
     { id: "property", label: "Property", icon: <Home size={18} /> },
@@ -938,19 +1010,51 @@ const EditProperty: React.FC = () => {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ pointerEvents: isRejected ? "none" : undefined, opacity: isRejected ? 0.6 : 1 }}>
-        <main className={styles.main}>
+      <form onSubmit={handleSubmit}>
+  <main className={styles.main}>
 
-          {isRejected && (
-            <div style={{ display: "flex", alignItems: "flex-start", gap: "14px", padding: "18px 22px", background: "rgba(192,57,43,0.06)", border: "1.5px solid rgba(192,57,43,0.22)", borderRadius: "14px", marginBottom: "4px" }}>
-              <XCircle size={24} style={{ color: "#c0392b", flexShrink: 0 }} />
-              <div>
-                <div style={{ fontWeight: 800, fontSize: "15px", color: "#c0392b", marginBottom: "4px" }}>This property was rejected by an admin</div>
-                {rejectionReason && <div style={{ fontSize: "13px", color: "#7b2d22", background: "rgba(192,57,43,0.07)", borderLeft: "3px solid #c0392b", borderRadius: "0 6px 6px 0", padding: "8px 12px", marginTop: "6px", lineHeight: 1.5 }}><strong>Reason:</strong> {rejectionReason}</div>}
-                <div style={{ fontSize: "12px", color: "#6e7071", marginTop: "8px" }}>This listing is read-only.</div>
-              </div>
+                  {isRejected && (
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "14px", padding: "18px 22px", background: "rgba(192,57,43,0.06)", border: "1.5px solid rgba(192,57,43,0.22)", borderRadius: "14px", marginBottom: "4px" }}>
+            <XCircle size={24} style={{ color: "#c0392b", flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 800, fontSize: "15px", color: "#c0392b", marginBottom: "4px" }}>This property was rejected by an admin</div>
+              {rejectionReason && (
+                <div style={{ fontSize: "13px", color: "#7b2d22", background: "rgba(192,57,43,0.07)", borderLeft: "3px solid #c0392b", borderRadius: "0 6px 6px 0", padding: "8px 12px", marginTop: "6px", lineHeight: 1.5 }}>
+                  <strong>Reason:</strong> {rejectionReason}
+                </div>
+              )}
+              <div style={{ fontSize: "12px", color: "#6e7071", marginTop: "8px" }}>This listing is read-only.</div>
             </div>
-          )}
+          </div>
+        )}
+        
+        {/* PENDING_REVIEW banner */}
+        {isPendingReview && (
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "14px", padding: "18px 22px", background: "rgba(183,142,66,0.06)", border: "1.5px solid rgba(183,142,66,0.28)", borderRadius: "14px", marginBottom: "4px" }}>
+            <AlertTriangle size={24} style={{ color: "#b78e42", flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 800, fontSize: "15px", color: "#92600a", marginBottom: "4px" }}>This property is under review</div>
+              <div style={{ fontSize: "13px", color: "#7a5210", lineHeight: 1.5 }}>
+                Your listing is currently being reviewed by an admin before it goes live. Editing is disabled until the review is complete.
+              </div>
+              <div style={{ fontSize: "12px", color: "#6e7071", marginTop: "8px" }}>This listing is read-only.</div>
+            </div>
+          </div>
+        )}
+        
+        {/* PENDING_EDIT_REVIEW banner */}
+        {isPendingEditReview && (
+          <div style={{ display: "flex", alignItems: "flex-start", gap: "14px", padding: "18px 22px", background: "rgba(31,93,113,0.06)", border: "1.5px solid rgba(31,93,113,0.22)", borderRadius: "14px", marginBottom: "4px" }}>
+            <Clock size={24} style={{ color: "#1f5d71", flexShrink: 0 }} />
+            <div>
+              <div style={{ fontWeight: 800, fontSize: "15px", color: "#1f5d71", marginBottom: "4px" }}>Edit request pending admin approval</div>
+              <div style={{ fontSize: "13px", color: "#3d7a8a", lineHeight: 1.5 }}>
+                Your proposed changes have been submitted and are awaiting admin review. The live listing will only be updated after approval. Further edits are disabled until then.
+              </div>
+              <div style={{ fontSize: "12px", color: "#6e7071", marginTop: "8px" }}>This listing is read-only.</div>
+            </div>
+          </div>
+        )}
 
           {/* ══ PROPERTY TAB ══════════════════════════════════════════════ */}
           {activeTab === "property" && (
@@ -1104,7 +1208,7 @@ const EditProperty: React.FC = () => {
               <div className={styles.submitRow}>
                 {submitMsg && <span className={`${styles.submitMsg} ${submitMsgClass}`}>{submitIcon} {submitMsg.text}</span>}
                 <button type="button" className={styles.cancelBtn} onClick={() => navigate(-1)} disabled={submitting}>Cancel</button>
-                <button type="submit" className={styles.submitBtn} disabled={submitting || isRejected}>
+                <button type="submit" className={styles.submitBtn} disabled={submitting || isLocked}>
                   {submitting ? <><Loader2 size={16} className={styles.submitSpinner} /> Saving…</> : "Save Changes"}
                 </button>
               </div>

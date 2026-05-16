@@ -149,6 +149,8 @@ public class PropertyManagementController {
         }
     }
 
+    // ── Helpers ───────────────────────────────────────────────────────────
+
     private ResponseEntity<?> buildSuccess(Object data) {
         Map<String, Object> body = new HashMap<>();
         body.put("success", true);

@@ -27,6 +27,9 @@ import ForgotPassword from "./modules/authentication_module/forgot_password/Forg
 import VerifyCode from "./modules/authentication_module/forgot_password/VerifyCode";
 import ResetPassword from "./modules/authentication_module/forgot_password/ResetPassword";
 import AuthLayout from "./modules/authentication_module/Auth_Layout";
+import AdminPropertyEdits from "./modules/admin_module/admin_property_edit_requests/AdminPropertyEdits";
+import AdminPropertyEditDetail from "./modules/admin_module/admin_property_edit_requests/AdminPropertyEditDetail";
+
 function App() {
   return (
     <BrowserRouter>
@@ -68,6 +71,8 @@ function App() {
           <Route path="/admin/properties" element={<AdminProperties />} />
           <Route path="/admin/properties/:id/edit" element={<AdminPropertyEdit />} />
           <Route path="/admin/notifications" element={<AdminNotifications />} />
+          <Route path="/admin/property-edit-requests"     element={<AdminPropertyEdits />} />
+          <Route path="/admin/property-edit-requests/:id" element={<AdminPropertyEditDetail />} />
         </Route>
         
       </Routes>

@@ -15,4 +15,10 @@ export const adminUsersApi = {
 
   toggleUserActiveStatus: (id: string | number, data: { active: boolean }) => 
     axiosInstance.put(`/api/admin/users/${id}/active`, data).then(res => res.data),
+
+  updateUserProfile: (id: number, data: {
+  name: string; phoneNumber?: string;
+  facebookUrl?: string; instagramUrl?: string; twitterUrl?: string;
+}) =>
+  axiosInstance.put(`/api/admin/users/${id}/profile`, data).then(res => res.data),
 };

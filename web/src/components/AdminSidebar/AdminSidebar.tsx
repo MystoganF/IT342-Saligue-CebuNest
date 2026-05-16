@@ -21,11 +21,12 @@ interface Props {
   navItems?: NavItem[];
 }
 
-const DEFAULT_NAV: NavItem[] = [
-  { path: "/admin/rental-requests", icon: "📋", label: "Rental Property Requests" },
-  { path: "/admin/properties",      icon: "🏘️", label: "All Properties"  },
-  { path: "/admin/users",           icon: "👥", label: "Users"           },
-];
+  const DEFAULT_NAV: NavItem[] = [
+    { path: "/admin/rental-requests",        icon: "📋", label: "Rental Property Requests" },
+    { path: "/admin/property-edit-requests", icon: "✏️", label: "Property Edit Requests"   },
+    { path: "/admin/properties",             icon: "🏘️", label: "All Properties"           },
+    { path: "/admin/users",                  icon: "👥", label: "Users"                    },
+  ];
 
 const AdminSidebar: React.FC<Props> = ({ user, navItems = DEFAULT_NAV }) => {
   const navigate    = useNavigate();

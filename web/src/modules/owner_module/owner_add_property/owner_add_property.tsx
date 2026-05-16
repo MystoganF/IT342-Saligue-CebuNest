@@ -106,7 +106,6 @@ function isBlockedLocation(input: string): boolean {
   return BLOCKED_CITIES.some((city) => lower.includes(city));
 }
 
-// ─── Clickable Map Component ───────────────────────────────────────────────
 function ClickableMap({
   coords,
   setCoords,
@@ -119,6 +118,13 @@ function ClickableMap({
   useMapEvents({
     click(e) {
       const { lat, lng } = e.latlng;
+      const inBounds =
+        lat >= CEBU_CITY_BOUNDS.minLat && lat <= CEBU_CITY_BOUNDS.maxLat &&
+        lng >= CEBU_CITY_BOUNDS.minLon && lng <= CEBU_CITY_BOUNDS.maxLon;
+      if (!inBounds) {
+        onLocationSelect(lat, lng); // trigger error message, skip marker
+        return;
+      }
       setCoords({ lat, lon: lng });
       onLocationSelect(lat, lng);
     },
@@ -219,9 +225,7 @@ const AddProperty: React.FC = () => {
       lon < CEBU_CITY_BOUNDS.minLon ||
       lon > CEBU_CITY_BOUNDS.maxLon
     ) {
-      setMapError(
-        "That pin is outside Cebu City. Please select a location strictly within Cebu City bounds.",
-      );
+      setMapError("Cannot place a pin here — please select a location on land within Cebu City.");
       return;
     }
 
@@ -256,16 +260,25 @@ const AddProperty: React.FC = () => {
     setImagePreviews(updated.map((f) => URL.createObjectURL(f)));
   };
 
-  // ── Submit ─────────────────────────────────────────────────────────────
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    setSubmitMsg(null);
 
+    if (isBlockedLocation(location.trim())) {
+      setSubmitMsg({ type: "error", text: "Only Cebu City addresses are allowed." });
+      return;
+    }
     if (!mapCoords) {
-      setSubmitMsg({
-        type: "error",
-        text: "Please pin a location on the map.",
-      });
+      setSubmitMsg({ type: "error", text: "Please pin a location on the map." });
+      return;
+    }
+    const inBounds =
+      mapCoords.lat >= CEBU_CITY_BOUNDS.minLat && mapCoords.lat <= CEBU_CITY_BOUNDS.maxLat &&
+      mapCoords.lon >= CEBU_CITY_BOUNDS.minLon && mapCoords.lon <= CEBU_CITY_BOUNDS.maxLon;
+    if (!inBounds) {
+      setSubmitMsg({ type: "error", text: "Location must be within Cebu City." });
+      setMapError("This location is outside Cebu City.");
       return;
     }
 
