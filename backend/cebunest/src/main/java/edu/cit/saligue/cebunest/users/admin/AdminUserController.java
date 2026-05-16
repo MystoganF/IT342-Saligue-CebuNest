@@ -19,7 +19,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/admin/users")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173")
 public class AdminUserController {
 
     private final AdminUserService adminUserService;
