@@ -1,0 +1,432 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   AdminPropertyEdits.module.css
+   Supplemental styles for the Property Edit Review pages.
+   Base page/card/skeleton/state styles come from admin_rental_request.module.css
+───────────────────────────────────────────────────────────────────────────── */
+
+/* ── Edit thumb (replaces property image on the list card) ────────────────── */
+.editThumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(31, 93, 113, 0.08), rgba(83, 164, 163, 0.12)) !important;
+  border-color: rgba(31, 93, 113, 0.15) !important;
+}
+.editThumbIcon {
+  color: #1f5d71;
+  opacity: 0.55;
+}
+
+/* ── Changed-fields pill strip on list cards ──────────────────────────────── */
+.changedPills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+.changesCount {
+  font-size: 11px;
+  font-weight: 800;
+  color: #b78e42;
+  background: rgba(183, 142, 66, 0.1);
+  border: 1px solid rgba(183, 142, 66, 0.25);
+  border-radius: 20px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+.pill {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1f5d71;
+  background: rgba(31, 93, 113, 0.07);
+  border: 1px solid rgba(31, 93, 113, 0.15);
+  border-radius: 20px;
+  padding: 2px 9px;
+}
+
+/* ── Detail page: header card ─────────────────────────────────────────────── */
+.headerCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e5eced;
+  padding: 20px 24px;
+  box-shadow: 0 2px 10px rgba(31, 93, 113, 0.04);
+  margin-bottom: 16px;
+  animation: fadeUp 0.35s ease both;
+}
+.headerCardIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(31, 93, 113, 0.1), rgba(83, 164, 163, 0.15));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1f5d71;
+  flex-shrink: 0;
+}
+.headerCardInfo {
+  flex: 1;
+  min-width: 0;
+}
+.headerCardTitle {
+  font-family: "Playfair Display", serif;
+  font-size: 20px;
+  font-weight: 800;
+  color: #1f5d71;
+  margin: 0 0 6px;
+}
+.headerCardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+  color: #6e7071;
+}
+.headerCardMeta span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.statusBadge {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+.statusPending {
+  color: #b78e42;
+  background: rgba(183, 142, 66, 0.1);
+  border: 1.5px solid rgba(183, 142, 66, 0.25);
+}
+
+/* ── Diff card ────────────────────────────────────────────────────────────── */
+.diffCard {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #e5eced;
+  padding: 24px 28px;
+  box-shadow: 0 2px 10px rgba(31, 93, 113, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  animation: fadeUp 0.4s ease both;
+  margin-bottom: 16px;
+}
+.diffCardTitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f5d71;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.diffCardSub {
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.diffCardTitle::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #f0f4f5;
+}
+
+/* ── Diff row ─────────────────────────────────────────────────────────────── */
+.diffRow {
+  padding: 14px 0;
+  border-bottom: 1px solid #f0f4f5;
+  transition: background 0.15s;
+  border-radius: 8px;
+}
+.diffRow:last-child {
+  border-bottom: none;
+}
+.diffRowChanged {
+  background: rgba(183, 142, 66, 0.04);
+  padding: 14px 12px;
+  margin: 0 -12px;
+  border-radius: 10px;
+  border-bottom: none;
+  margin-bottom: 2px;
+}
+
+.diffLabel {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6e7071;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 10px;
+}
+.diffLabelIcon {
+  display: flex;
+  align-items: center;
+  color: #1f5d71;
+}
+.diffChangedBadge {
+  font-size: 10px;
+  font-weight: 800;
+  color: #b78e42;
+  background: rgba(183, 142, 66, 0.12);
+  border: 1px solid rgba(183, 142, 66, 0.28);
+  border-radius: 20px;
+  padding: 2px 8px;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-left: 2px;
+}
+
+.diffCols {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.diffCol {
+  flex: 1;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.diffColOld {
+  background: #f8fafb;
+  border: 1.5px solid #e5eced;
+}
+.diffColNew {
+  background: #f8fafb;
+  border: 1.5px solid #e5eced;
+}
+
+/* When this row has a change, colour the old/new cols distinctively */
+.diffRowChanged .diffColOld {
+  background: rgba(192, 57, 43, 0.04);
+  border-color: rgba(192, 57, 43, 0.2);
+}
+.diffRowChanged .diffColNew {
+  background: rgba(26, 122, 74, 0.05);
+  border-color: rgba(26, 122, 74, 0.22);
+}
+
+.diffColHeader {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+.diffVal {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a2a2e;
+  word-break: break-word;
+  line-height: 1.5;
+}
+.diffValOld {
+  color: #c0392b;
+  text-decoration: line-through;
+  text-decoration-color: rgba(192, 57, 43, 0.4);
+}
+.diffValNew {
+  color: #1a7a4a;
+  font-weight: 700;
+}
+
+.diffArrow {
+  color: #94a3b8;
+  font-size: 18px;
+  font-weight: 700;
+  padding-top: 28px;
+  flex-shrink: 0;
+}
+
+/* ── Action row ───────────────────────────────────────────────────────────── */
+.actionRow {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  animation: fadeUp 0.5s ease both;
+}
+.rejectBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: #fff;
+  color: #c0392b;
+  border: 1.5px solid rgba(192, 57, 43, 0.3);
+  border-radius: 12px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.rejectBtn:hover {
+  background: rgba(192, 57, 43, 0.05);
+  border-color: #c0392b;
+}
+.approveBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  background: #1a7a4a;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+.approveBtn:hover {
+  background: #145e38;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(26, 122, 74, 0.22);
+}
+
+/* ── Modal pieces ─────────────────────────────────────────────────────────── */
+.modalHeader {
+  padding: 20px 24px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.modalHeaderApprove {
+  background: linear-gradient(135deg, #e8f7ef, #d4f0e2);
+}
+.modalHeaderReject {
+  background: linear-gradient(135deg, #fdf0ee, #fde0db);
+}
+.modalTitle {
+  font-family: "Playfair Display", serif;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1a2a2e;
+  margin: 0;
+}
+.inputLabel {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f5d71;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.reasonInput {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid #e5eced;
+  border-radius: 10px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  color: #1a2a2e;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+}
+.reasonInput:focus {
+  border-color: #53a4a3;
+  box-shadow: 0 0 0 4px rgba(83, 164, 163, 0.1);
+}
+.modalCancelBtn {
+  padding: 10px 20px;
+  background: #f0f4f5;
+  border: 1.5px solid #e5eced;
+  border-radius: 10px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: #6e7071;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.modalCancelBtn:hover:not(:disabled) { background: #e5eced; }
+.modalCancelBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.modalApproveBtn {
+  padding: 10px 22px;
+  background: #1a7a4a;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s;
+}
+.modalApproveBtn:hover:not(:disabled) { background: #145e38; }
+.modalApproveBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.modalRejectBtn {
+  padding: 10px 22px;
+  background: #c0392b;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s;
+}
+.modalRejectBtn:hover:not(:disabled) { background: #a93226; }
+.modalRejectBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+
+/* ── Animations ───────────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .diffCols { flex-direction: column; }
+  .diffArrow { display: none; }
+  .diffCol { width: 100%; }
+  .actionRow { flex-direction: column; }
+  .approveBtn, .rejectBtn { width: 100%; justify-content: center; }
+  .headerCard { flex-direction: column; }
+}
