@@ -227,6 +227,10 @@ const EditProperty: React.FC = () => {
   const [pageLoading, setPageLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
 
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingPayload, setPendingPayload] = useState<any>(null);
+  const [pendingPendingImageIds, setPendingPendingImageIds] = useState<number[]>([]);
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -533,98 +537,98 @@ const EditProperty: React.FC = () => {
     finally { setExtActionSubmitting(false); setExtActionId(null); }
   };
 
-  // ── KEY CHANGE: handleSubmit now uploads images as pending first, ──────
-  // then submits the edit request with the pending image IDs included.
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!id) return;
-    setSubmitMsg(null);
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!id) return;
+  setSubmitMsg(null);
 
-    if (isBlockedLocation(location.trim())) {
-      setSubmitMsg({ type: "error", text: "Only Cebu City addresses are allowed." });
-      setActiveTab("property");
-      return;
-    }
-    if (!mapCoords) {
-      setSubmitMsg({ type: "error", text: "Please pin your property location on the map before saving." });
-      setActiveTab("property");
-      return;
-    }
-    const inBounds =
-      mapCoords.lat >= CEBU_CITY_BOUNDS.minLat && mapCoords.lat <= CEBU_CITY_BOUNDS.maxLat &&
-      mapCoords.lon >= CEBU_CITY_BOUNDS.minLon && mapCoords.lon <= CEBU_CITY_BOUNDS.maxLon;
-    if (!inBounds) {
-      setSubmitMsg({ type: "error", text: "Location must be within Cebu City." });
-      setMapError("This location is outside Cebu City.");
-      setActiveTab("property");
-      return;
-    }
+  if (isBlockedLocation(location.trim())) {
+    setSubmitMsg({ type: "error", text: "Only Cebu City addresses are allowed." });
+    setActiveTab("property");
+    return;
+  }
+  if (!mapCoords) {
+    setSubmitMsg({ type: "error", text: "Please pin your property location on the map before saving." });
+    setActiveTab("property");
+    return;
+  }
+  const inBounds =
+    mapCoords.lat >= CEBU_CITY_BOUNDS.minLat && mapCoords.lat <= CEBU_CITY_BOUNDS.maxLat &&
+    mapCoords.lon >= CEBU_CITY_BOUNDS.minLon && mapCoords.lon <= CEBU_CITY_BOUNDS.maxLon;
+  if (!inBounds) {
+    setSubmitMsg({ type: "error", text: "Location must be within Cebu City." });
+    setMapError("This location is outside Cebu City.");
+    setActiveTab("property");
+    return;
+  }
 
-    setSubmitting(true);
-
-    try {
-      // Step 1: Upload new images as PENDING before submitting the edit request.
-      // The backend marks these with isPending=true so they don't appear publicly yet.
-      let pendingImageIds: number[] = [];
-      if (newImageFiles.length > 0) {
-        setPendingUploading(true);
-        const formData = new FormData();
-        newImageFiles.forEach((f) => formData.append("files", f));
-
-        // POST to the new pending-upload endpoint
-        const imgData = await editPropertyApi.uploadPendingPropertyImages(id, formData);
-        setPendingUploading(false);
-
-        if (!imgData.success) {
-          setSubmitMsg({ type: "error", text: "Failed to upload images. Please try again." });
-          setSubmitting(false);
-          return;
-        }
-
-        // Collect the IDs of the newly uploaded pending images
-        pendingImageIds = (imgData.data?.images ?? []).map((img: any) => img.id);
-      }
-
-      // Step 2: Submit the edit request, including image change metadata.
-      const payload = {
-        title:          title.trim(),
-        description:    description.trim(),
-        price:          parseFloat(price),
-        location:       location.trim(),
-        typeId:         parseInt(typeId),
-        beds:           beds  ? parseInt(beds)  : null,
-        baths:          baths ? parseInt(baths) : null,
-        sqm:            sqm   ? parseInt(sqm)   : null,
-        removedImageIds: removedImageIds.length > 0 ? removedImageIds : [],
-        pendingImageIds: pendingImageIds.length > 0 ? pendingImageIds : [],
-      };
-
-      console.log("Edit request payload:", JSON.stringify(payload, null, 2));
-
-      const data = await ownerEditRequestApi.submitEditRequest(id, payload);
-
-      if (!data.success) {
-        // If the edit request failed but we already uploaded pending images,
-        // they will stay as orphaned pending images. The backend scheduler or
-        // admin can clean them up, or we could call a cleanup endpoint here.
-        setSubmitMsg({ type: "error", text: data?.error?.message ?? "Failed to submit edit request." });
+  // Upload pending images first if any, then show confirmation
+  setSubmitting(true);
+  try {
+    let pendingImageIds: number[] = [];
+    if (newImageFiles.length > 0) {
+      setPendingUploading(true);
+      const formData = new FormData();
+      newImageFiles.forEach((f) => formData.append("files", f));
+      const imgData = await editPropertyApi.uploadPendingPropertyImages(id, formData);
+      setPendingUploading(false);
+      if (!imgData.success) {
+        setSubmitMsg({ type: "error", text: "Failed to upload images. Please try again." });
+        setSubmitting(false);
         return;
       }
-
-      setSubmitMsg({
-        type: "success",
-        text: "Edit request submitted! Your changes are pending admin review.",
-      });
-      setCurrentStatus("PENDING_EDIT_REVIEW");
-      setTimeout(() => navigate("/owner/properties"), 2200);
-
-    } catch {
-      setSubmitMsg({ type: "error", text: "Network error. Please try again." });
-    } finally {
-      setSubmitting(false);
-      setPendingUploading(false);
+      pendingImageIds = (imgData.data?.images ?? []).map((img: any) => img.id);
     }
-  };
+
+    const payload = {
+      title:           title.trim(),
+      description:     description.trim(),
+      price:           parseFloat(price),
+      location:        location.trim(),
+      typeId:          parseInt(typeId),
+      beds:            beds  ? parseInt(beds)  : null,
+      baths:           baths ? parseInt(baths) : null,
+      sqm:             sqm   ? parseInt(sqm)   : null,
+      removedImageIds: removedImageIds.length > 0 ? removedImageIds : [],
+      pendingImageIds: pendingImageIds.length > 0 ? pendingImageIds : [],
+    };
+
+    setPendingPayload(payload);
+    setPendingPendingImageIds(pendingImageIds);
+    setSubmitting(false);
+    setShowConfirmModal(true); // Show the confirmation modal
+  } catch {
+    setSubmitMsg({ type: "error", text: "Network error. Please try again." });
+    setSubmitting(false);
+    setPendingUploading(false);
+  }
+};
+
+const handleConfirmedSubmit = async () => {
+  if (!id || !pendingPayload) return;
+  setShowConfirmModal(false);
+  setSubmitting(true);
+  try {
+    const data = await ownerEditRequestApi.submitEditRequest(id, pendingPayload);
+    if (!data.success) {
+      setSubmitMsg({ type: "error", text: data?.error?.message ?? "Failed to submit edit request." });
+      return;
+    }
+    setSubmitMsg({
+      type: "success",
+      text: "Edit request submitted! Your changes are pending admin review.",
+    });
+    setCurrentStatus("PENDING_EDIT_REVIEW");
+    setTimeout(() => navigate("/owner/properties"), 2200);
+  } catch {
+    setSubmitMsg({ type: "error", text: "Network error. Please try again." });
+  } finally {
+    setSubmitting(false);
+    setPendingUploading(false);
+    setPendingPayload(null);
+  }
+};
+
 
   const activeReceipt = useMemo(() => {
     if (!viewingReceiptId) return null;
@@ -685,6 +689,93 @@ const EditProperty: React.FC = () => {
 
   return (
     <div className={styles.page}>
+
+      {/* ── Edit Request Confirmation Modal ── */}
+{showConfirmModal && (
+  <div className={styles.modalOverlay} onClick={() => setShowConfirmModal(false)}>
+    <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+      <div className={styles.reqModalHeader} style={{
+        background: "linear-gradient(135deg, rgba(31,93,113,0.08), rgba(83,164,163,0.12))",
+      }}>
+        <AlertTriangle size={24} style={{ color: "#b78e42", flexShrink: 0 }} />
+        <h3 className={styles.reqModalTitle}>Submit Edit Request?</h3>
+      </div>
+
+      <div className={styles.reqModalBody}>
+        <p className={styles.reqModalDesc}>
+          Your changes will be sent to an admin for review. The listing will <strong>not be updated</strong> until an admin approves your request.
+        </p>
+
+        <div style={{
+          background: "rgba(31,93,113,0.05)",
+          border: "1.5px solid rgba(31,93,113,0.18)",
+          borderRadius: 10,
+          padding: "12px 14px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 6,
+          marginBottom: 4,
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: "#1f5d71", textTransform: "uppercase", letterSpacing: "0.7px", marginBottom: 4 }}>
+            What happens next
+          </div>
+          <div style={{ fontSize: 13, color: "#3d7a8a", display: "flex", alignItems: "flex-start", gap: 8 }}>
+            <span style={{ flexShrink: 0, marginTop: 1 }}>1.</span>
+            <span>Your property will be marked as <strong style={{ color: "#1f5d71" }}>Pending Edit Review</strong> and temporarily locked from further edits.</span>
+          </div>
+          <div style={{ fontSize: 13, color: "#3d7a8a", display: "flex", alignItems: "flex-start", gap: 8 }}>
+            <span style={{ flexShrink: 0, marginTop: 1 }}>2.</span>
+            <span>An admin will review your proposed changes, including any photo additions or removals.</span>
+          </div>
+          <div style={{ fontSize: 13, color: "#3d7a8a", display: "flex", alignItems: "flex-start", gap: 8 }}>
+            <span style={{ flexShrink: 0, marginTop: 1 }}>3.</span>
+            <span>You'll be notified when the request is approved or rejected.</span>
+          </div>
+        </div>
+
+        {(removedImageIds.length > 0 || pendingPendingImageIds.length > 0) && (
+          <div style={{
+            marginTop: 12,
+            padding: "10px 12px",
+            background: "rgba(183,142,66,0.07)",
+            border: "1px solid rgba(183,142,66,0.28)",
+            borderRadius: 8,
+            fontSize: 12,
+            color: "#92600a",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}>
+            <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+            <span>
+              {[
+                pendingPendingImageIds.length > 0 && `${pendingPendingImageIds.length} new photo${pendingPendingImageIds.length !== 1 ? "s" : ""} already uploaded`,
+                removedImageIds.length > 0 && `${removedImageIds.length} photo${removedImageIds.length !== 1 ? "s" : ""} marked for removal`,
+              ].filter(Boolean).join(" · ")} — will be applied only on approval.
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className={styles.reqModalFooter}>
+        <button
+          className={styles.modalCancelBtn}
+          onClick={() => setShowConfirmModal(false)}
+          type="button"
+        >
+          Go Back
+        </button>
+        <button
+          className={styles.modalApproveBtn}
+          onClick={handleConfirmedSubmit}
+          type="button"
+        >
+          <Check size={16} /> Yes, Submit for Review
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* ── Receipt Modal ── */}
       {viewingReceiptId && activeReceipt && (
