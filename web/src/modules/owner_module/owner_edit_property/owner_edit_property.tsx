@@ -599,6 +599,8 @@ const EditProperty: React.FC = () => {
         pendingImageIds: pendingImageIds.length > 0 ? pendingImageIds : [],
       };
 
+      console.log("Edit request payload:", JSON.stringify(payload, null, 2));
+
       const data = await ownerEditRequestApi.submitEditRequest(id, payload);
 
       if (!data.success) {
