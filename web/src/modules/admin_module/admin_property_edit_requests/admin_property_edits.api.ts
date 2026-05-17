@@ -33,4 +33,11 @@ export interface SubmitEditPayload {
   beds: number | null;
   baths: number | null;
   sqm: number | null;
+  removedImageIds: number[];
+  pendingImageIds: number[];
+}
+
+export interface ImageInfo {
+  id: number;
+  imageUrl: string;
 }

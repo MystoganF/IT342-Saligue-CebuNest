@@ -1,6 +1,10 @@
 package edu.cit.saligue.cebunest.properties.management;
 
+import edu.cit.saligue.cebunest.properties.shared.Property;
 import edu.cit.saligue.cebunest.properties.shared.PropertyDTO;
+import edu.cit.saligue.cebunest.properties.shared.PropertyImage;
+import edu.cit.saligue.cebunest.properties.shared.PropertyImageRepository;
+import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
 import edu.cit.saligue.cebunest.users.shared.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -11,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -21,6 +26,8 @@ import java.util.Map;
 public class PropertyManagementController {
 
     private final PropertyManagementService propertyManagementService;
+    private final PropertyRepository propertyRepository;
+    private final PropertyImageRepository propertyImageRepository;
 
     @GetMapping("/my")
     public ResponseEntity<?> getMyProperties(
@@ -102,6 +109,7 @@ public class PropertyManagementController {
         }
     }
 
+    // ── Standard image upload (live, used for new listings) ───────────────
     @PostMapping("/{id}/images")
     public ResponseEntity<?> uploadImages(
             @PathVariable Long id,
@@ -128,6 +136,72 @@ public class PropertyManagementController {
             return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
         } catch (Exception e) {
             return buildError("SYSTEM-001", "Image upload failed: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    // ── Pending image upload (used when submitting an edit request) ────────
+    // Images are saved with isPending=true so they stay hidden from public
+    // view until the admin approves the associated edit request.
+    // On approval  → isPending flipped to false (images go live)
+    // On rejection → images are deleted entirely
+    @PostMapping("/{id}/images/pending")
+    public ResponseEntity<?> uploadPendingImages(
+            @PathVariable Long id,
+            @RequestParam("files") List<MultipartFile> files,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        if (currentUser == null)
+            return buildError("AUTH-001", "Not authenticated.", HttpStatus.UNAUTHORIZED);
+
+        if (files == null || files.isEmpty())
+            return buildError("VALID-001", "At least one image is required.", HttpStatus.BAD_REQUEST);
+        if (files.size() > 10)
+            return buildError("VALID-001", "Maximum 10 images allowed.", HttpStatus.BAD_REQUEST);
+
+        for (MultipartFile file : files) {
+            String ct = file.getContentType();
+            if (ct == null || !ct.startsWith("image/"))
+                return buildError("VALID-001", "Only image files are allowed.", HttpStatus.BAD_REQUEST);
+            if (file.getSize() > 5 * 1024 * 1024)
+                return buildError("VALID-001", "Each image must be under 5MB.", HttpStatus.BAD_REQUEST);
+        }
+
+        try {
+            Property property = propertyRepository.findById(id)
+                    .orElse(null);
+            if (property == null)
+                return buildError("DB-001", "Property not found.", HttpStatus.NOT_FOUND);
+
+            if (!property.getOwner().getId().equals(currentUser.getId()))
+                return buildError("AUTH-002", "You do not own this property.", HttpStatus.FORBIDDEN);
+
+            List<Map<String, Object>> uploaded = new ArrayList<>();
+
+            for (MultipartFile file : files) {
+                // Re-use the same upload utility that uploadImages uses
+                String imageUrl = propertyManagementService.uploadSingleImage(id, file);
+
+                PropertyImage img = PropertyImage.builder()
+                        .property(property)
+                        .imageUrl(imageUrl)
+                        .isPending(true)
+                        .createdAt(LocalDateTime.now())
+                        .build();
+
+                propertyImageRepository.save(img);
+
+                Map<String, Object> info = new HashMap<>();
+                info.put("id", img.getId());
+                info.put("imageUrl", img.getImageUrl());
+                uploaded.add(info);
+            }
+
+            return buildSuccess(Map.of("images", uploaded));
+
+        } catch (IllegalArgumentException e) {
+            return buildError("BUSINESS-001", e.getMessage(), HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            return buildError("SYSTEM-001", "Pending image upload failed: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 

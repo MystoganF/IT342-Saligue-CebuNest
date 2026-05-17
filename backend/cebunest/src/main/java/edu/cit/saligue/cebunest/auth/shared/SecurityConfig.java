@@ -1,7 +1,7 @@
 package edu.cit.saligue.cebunest.auth.shared;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value; // Added import
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -26,7 +26,6 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
 
-    // Pulls the Vercel URL from environment variables, defaults to localhost:5173
     @Value("${FRONTEND_URL:http://localhost:5173}")
     private String frontendUrl;
 
@@ -47,6 +46,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/properties/**").permitAll()
 
+                        // ── Owner: pending image upload for edit requests ──
+                        // Must be declared before the GET wildcard above is
+                        // re-evaluated and before anyRequest().authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/properties/*/images/pending").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/properties/*/images").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/properties/*/edit-request").authenticated()
+
                         // ── Admin ──────────────────────────────────────────
                         .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
 
@@ -62,7 +68,6 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // Dynamic CORS configuration
         config.setAllowedOrigins(List.of("http://localhost:5173", frontendUrl));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));

@@ -4,6 +4,8 @@ import edu.cit.saligue.cebunest.notifications.core.NotificationService;
 import edu.cit.saligue.cebunest.properties.admin.AuditLog;
 import edu.cit.saligue.cebunest.properties.admin.AuditLogRepository;
 import edu.cit.saligue.cebunest.properties.shared.Property;
+import edu.cit.saligue.cebunest.properties.shared.PropertyImage;
+import edu.cit.saligue.cebunest.properties.shared.PropertyImageRepository;
 import edu.cit.saligue.cebunest.properties.shared.PropertyRepository;
 import edu.cit.saligue.cebunest.properties.shared.PropertyTypeRepository;
 import edu.cit.saligue.cebunest.users.shared.User;
@@ -12,7 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -21,8 +25,24 @@ public class PropertyEditRequestService {
     private final PropertyEditRequestRepository editRequestRepository;
     private final PropertyRepository            propertyRepository;
     private final PropertyTypeRepository        propertyTypeRepository;
+    private final PropertyImageRepository       propertyImageRepository;
     private final AuditLogRepository            auditLogRepository;
     private final NotificationService           notificationService;
+
+    // ── Helper: convert list of longs to/from CSV ─────────────────────────
+    private static String toCsv(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return null;
+        return ids.stream().map(String::valueOf).collect(Collectors.joining(","));
+    }
+
+    private static List<Long> fromCsv(String csv) {
+        if (csv == null || csv.isBlank()) return Collections.emptyList();
+        return java.util.Arrays.stream(csv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(Long::parseLong)
+                .collect(Collectors.toList());
+    }
 
     // ── Owner: submit an edit request ────────────────────────────────────
     @Transactional
@@ -46,12 +66,33 @@ public class PropertyEditRequestService {
             throw new IllegalArgumentException(
                     "This property already has a pending edit request awaiting admin review.");
 
-        // Resolve the proposed type name for display
+        // Resolve the proposed type name
         String proposedTypeName = propertyTypeRepository.findById(dto.getTypeId())
                 .orElseThrow(() -> new IllegalArgumentException("Invalid property type."))
                 .getName();
 
-        // Snapshot the CURRENT live values before anything changes
+        // Validate that pendingImageIds actually belong to this property and are marked pending
+        List<Long> pendingIds = dto.getPendingImageIds() != null ? dto.getPendingImageIds() : Collections.emptyList();
+        if (!pendingIds.isEmpty()) {
+            List<PropertyImage> pendingImages = propertyImageRepository.findAllById(pendingIds);
+            for (PropertyImage img : pendingImages) {
+                if (!img.getProperty().getId().equals(propertyId))
+                    throw new IllegalArgumentException("Image " + img.getId() + " does not belong to this property.");
+                if (!img.isPending())
+                    throw new IllegalArgumentException("Image " + img.getId() + " is not a pending image.");
+            }
+        }
+
+        // Validate that removedImageIds belong to this property
+        List<Long> removedIds = dto.getRemovedImageIds() != null ? dto.getRemovedImageIds() : Collections.emptyList();
+        if (!removedIds.isEmpty()) {
+            List<PropertyImage> toRemove = propertyImageRepository.findAllById(removedIds);
+            for (PropertyImage img : toRemove) {
+                if (!img.getProperty().getId().equals(propertyId))
+                    throw new IllegalArgumentException("Image " + img.getId() + " does not belong to this property.");
+            }
+        }
+
         String previousPropertyStatus = property.getStatus().name();
 
         PropertyEditRequest editRequest = PropertyEditRequest.builder()
@@ -71,7 +112,7 @@ public class PropertyEditRequestService {
                 .previousSqm(property.getSqm())
                 .previousPropertyStatus(previousPropertyStatus)
 
-                // Proposed (new) values from owner
+                // Proposed (new) values
                 .proposedTitle(dto.getTitle().trim())
                 .proposedDescription(dto.getDescription() != null ? dto.getDescription().trim() : "")
                 .proposedPrice(dto.getPrice())
@@ -82,11 +123,15 @@ public class PropertyEditRequestService {
                 .proposedBaths(dto.getBaths())
                 .proposedSqm(dto.getSqm())
 
+                // Image tracking
+                .removedImageIds(toCsv(removedIds))
+                .pendingImageIds(toCsv(pendingIds))
+
                 .build();
 
         editRequestRepository.save(editRequest);
 
-        // Move the property into the holding status
+        // Move property to holding status
         property.setStatus(Property.PropertyStatus.PENDING_EDIT_REVIEW);
         propertyRepository.save(property);
 
@@ -124,7 +169,7 @@ public class PropertyEditRequestService {
 
         Property property = req.getProperty();
 
-        // Apply proposed values to the live property
+        // Apply proposed text/field values
         var type = propertyTypeRepository.findById(req.getProposedTypeId())
                 .orElseThrow(() -> new IllegalArgumentException("Proposed property type no longer exists."));
 
@@ -137,7 +182,26 @@ public class PropertyEditRequestService {
         property.setBaths(req.getProposedBaths());
         property.setSqm(req.getProposedSqm());
 
-        // Restore to the status the property had before submission
+        // ── Apply image changes ───────────────────────────────────────────
+
+        // 1. Delete the images the owner marked for removal
+        List<Long> removedIds = fromCsv(req.getRemovedImageIds());
+        if (!removedIds.isEmpty()) {
+            for (Long imageId : removedIds) {
+                propertyImageRepository.deleteByIdAndPropertyId(imageId, property.getId());
+            }
+            propertyImageRepository.flush();
+        }
+
+        // 2. Activate the pending images (flip isPending → false so they become live)
+        List<Long> pendingIds = fromCsv(req.getPendingImageIds());
+        if (!pendingIds.isEmpty()) {
+            List<PropertyImage> toActivate = propertyImageRepository.findAllById(pendingIds);
+            toActivate.forEach(img -> img.setPending(false));
+            propertyImageRepository.saveAll(toActivate);
+        }
+
+        // Restore property to its pre-submission status
         property.setStatus(Property.PropertyStatus.valueOf(req.getPreviousPropertyStatus()));
         propertyRepository.save(property);
 
@@ -188,7 +252,20 @@ public class PropertyEditRequestService {
 
         Property property = req.getProperty();
 
-        // Restore the property to its previous status WITHOUT applying the proposed changes
+        // ── Discard image changes ─────────────────────────────────────────
+
+        // Delete the pending images that were uploaded for this edit request
+        // (they were never made live, so we just remove them entirely)
+        List<Long> pendingIds = fromCsv(req.getPendingImageIds());
+        if (!pendingIds.isEmpty()) {
+            List<PropertyImage> toDelete = propertyImageRepository.findAllById(pendingIds);
+            propertyImageRepository.deleteAll(toDelete);
+            propertyImageRepository.flush();
+        }
+        // The removedImageIds are NOT deleted — we simply don't apply them.
+        // The live images remain as-is.
+
+        // Restore property to its previous status
         property.setStatus(Property.PropertyStatus.valueOf(req.getPreviousPropertyStatus()));
         propertyRepository.save(property);
 

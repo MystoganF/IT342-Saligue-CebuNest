@@ -37,7 +37,6 @@ public class PropertyEditRequest {
     private EditStatus editStatus = EditStatus.PENDING;
 
     // ── Snapshot of the PREVIOUS (live) values ───────────────────────────
-    // Stored so the diff view can show old vs new, and so we can restore on rejection
     @Column(nullable = false)
     private String previousTitle;
 
@@ -58,7 +57,6 @@ public class PropertyEditRequest {
     private Integer previousSqm;
 
     // The status the property had BEFORE the owner submitted this edit
-    // (e.g. AVAILABLE or UNAVAILABLE) — used to restore on rejection
     @Column(nullable = false)
     private String previousPropertyStatus;
 
@@ -81,6 +79,17 @@ public class PropertyEditRequest {
     private Integer proposedBeds;
     private Integer proposedBaths;
     private Integer proposedSqm;
+
+    // ── Image tracking ───────────────────────────────────────────────────
+    // Comma-separated IDs of PropertyImage rows the owner wants to REMOVE
+    // e.g. "1,2,5" — applied on approval, discarded on rejection
+    @Column(columnDefinition = "TEXT")
+    private String removedImageIds;
+
+    // Comma-separated IDs of PropertyImage rows that were uploaded as isPending=true
+    // alongside this edit request — activated on approval, deleted on rejection
+    @Column(columnDefinition = "TEXT")
+    private String pendingImageIds;
 
     // ── Admin decision ───────────────────────────────────────────────────
     @ManyToOne(fetch = FetchType.LAZY)

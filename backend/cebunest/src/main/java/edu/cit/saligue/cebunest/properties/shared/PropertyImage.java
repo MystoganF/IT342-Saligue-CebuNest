@@ -27,7 +27,11 @@ public class PropertyImage {
     @Column(name = "image_url", nullable = false)
     private String imageUrl;
 
+    // When true, this image was uploaded as part of a pending edit request.
+    // It is NOT shown publicly until an admin approves the edit request.
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean isPending = false;
+
     private LocalDateTime createdAt = LocalDateTime.now();
-
-
 }
