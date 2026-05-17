@@ -462,7 +462,7 @@ class RentalDetailFragment : Fragment() {
                     Toast.makeText(requireContext(), "Failed to load payment link.", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Network error. Please try again.", Toast.LENGTH_SHORT).show()
+               
             }
         }
     }

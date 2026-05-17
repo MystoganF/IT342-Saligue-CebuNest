@@ -93,8 +93,8 @@
                     </LinearLayout>
 
                     <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal">
-                        <ImageButton android:id="@+id/btnFacebook" android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/ic_menu_share" android:backgroundTint="#e8f0fe" android:visibility="gone"/>
-                        <ImageButton android:id="@+id/btnInstagram" android:layout_width="36dp" android:layout_height="36dp" android:src="@android:drawable/ic_menu_camera" android:backgroundTint="#fceef3" android:layout_marginStart="8dp" android:visibility="gone"/>
+                        <ImageView android:id="@+id/btnFacebook" android:layout_width="32dp" android:layout_height="32dp" android:src="@drawable/ic_facebook" android:visibility="gone"/>
+                        <ImageView android:id="@+id/btnInstagram" android:layout_width="32dp" android:layout_height="32dp" android:layout_marginStart="8dp" android:src="@drawable/ic_instagram" android:visibility="gone"/>
                     </LinearLayout>
                 </LinearLayout>
 
