@@ -185,7 +185,7 @@ function SocialLinks({ facebook, instagram, twitter, size = "sm" }: {
           style={{ width: wrapperSize, height: wrapperSize, backgroundColor: l.bg, color: l.color, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", transition: "transform 0.15s", border: l.label === "Twitter" ? "1px solid #d5d9dc" : "none" }}
           onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.1)")}
           onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-          onClick={(e) => e.stopPropagation()} 
+          onClick={(e) => e.stopPropagation()}
         >
           {l.icon}
         </a>
@@ -204,8 +204,8 @@ function ClickableMap({ coords, setCoords, onLocationSelect }: {
         lat >= CEBU_CITY_BOUNDS.minLat && lat <= CEBU_CITY_BOUNDS.maxLat &&
         lng >= CEBU_CITY_BOUNDS.minLon && lng <= CEBU_CITY_BOUNDS.maxLon;
       if (!inBounds) {
-        onLocationSelect(lat, lng); // still call to trigger the error message
-        return;                     // but skip setCoords so no marker is placed
+        onLocationSelect(lat, lng);
+        return;
       }
       setCoords({ lat, lon: lng });
       onLocationSelect(lat, lng);
@@ -221,15 +221,12 @@ const EditProperty: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useOutletContext<{ user: UserContext }>();
 
-  // ── Active tab ──
   const [activeTab, setActiveTab] = useState<TabId>("property");
 
-  // ── Auth & metadata ──
   const [propertyTypes, setPropertyTypes] = useState<PropertyType[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
 
-  // ── Form fields ──
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -243,24 +240,24 @@ const EditProperty: React.FC = () => {
   const [isAdminDisabled, setIsAdminDisabled] = useState(false);
   const [adminNote, setAdminNote] = useState<string | null>(null);
 
-  // ── Map ──
   const [mapCoords, setMapCoords] = useState<MapCoords | null>(null);
   const [mapSearching, setMapSearching] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
 
-  // ── Images ──
   const [existingImages, setExistingImages] = useState<ExistingImage[]>([]);
   const [removedImageIds, setRemovedImageIds] = useState<number[]>([]);
   const [newImageFiles, setNewImageFiles] = useState<File[]>([]);
   const [newImagePreviews, setNewImagePreviews] = useState<string[]>([]);
   const [dragOver, setDragOver] = useState(false);
 
-  // ── Lightbox ──
+  // Track IDs of images uploaded to the server as pending (before submit)
+  const [uploadedPendingImageIds, setUploadedPendingImageIds] = useState<number[]>([]);
+  const [pendingUploading, setPendingUploading] = useState(false);
+
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number>(0);
   const [lightboxList, setLightboxList] = useState<string[]>([]);
 
-  // ── Rental requests ──
   const [requests, setRequests] = useState<RentalRequest[]>([]);
   const [requestsLoading, setRequestsLoading] = useState(false);
   const [requestsError, setRequestsError] = useState<string | null>(null);
@@ -271,45 +268,38 @@ const EditProperty: React.FC = () => {
   const [openRequestYears, setOpenRequestYears] = useState<Set<string>>(new Set());
   const [showPastRequests, setShowPastRequests] = useState(false);
 
-  // ── Active tenant ──
   const [activeTenant, setActiveTenant] = useState<ActiveTenant | null>(null);
   const [activeTenantLoading, setActiveTenantLoading] = useState(false);
 
-  // ── Payment history & Receipts ──
   const [payments, setPayments] = useState<RentalPayment[]>([]);
   const [paymentsLoading, setPaymentsLoading] = useState(false);
   const [paymentsError, setPaymentsError] = useState<string | null>(null);
   const [openPaymentYears, setOpenPaymentYears] = useState<Set<string>>(new Set());
   const [viewingReceiptId, setViewingReceiptId] = useState<number | null>(null);
 
-  // ── Lease management modal ──
   const [leaseModal, setLeaseModal] = useState<"extend" | "reduce" | "terminate" | null>(null);
   const [leaseMonths, setLeaseMonths] = useState<number>(1);
   const [leaseSubmitting, setLeaseSubmitting] = useState(false);
   const [leaseError, setLeaseError] = useState<string | null>(null);
   const [leaseSuccess, setLeaseSuccess] = useState<string | null>(null);
 
-  // ── Lease extension requests ──
   const [leaseExtensions, setLeaseExtensions] = useState<LeaseExtension[]>([]);
   const [leaseExtLoading, setLeaseExtLoading] = useState(false);
   const [extActionId, setExtActionId] = useState<number | null>(null);
   const [extActionSubmitting, setExtActionSubmitting] = useState(false);
   const [extActionError, setExtActionError] = useState<string | null>(null);
 
-  // ── Property reviews ──
   const [reviews, setReviews] = useState<PropertyReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [rejectionReason, setRejectionReason] = useState<string | null>(null);
   const [showReviewsModal, setShowReviewsModal] = useState(false);
   const [modalRatingFilter, setModalRatingFilter] = useState<number>(0);
 
-  // ── Past Request Modal ──
   const [pastRequestModal, setPastRequestModal] = useState<RentalRequest | null>(null);
   const [modalPayments, setModalPayments] = useState<RentalPayment[]>([]);
   const [modalPaymentsLoading, setModalPaymentsLoading] = useState(false);
   const [modalOpenPaymentYears, setModalOpenPaymentYears] = useState<Set<string>>(new Set());
 
-  // ── Submit ──
   const [submitting, setSubmitting] = useState(false);
   const [submitMsg, setSubmitMsg] = useState<{ type: "success" | "error" | "warning"; text: string } | null>(null);
 
@@ -340,7 +330,12 @@ const EditProperty: React.FC = () => {
       setIsAdminDisabled(p.adminDisabled ?? p.isAdminDisabled ?? false);
       setAdminNote(p.adminNote ?? null);
       if (p.status === "AVAILABLE" || p.status === "UNAVAILABLE") setStatus(p.status);
-      setExistingImages((p.images ?? []).map((img: any, idx: number) => ({ id: img.id ?? idx, imageUrl: img.imageUrl })));
+      // Only show non-pending images in the owner's edit view
+      setExistingImages(
+        (p.images ?? [])
+          .filter((img: any) => !img.isPending)
+          .map((img: any, idx: number) => ({ id: img.id ?? idx, imageUrl: img.imageUrl }))
+      );
 
       geocode(p.location).then((coords) => { if (coords) setMapCoords(coords); });
 
@@ -443,24 +438,24 @@ const EditProperty: React.FC = () => {
   };
 
   const handleMapClick = async (lat: number, lon: number) => {
-  if (
-    lat < CEBU_CITY_BOUNDS.minLat || lat > CEBU_CITY_BOUNDS.maxLat ||
-    lon < CEBU_CITY_BOUNDS.minLon || lon > CEBU_CITY_BOUNDS.maxLon
-  ) {
-    setMapError("Cannot place a pin here — please select a location on land within Cebu City.");
-    return;
-  }
-  setMapSearching(true); setMapError(null);
-  try {
-    const address = await reverseGeocode(lat, lon);
-    if (address) setLocation(address);
-    else setMapError("Could not retrieve address for this location.");
-  } catch {
-    setMapError("Could not retrieve address for this location.");
-  } finally {
-    setMapSearching(false);
-  }
-}
+    if (
+      lat < CEBU_CITY_BOUNDS.minLat || lat > CEBU_CITY_BOUNDS.maxLat ||
+      lon < CEBU_CITY_BOUNDS.minLon || lon > CEBU_CITY_BOUNDS.maxLon
+    ) {
+      setMapError("Cannot place a pin here — please select a location on land within Cebu City.");
+      return;
+    }
+    setMapSearching(true); setMapError(null);
+    try {
+      const address = await reverseGeocode(lat, lon);
+      if (address) setLocation(address);
+      else setMapError("Could not retrieve address for this location.");
+    } catch {
+      setMapError("Could not retrieve address for this location.");
+    } finally {
+      setMapSearching(false);
+    }
+  };
 
   const addFiles = (files: FileList | null) => {
     if (!files) return;
@@ -487,7 +482,6 @@ const EditProperty: React.FC = () => {
     try {
       const data = await editPropertyApi.updateRentalRequestStatus(actionTarget.id, actionType);
       if (!data.success) { setActionError(data?.error?.message ?? "Action failed."); return; }
-      
       fetchAllPropertyData();
       closeAction();
     } catch { setActionError("Network error. Please try again."); }
@@ -539,86 +533,97 @@ const EditProperty: React.FC = () => {
     finally { setExtActionSubmitting(false); setExtActionId(null); }
   };
 
+  // ── KEY CHANGE: handleSubmit now uploads images as pending first, ──────
+  // then submits the edit request with the pending image IDs included.
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!id) return;
-  setSubmitMsg(null);
+    e.preventDefault();
+    if (!id) return;
+    setSubmitMsg(null);
 
-  // Validate location is within Cebu City before submitting
-  if (isBlockedLocation(location.trim())) {
-    setSubmitMsg({ type: "error", text: "Only Cebu City addresses are allowed." });
-    setActiveTab("property");
-    return;
-  }
-  if (!mapCoords) {
-    setSubmitMsg({ type: "error", text: "Please pin your property location on the map before saving." });
-    setActiveTab("property");
-    return;
-  }
-  const inBounds =
-    mapCoords.lat >= CEBU_CITY_BOUNDS.minLat && mapCoords.lat <= CEBU_CITY_BOUNDS.maxLat &&
-    mapCoords.lon >= CEBU_CITY_BOUNDS.minLon && mapCoords.lon <= CEBU_CITY_BOUNDS.maxLon;
-  if (!inBounds) {
-    setSubmitMsg({ type: "error", text: "Location must be within Cebu City." });
-    setMapError("This location is outside Cebu City.");
-    setActiveTab("property");
-    return;
-  }
-
-  setSubmitting(true);
- 
-  const payload = {
-    title:       title.trim(),
-    description: description.trim(),
-    price:       parseFloat(price),
-    location:    location.trim(),
-    typeId:      parseInt(typeId),
-    beds:        beds  ? parseInt(beds)  : null,
-    baths:       baths ? parseInt(baths) : null,
-    sqm:         sqm   ? parseInt(sqm)   : null,
-  };
- 
-  try {
-    // Submit as an edit request (requires admin approval) instead of a direct PUT.
-    // Image uploads are NOT part of the edit-request flow; they still use the direct API.
-    const data = await ownerEditRequestApi.submitEditRequest(id, payload);
- 
-    if (!data.success) {
-      setSubmitMsg({ type: "error", text: data?.error?.message ?? "Failed to submit edit request." });
+    if (isBlockedLocation(location.trim())) {
+      setSubmitMsg({ type: "error", text: "Only Cebu City addresses are allowed." });
+      setActiveTab("property");
       return;
     }
- 
-    // Upload any new images directly (these don't require admin approval)
-    if (newImageFiles.length > 0) {
-      const formData = new FormData();
-      newImageFiles.forEach((f) => formData.append("files", f));
-      const imgData = await editPropertyApi.uploadPropertyImages(id, formData);
-      if (!imgData.success) {
-        setSubmitMsg({
-          type: "warning",
-          text: "Edit request submitted! Some images failed to upload.",
-        });
-        setTimeout(() => navigate("/owner/properties"), 2200);
+    if (!mapCoords) {
+      setSubmitMsg({ type: "error", text: "Please pin your property location on the map before saving." });
+      setActiveTab("property");
+      return;
+    }
+    const inBounds =
+      mapCoords.lat >= CEBU_CITY_BOUNDS.minLat && mapCoords.lat <= CEBU_CITY_BOUNDS.maxLat &&
+      mapCoords.lon >= CEBU_CITY_BOUNDS.minLon && mapCoords.lon <= CEBU_CITY_BOUNDS.maxLon;
+    if (!inBounds) {
+      setSubmitMsg({ type: "error", text: "Location must be within Cebu City." });
+      setMapError("This location is outside Cebu City.");
+      setActiveTab("property");
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      // Step 1: Upload new images as PENDING before submitting the edit request.
+      // The backend marks these with isPending=true so they don't appear publicly yet.
+      let pendingImageIds: number[] = [];
+      if (newImageFiles.length > 0) {
+        setPendingUploading(true);
+        const formData = new FormData();
+        newImageFiles.forEach((f) => formData.append("files", f));
+
+        // POST to the new pending-upload endpoint
+        const imgData = await editPropertyApi.uploadPendingPropertyImages(id, formData);
+        setPendingUploading(false);
+
+        if (!imgData.success) {
+          setSubmitMsg({ type: "error", text: "Failed to upload images. Please try again." });
+          setSubmitting(false);
+          return;
+        }
+
+        // Collect the IDs of the newly uploaded pending images
+        pendingImageIds = (imgData.data?.images ?? []).map((img: any) => img.id);
+      }
+
+      // Step 2: Submit the edit request, including image change metadata.
+      const payload = {
+        title:          title.trim(),
+        description:    description.trim(),
+        price:          parseFloat(price),
+        location:       location.trim(),
+        typeId:         parseInt(typeId),
+        beds:           beds  ? parseInt(beds)  : null,
+        baths:          baths ? parseInt(baths) : null,
+        sqm:            sqm   ? parseInt(sqm)   : null,
+        removedImageIds: removedImageIds.length > 0 ? removedImageIds : [],
+        pendingImageIds: pendingImageIds.length > 0 ? pendingImageIds : [],
+      };
+
+      const data = await ownerEditRequestApi.submitEditRequest(id, payload);
+
+      if (!data.success) {
+        // If the edit request failed but we already uploaded pending images,
+        // they will stay as orphaned pending images. The backend scheduler or
+        // admin can clean them up, or we could call a cleanup endpoint here.
+        setSubmitMsg({ type: "error", text: data?.error?.message ?? "Failed to submit edit request." });
         return;
       }
-    }
- 
-    setSubmitMsg({
-      type: "success",
-      text: "Edit request submitted! Your changes are pending admin review.",
-    });
-    // Update local status so the banner appears immediately
-    setCurrentStatus("PENDING_EDIT_REVIEW");
-    setTimeout(() => navigate("/owner/properties"), 2200);
- 
-  } catch {
-    setSubmitMsg({ type: "error", text: "Network error. Please try again." });
-  } finally {
-    setSubmitting(false);
-  }
-};
 
-  // Derived Receipt Data
+      setSubmitMsg({
+        type: "success",
+        text: "Edit request submitted! Your changes are pending admin review.",
+      });
+      setCurrentStatus("PENDING_EDIT_REVIEW");
+      setTimeout(() => navigate("/owner/properties"), 2200);
+
+    } catch {
+      setSubmitMsg({ type: "error", text: "Network error. Please try again." });
+    } finally {
+      setSubmitting(false);
+      setPendingUploading(false);
+    }
+  };
+
   const activeReceipt = useMemo(() => {
     if (!viewingReceiptId) return null;
     return payments.find((p) => p.id === viewingReceiptId) || modalPayments.find((p) => p.id === viewingReceiptId) || null;
@@ -626,7 +631,6 @@ const EditProperty: React.FC = () => {
 
   if (!user) return null;
 
-  // ── Derived values ──
   const isRejected          = currentStatus === "REJECTED";
   const isPendingReview     = currentStatus === "PENDING_REVIEW";
   const isPendingEditReview = currentStatus === "PENDING_EDIT_REVIEW";
@@ -655,13 +659,11 @@ const EditProperty: React.FC = () => {
   const submitIcon = submitMsg?.type === "success" ? <Check size={16} /> : submitMsg?.type === "warning" ? <AlertTriangle size={16} /> : <X size={16} />;
   const submitMsgClass = submitMsg?.type === "success" ? styles.submitMsgSuccess : submitMsg?.type === "warning" ? styles.submitMsgWarning : styles.submitMsgError;
 
-  
-  // ── Tab configuration ──
   const tabs: Tab[] = [
     { id: "property", label: "Property", icon: <Home size={18} /> },
     { id: "tenant", label: "Tenant", icon: <User size={18} />, badge: pendingExtensions.length > 0 ? pendingExtensions.length : null },
     { id: "payments", label: "Payments", icon: <Receipt size={18} />, badge: overdueCount > 0 ? overdueCount : null },
-   { id: "requests", label: "Requests", icon: <ClipboardList size={18} />, badge: overdueRequestsCount > 0 ? overdueRequestsCount : (pendingCount > 0 ? pendingCount : null) },
+    { id: "requests", label: "Requests", icon: <ClipboardList size={18} />, badge: overdueRequestsCount > 0 ? overdueRequestsCount : (pendingCount > 0 ? pendingCount : null) },
     { id: "reviews", label: "Reviews", icon: <Star size={18} /> },
   ];
 
@@ -681,7 +683,7 @@ const EditProperty: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      
+
       {/* ── Receipt Modal ── */}
       {viewingReceiptId && activeReceipt && (
         <div className={styles.modalOverlay} onClick={() => setViewingReceiptId(null)} style={{ zIndex: 1050 }}>
@@ -833,13 +835,11 @@ const EditProperty: React.FC = () => {
                     <span><User size={14} className={styles.inlineIcon}/> {activeTenant.tenantName}</span>
                   </div>
                 </>
-             ) : (
+              ) : (
                 <>
                   <p className={styles.reqModalDesc}>
                     This will <strong>immediately terminate</strong> the lease for <strong style={{ color: overdueCount > 0 ? "#c0392b" : "inherit" }}>{activeTenant.tenantName}</strong> and mark this property as <strong>Available</strong>. This action <strong>cannot be undone</strong>.
                   </p>
-
-                  {/* Overdue Warning Alert */}
                   {overdueCount > 0 && (
                     <div style={{ marginTop: "12px", marginBottom: "12px", padding: "10px 14px", background: "rgba(192,57,43,0.06)", borderLeft: "3px solid #c0392b", borderRadius: "0 8px 8px 0" }}>
                       <span style={{ color: "#c0392b", fontWeight: 700, fontSize: "13px", display: "flex", alignItems: "center", gap: "6px" }}>
@@ -847,21 +847,14 @@ const EditProperty: React.FC = () => {
                       </span>
                     </div>
                   )}
-
-                  {/* Payment Forgiveness Info Box */}
                   <div style={{ marginTop: "12px", marginBottom: "16px", fontSize: "13px", color: "#92600a", background: "#fffbea", border: "1px solid rgba(246, 216, 96, 0.6)", padding: "10px 14px", borderRadius: "8px", display: "flex", alignItems: "flex-start", gap: "8px" }}>
                     <AlertCircle size={16} style={{ flexShrink: 0, marginTop: "2px" }} />
                     <span style={{ lineHeight: 1.4 }}>
                       <strong>Payment Forgiveness:</strong> All unpaid installments (both Pending and Overdue) will be automatically cancelled upon termination.
                     </span>
                   </div>
-
                   <div className={styles.reqModalMeta}>
-                    <span style={{ 
-                      color: overdueCount > 0 ? "#c0392b" : undefined, 
-                      background: overdueCount > 0 ? "rgba(192,57,43,0.06)" : undefined,
-                      border: overdueCount > 0 ? "1px solid rgba(192,57,43,0.2)" : undefined
-                    }}>
+                    <span style={{ color: overdueCount > 0 ? "#c0392b" : undefined, background: overdueCount > 0 ? "rgba(192,57,43,0.06)" : undefined, border: overdueCount > 0 ? "1px solid rgba(192,57,43,0.2)" : undefined }}>
                       <User size={14} className={styles.inlineIcon}/> {activeTenant.tenantName}
                     </span>
                     <span><Mail size={14} className={styles.inlineIcon}/> {activeTenant.tenantEmail}</span>
@@ -870,7 +863,6 @@ const EditProperty: React.FC = () => {
                   </div>
                 </>
               )}
-
               {leaseSuccess && <p style={{ fontSize: 13, fontWeight: 600, color: "#2d8c6a", marginTop: 12, display: "flex", alignItems: "center", gap: "6px" }}><Check size={14}/> {leaseSuccess}</p>}
               {leaseError && <p className={styles.reqModalError}><AlertTriangle size={14} className={styles.inlineIcon}/> {leaseError}</p>}
             </div>
@@ -907,8 +899,6 @@ const EditProperty: React.FC = () => {
                   <SocialLinks facebook={pastRequestModal.tenantFacebookUrl} instagram={pastRequestModal.tenantInstagramUrl} twitter={pastRequestModal.tenantTwitterUrl} size="md" />
                 </div>
               )}
-              
-              {/* Payment History for Past Tenant */}
               <div style={{ marginTop: "24px" }}>
                 <div style={{ fontSize: "13px", fontWeight: 800, color: "#1e293b", borderBottom: "1px solid #e5eced", paddingBottom: "8px", marginBottom: "12px" }}>Payment History</div>
                 {modalPaymentsLoading ? (
@@ -945,15 +935,8 @@ const EditProperty: React.FC = () => {
                                     </div>
                                     <div className={styles.paymentAmount}>
                                       ₱{pmt.amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                      {/* Receipt Button for Past Tenant */}
                                       {pmt.status === "PAID" && (
-                                        <button
-                                          type="button"
-                                          onClick={() => setViewingReceiptId(pmt.id)}
-                                          style={{ display: "block", marginTop: "6px", fontSize: "11px", color: "#1f5d71", fontWeight: "bold", background: "rgba(31,93,113,0.08)", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer", width: "100%", transition: "0.2s", textAlign: "center" }}
-                                          onMouseEnter={(e) => e.currentTarget.style.background = "rgba(31,93,113,0.15)"}
-                                          onMouseLeave={(e) => e.currentTarget.style.background = "rgba(31,93,113,0.08)"}
-                                        >
+                                        <button type="button" onClick={() => setViewingReceiptId(pmt.id)} style={{ display: "block", marginTop: "6px", fontSize: "11px", color: "#1f5d71", fontWeight: "bold", background: "rgba(31,93,113,0.08)", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer", width: "100%", transition: "0.2s", textAlign: "center" }} onMouseEnter={(e) => e.currentTarget.style.background = "rgba(31,93,113,0.15)"} onMouseLeave={(e) => e.currentTarget.style.background = "rgba(31,93,113,0.08)"}>
                                           View Receipt
                                         </button>
                                       )}
@@ -997,8 +980,8 @@ const EditProperty: React.FC = () => {
               <span className={tabStyles.tabLabel}>{tab.label}</span>
               {tab.badge != null && tab.badge > 0 && (
                 <span className={`${tabStyles.tabBadge} ${
-                  tab.id === "payments" || (tab.id === "requests" && overdueRequestsCount > 0) 
-                    ? tabStyles.tabBadgeDanger 
+                  tab.id === "payments" || (tab.id === "requests" && overdueRequestsCount > 0)
+                    ? tabStyles.tabBadgeDanger
                     : tabStyles.tabBadgeWarn
                 }`}>
                   {tab.badge}
@@ -1011,55 +994,52 @@ const EditProperty: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit}>
-  <main className={styles.main}>
+        <main className={styles.main}>
 
-                  {isRejected && (
-          <div style={{ display: "flex", alignItems: "flex-start", gap: "14px", padding: "18px 22px", background: "rgba(192,57,43,0.06)", border: "1.5px solid rgba(192,57,43,0.22)", borderRadius: "14px", marginBottom: "4px" }}>
-            <XCircle size={24} style={{ color: "#c0392b", flexShrink: 0 }} />
-            <div>
-              <div style={{ fontWeight: 800, fontSize: "15px", color: "#c0392b", marginBottom: "4px" }}>This property was rejected by an admin</div>
-              {rejectionReason && (
-                <div style={{ fontSize: "13px", color: "#7b2d22", background: "rgba(192,57,43,0.07)", borderLeft: "3px solid #c0392b", borderRadius: "0 6px 6px 0", padding: "8px 12px", marginTop: "6px", lineHeight: 1.5 }}>
-                  <strong>Reason:</strong> {rejectionReason}
+          {isRejected && (
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "14px", padding: "18px 22px", background: "rgba(192,57,43,0.06)", border: "1.5px solid rgba(192,57,43,0.22)", borderRadius: "14px", marginBottom: "4px" }}>
+              <XCircle size={24} style={{ color: "#c0392b", flexShrink: 0 }} />
+              <div>
+                <div style={{ fontWeight: 800, fontSize: "15px", color: "#c0392b", marginBottom: "4px" }}>This property was rejected by an admin</div>
+                {rejectionReason && (
+                  <div style={{ fontSize: "13px", color: "#7b2d22", background: "rgba(192,57,43,0.07)", borderLeft: "3px solid #c0392b", borderRadius: "0 6px 6px 0", padding: "8px 12px", marginTop: "6px", lineHeight: 1.5 }}>
+                    <strong>Reason:</strong> {rejectionReason}
+                  </div>
+                )}
+                <div style={{ fontSize: "12px", color: "#6e7071", marginTop: "8px" }}>This listing is read-only.</div>
+              </div>
+            </div>
+          )}
+
+          {isPendingReview && (
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "14px", padding: "18px 22px", background: "rgba(183,142,66,0.06)", border: "1.5px solid rgba(183,142,66,0.28)", borderRadius: "14px", marginBottom: "4px" }}>
+              <AlertTriangle size={24} style={{ color: "#b78e42", flexShrink: 0 }} />
+              <div>
+                <div style={{ fontWeight: 800, fontSize: "15px", color: "#92600a", marginBottom: "4px" }}>This property is under review</div>
+                <div style={{ fontSize: "13px", color: "#7a5210", lineHeight: 1.5 }}>
+                  Your listing is currently being reviewed by an admin before it goes live. Editing is disabled until the review is complete.
                 </div>
-              )}
-              <div style={{ fontSize: "12px", color: "#6e7071", marginTop: "8px" }}>This listing is read-only.</div>
-            </div>
-          </div>
-        )}
-        
-        {/* PENDING_REVIEW banner */}
-        {isPendingReview && (
-          <div style={{ display: "flex", alignItems: "flex-start", gap: "14px", padding: "18px 22px", background: "rgba(183,142,66,0.06)", border: "1.5px solid rgba(183,142,66,0.28)", borderRadius: "14px", marginBottom: "4px" }}>
-            <AlertTriangle size={24} style={{ color: "#b78e42", flexShrink: 0 }} />
-            <div>
-              <div style={{ fontWeight: 800, fontSize: "15px", color: "#92600a", marginBottom: "4px" }}>This property is under review</div>
-              <div style={{ fontSize: "13px", color: "#7a5210", lineHeight: 1.5 }}>
-                Your listing is currently being reviewed by an admin before it goes live. Editing is disabled until the review is complete.
+                <div style={{ fontSize: "12px", color: "#6e7071", marginTop: "8px" }}>This listing is read-only.</div>
               </div>
-              <div style={{ fontSize: "12px", color: "#6e7071", marginTop: "8px" }}>This listing is read-only.</div>
             </div>
-          </div>
-        )}
-        
-        {/* PENDING_EDIT_REVIEW banner */}
-        {isPendingEditReview && (
-          <div style={{ display: "flex", alignItems: "flex-start", gap: "14px", padding: "18px 22px", background: "rgba(31,93,113,0.06)", border: "1.5px solid rgba(31,93,113,0.22)", borderRadius: "14px", marginBottom: "4px" }}>
-            <Clock size={24} style={{ color: "#1f5d71", flexShrink: 0 }} />
-            <div>
-              <div style={{ fontWeight: 800, fontSize: "15px", color: "#1f5d71", marginBottom: "4px" }}>Edit request pending admin approval</div>
-              <div style={{ fontSize: "13px", color: "#3d7a8a", lineHeight: 1.5 }}>
-                Your proposed changes have been submitted and are awaiting admin review. The live listing will only be updated after approval. Further edits are disabled until then.
+          )}
+
+          {isPendingEditReview && (
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "14px", padding: "18px 22px", background: "rgba(31,93,113,0.06)", border: "1.5px solid rgba(31,93,113,0.22)", borderRadius: "14px", marginBottom: "4px" }}>
+              <Clock size={24} style={{ color: "#1f5d71", flexShrink: 0 }} />
+              <div>
+                <div style={{ fontWeight: 800, fontSize: "15px", color: "#1f5d71", marginBottom: "4px" }}>Edit request pending admin approval</div>
+                <div style={{ fontSize: "13px", color: "#3d7a8a", lineHeight: 1.5 }}>
+                  Your proposed changes have been submitted and are awaiting admin review. The live listing will only be updated after approval. Further edits are disabled until then.
+                </div>
+                <div style={{ fontSize: "12px", color: "#6e7071", marginTop: "8px" }}>This listing is read-only.</div>
               </div>
-              <div style={{ fontSize: "12px", color: "#6e7071", marginTop: "8px" }}>This listing is read-only.</div>
             </div>
-          </div>
-        )}
+          )}
 
           {/* ══ PROPERTY TAB ══════════════════════════════════════════════ */}
           {activeTab === "property" && (
             <>
-              {/* Basic Info */}
               <div className={styles.card}>
                 <div className={styles.cardTitle}>Basic Information</div>
                 <div className={styles.fieldsGrid}>
@@ -1097,7 +1077,6 @@ const EditProperty: React.FC = () => {
                 </div>
               </div>
 
-              {/* Location */}
               <div className={styles.card}>
                 <div className={styles.cardTitle}>Location</div>
                 <div className={styles.mapSearchWrap} style={{ marginBottom: "14px" }}>
@@ -1116,7 +1095,6 @@ const EditProperty: React.FC = () => {
                 {mapCoords && <div className={styles.mapCoordsBadge}><MapPin size={14} className={styles.mapCoordsIcon}/> {mapCoords.lat.toFixed(5)}, {mapCoords.lon.toFixed(5)}</div>}
               </div>
 
-              {/* Listing Visibility */}
               <div className={styles.card}>
                 <div className={styles.cardTitle}>Listing Visibility</div>
                 {activeTenant ? (
@@ -1131,8 +1109,8 @@ const EditProperty: React.FC = () => {
                   <div className={styles.visibilityWrap}>
                     <div className={styles.visibilityInfo}>
                       <div className={styles.visibilityLabel}>
-                        {status === "AVAILABLE" ? 
-                          <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Eye size={18} className={styles.inlineIcon}/> Visible on listings</span> : 
+                        {status === "AVAILABLE" ?
+                          <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><Eye size={18} className={styles.inlineIcon}/> Visible on listings</span> :
                           <span style={{ display: "flex", alignItems: "center", gap: "6px" }}><EyeOff size={18} className={styles.inlineIcon}/> Hidden from listings</span>
                         }
                       </div>
@@ -1159,7 +1137,6 @@ const EditProperty: React.FC = () => {
                 )}
               </div>
 
-              {/* Photos */}
               <div className={styles.card}>
                 <div className={styles.cardTitle}>Photos ({totalPhotos}/10)</div>
                 <div className={styles.photoTip}>
@@ -1170,19 +1147,62 @@ const EditProperty: React.FC = () => {
                   </div>
                 </div>
                 <div className={styles.thumbnailNote}>The <strong>first photo uploaded</strong> will be used as the listing thumbnail.</div>
+
+                {/* Current live images — mark removed ones with red overlay */}
                 {visibleExisting.length > 0 && (
                   <div className={styles.existingImagesWrap}>
                     <p className={styles.existingImagesLabel}>Current photos — click to preview</p>
                     <div className={styles.imagePreviewGrid}>
-                      {visibleExisting.map((img, idx) => (
-                        <div key={img.id} className={styles.imagePreviewWrap}>
-                          <img src={img.imageUrl} alt="Existing" className={`${styles.imagePreview} ${styles.imagePreviewClickable}`} onClick={() => openLightbox(existingSrcs, idx)} />
-                          <button type="button" className={styles.imagePreviewRemove} onClick={(e) => { e.stopPropagation(); removeExistingImage(img.id); }} aria-label="Remove image"><X size={14}/></button>
-                        </div>
-                      ))}
+                      {existingImages.map((img, idx) => {
+                        const isRemoved = removedImageIds.includes(img.id);
+                        return (
+                          <div key={img.id} className={styles.imagePreviewWrap} style={{ position: "relative" }}>
+                            <img
+                              src={img.imageUrl}
+                              alt="Existing"
+                              className={`${styles.imagePreview} ${!isRemoved ? styles.imagePreviewClickable : ""}`}
+                              style={{ opacity: isRemoved ? 0.35 : 1, filter: isRemoved ? "grayscale(80%)" : "none" }}
+                              onClick={() => { if (!isRemoved) openLightbox(existingSrcs, idx); }}
+                            />
+                            {isRemoved ? (
+                              /* Restore button */
+                              <button
+                                type="button"
+                                onClick={() => setRemovedImageIds((prev) => prev.filter((id) => id !== img.id))}
+                                style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", background: "rgba(255,255,255,0.92)", border: "1.5px solid #e5eced", borderRadius: "8px", padding: "5px 10px", fontSize: "11px", fontWeight: 700, color: "#1f5d71", cursor: "pointer", whiteSpace: "nowrap", zIndex: 2 }}
+                                aria-label="Restore image"
+                              >
+                                ↩ Restore
+                              </button>
+                            ) : (
+                              /* Remove button */
+                              <button
+                                type="button"
+                                className={styles.imagePreviewRemove}
+                                onClick={(e) => { e.stopPropagation(); removeExistingImage(img.id); }}
+                                aria-label="Remove image"
+                              >
+                                <X size={14}/>
+                              </button>
+                            )}
+                            {isRemoved && (
+                              <div style={{ position: "absolute", top: "6px", left: "6px", background: "rgba(192,57,43,0.85)", color: "#fff", fontSize: "9px", fontWeight: 800, padding: "2px 6px", borderRadius: "4px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                                Removing
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
+                    {removedImageIds.length > 0 && (
+                      <p style={{ fontSize: "12px", color: "#c0392b", marginTop: "8px", display: "flex", alignItems: "center", gap: "4px" }}>
+                        <AlertTriangle size={12}/> {removedImageIds.length} photo{removedImageIds.length > 1 ? "s" : ""} will be removed on approval.
+                      </p>
+                    )}
                   </div>
                 )}
+
+                {/* New images to upload — shown as pending */}
                 {totalPhotos < 10 && (
                   <div className={`${styles.imageUploadArea} ${dragOver ? styles.imageUploadAreaActive : ""}`} onClick={() => fileInputRef.current?.click()} onDragOver={(e) => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={(e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }} style={{ marginTop: visibleExisting.length > 0 ? "16px" : "0" }}>
                     <input ref={fileInputRef} type="file" accept="image/*" multiple className={styles.imageUploadInput} onChange={(e) => addFiles(e.target.files)} />
@@ -1192,24 +1212,30 @@ const EditProperty: React.FC = () => {
                   </div>
                 )}
                 {newImagePreviews.length > 0 && (
-                  <div className={styles.imagePreviewGrid} style={{ marginTop: "12px" }}>
-                    {newImagePreviews.map((src, i) => (
-                      <div key={i} className={styles.imagePreviewWrap}>
-                        <img src={src} alt={`New ${i + 1}`} className={`${styles.imagePreview} ${styles.imagePreviewClickable}`} onClick={() => openLightbox(newImagePreviews, i)} />
-                        <div className={styles.imagePreviewNewBadge}>New</div>
-                        <button type="button" className={styles.imagePreviewRemove} onClick={(e) => { e.stopPropagation(); removeNewImage(i); }} aria-label="Remove image"><X size={14}/></button>
-                      </div>
-                    ))}
+                  <div style={{ marginTop: "12px" }}>
+                    <p style={{ fontSize: "12px", color: "#1f5d71", fontWeight: 700, marginBottom: "8px", display: "flex", alignItems: "center", gap: "4px" }}>
+                      <Clock size={12}/> These photos will be uploaded for review and added to the listing only after admin approval.
+                    </p>
+                    <div className={styles.imagePreviewGrid}>
+                      {newImagePreviews.map((src, i) => (
+                        <div key={i} className={styles.imagePreviewWrap}>
+                          <img src={src} alt={`New ${i + 1}`} className={`${styles.imagePreview} ${styles.imagePreviewClickable}`} onClick={() => openLightbox(newImagePreviews, i)} />
+                          <div className={styles.imagePreviewNewBadge}>New</div>
+                          <button type="button" className={styles.imagePreviewRemove} onClick={(e) => { e.stopPropagation(); removeNewImage(i); }} aria-label="Remove image"><X size={14}/></button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Submit Row */}
               <div className={styles.submitRow}>
                 {submitMsg && <span className={`${styles.submitMsg} ${submitMsgClass}`}>{submitIcon} {submitMsg.text}</span>}
                 <button type="button" className={styles.cancelBtn} onClick={() => navigate(-1)} disabled={submitting}>Cancel</button>
                 <button type="submit" className={styles.submitBtn} disabled={submitting || isLocked}>
-                  {submitting ? <><Loader2 size={16} className={styles.submitSpinner} /> Saving…</> : "Save Changes"}
+                  {submitting
+                    ? <><Loader2 size={16} className={styles.submitSpinner} /> {pendingUploading ? "Uploading photos…" : "Submitting…"}</>
+                    : "Save Changes"}
                 </button>
               </div>
             </>
@@ -1218,7 +1244,6 @@ const EditProperty: React.FC = () => {
           {/* ══ TENANT TAB ════════════════════════════════════════════════ */}
           {activeTab === "tenant" && (
             <>
-              {/* Active Tenant */}
               <div className={styles.card}>
                 <div className={styles.cardTitle}>Active Tenant</div>
                 {activeTenantLoading ? (
@@ -1250,10 +1275,9 @@ const EditProperty: React.FC = () => {
                       <button type="button" className={styles.leaseTerminateBtn} onClick={() => openLeaseModal("terminate")}><span style={{display: "flex", alignItems: "center", gap: "6px"}}><Ban size={14}/> End Lease</span></button>
                     </div>
                   </div>
-                 )}
+                )}
               </div>
 
-              {/* Lease Extension Requests */}
               <div className={styles.card}>
                 <div className={styles.cardTitle}>
                   Lease Extension Requests{" "}
@@ -1362,13 +1386,7 @@ const EditProperty: React.FC = () => {
                                     <div className={styles.paymentAmount}>
                                       ₱{pmt.amount.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                       {pmt.status === "PAID" && (
-                                        <button
-                                          type="button"
-                                          onClick={() => setViewingReceiptId(pmt.id)}
-                                          style={{ display: "block", marginTop: "6px", fontSize: "11px", color: "#1f5d71", fontWeight: "bold", background: "rgba(31,93,113,0.08)", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer", width: "100%", transition: "0.2s", textAlign: "center" }}
-                                          onMouseEnter={(e) => e.currentTarget.style.background = "rgba(31,93,113,0.15)"}
-                                          onMouseLeave={(e) => e.currentTarget.style.background = "rgba(31,93,113,0.08)"}
-                                        >
+                                        <button type="button" onClick={() => setViewingReceiptId(pmt.id)} style={{ display: "block", marginTop: "6px", fontSize: "11px", color: "#1f5d71", fontWeight: "bold", background: "rgba(31,93,113,0.08)", border: "none", padding: "4px 8px", borderRadius: "4px", cursor: "pointer", width: "100%", transition: "0.2s", textAlign: "center" }} onMouseEnter={(e) => e.currentTarget.style.background = "rgba(31,93,113,0.15)"} onMouseLeave={(e) => e.currentTarget.style.background = "rgba(31,93,113,0.08)"}>
                                           View Receipt
                                         </button>
                                       )}
@@ -1424,15 +1442,14 @@ const EditProperty: React.FC = () => {
                                   <div key={req.id} className={styles.requestRow} onClick={!isPending ? () => setPastRequestModal(req) : undefined} style={{ cursor: !isPending ? "pointer" : undefined }}>
                                     <div className={styles.requestAvatar}>{req.tenantName?.charAt(0).toUpperCase()}</div>
                                     <div className={styles.requestInfo}>
-                                      
                                       <div className={styles.requestName} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                          {req.tenantName}
-                                          {req.hasOverdue && (
-                                            <span style={{ fontSize: "10px", fontWeight: 800, color: "#c0392b", background: "rgba(192,57,43,0.1)", padding: "2px 6px", borderRadius: "4px", display: "flex", alignItems: "center", gap: "3px", textTransform: "uppercase" }}>
-                                              <AlertTriangle size={10} strokeWidth={2.5} /> Overdue Balance
-                                            </span>
-                                          )}
-                                        </div>
+                                        {req.tenantName}
+                                        {req.hasOverdue && (
+                                          <span style={{ fontSize: "10px", fontWeight: 800, color: "#c0392b", background: "rgba(192,57,43,0.1)", padding: "2px 6px", borderRadius: "4px", display: "flex", alignItems: "center", gap: "3px", textTransform: "uppercase" }}>
+                                            <AlertTriangle size={10} strokeWidth={2.5} /> Overdue Balance
+                                          </span>
+                                        )}
+                                      </div>
                                       <div className={styles.requestMeta}>
                                         <span style={{display: "flex", alignItems: "center", gap: "4px"}}><Mail size={12}/> {req.tenantEmail}</span>
                                         <span style={{display: "flex", alignItems: "center", gap: "4px"}}><Calendar size={12}/> Move in: {req.startDate}</span>
@@ -1461,7 +1478,6 @@ const EditProperty: React.FC = () => {
                   })}
                 </div>
               )}
-             
             </div>
           )}
 

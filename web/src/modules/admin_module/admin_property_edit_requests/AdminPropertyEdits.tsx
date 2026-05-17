@@ -29,6 +29,7 @@ interface EditRequest {
   bathsChanged: boolean;
   sqmChanged: boolean;
   createdAt: string;
+  firstImageUrl: string | null;
 }
 
 function timeAgo(isoStr: string | undefined): string {
@@ -142,8 +143,20 @@ const AdminPropertyEdits: React.FC = () => {
                 >
                   <div className={styles.cardTop}>
                     <div className={styles.cardThumb}>
-                      <FilePen size={32} />
-                    </div>
+                      {r.firstImageUrl ? (
+                        <img
+                          src={r.firstImageUrl}
+                          alt={r.proposedTitle}
+                          style={{
+                            width: "100%", height: "100%",
+                            objectFit: "cover", borderRadius: 12,
+                            display: "block",
+                          }}
+                        />
+                      ) : (
+                        <FilePen size={32} />
+                      )}
+                    </div>    
 
                     <div className={styles.cardInfo}>
                       <div className={styles.cardInfoTop}>

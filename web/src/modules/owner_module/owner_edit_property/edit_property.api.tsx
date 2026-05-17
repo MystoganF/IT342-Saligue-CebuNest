@@ -39,6 +39,13 @@ export const editPropertyApi = {
   getPaymentsForRequest: (requestId: string | number) => 
     axiosInstance.get(`/api/payments/request/${requestId}`).then(res => res.data),
 
+  uploadPendingPropertyImages: (id: string | number, formData: FormData) =>
+  axiosInstance
+    .post(`/api/properties/${id}/images/pending`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    })
+    .then((res) => res.data),
+
   getPropertyReviews: (propertyId: string | number) => 
     axiosInstance.get(`/api/property-reviews/property/${propertyId}`).then(res => res.data),
 };

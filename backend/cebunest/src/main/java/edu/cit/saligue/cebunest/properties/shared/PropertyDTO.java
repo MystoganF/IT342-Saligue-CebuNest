@@ -89,6 +89,7 @@ public class PropertyDTO {
         // Inside PropertyDTO.java, update the fromWithCover method: [cite: 248]
 
         List<ImageDTO> images = raw.stream()
+                .filter(i -> !i.isPending())
                 .map(i -> {
                     String originalUrl = i.getImageUrl();
                     String thumbUrl = originalUrl;

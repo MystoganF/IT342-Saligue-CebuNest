@@ -72,6 +72,10 @@ public class PropertyManagementService {
         return PropertyDTO.from(saved);
     }
 
+    public String uploadSingleImage(Long propertyId, MultipartFile file) throws IOException {
+        return storageService.uploadPropertyImage(propertyId, file);
+    }
+
     @Transactional
     public PropertyDTO updateProperty(Long propertyId, UpdatePropertyDTO dto, User owner) {
         Property property = propertyRepository.findById(propertyId)
