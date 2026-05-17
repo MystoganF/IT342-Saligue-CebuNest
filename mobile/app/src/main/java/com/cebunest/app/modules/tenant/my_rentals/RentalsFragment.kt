@@ -229,13 +229,12 @@ class RentalsFragment : Fragment() {
                     Toast.makeText(requireContext(), res.body()?.error?.message ?: "Failed to confirm", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Network error", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
     private fun showError(message: String) {
-        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+
         binding.tvEmptyState.visibility = View.VISIBLE
         binding.tvEmptyState.text = message
     }

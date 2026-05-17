@@ -106,7 +106,7 @@
                     android:id="@+id/btnView"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="View →"
+                    android:text="View"
                     android:backgroundTint="@color/teal_deep"
                     app:cornerRadius="8dp"/>
 

@@ -154,7 +154,7 @@ class ProfileFragment : Fragment() {
                     Toast.makeText(requireContext(), res.body()?.error?.message ?: "Failed to save", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Toast.makeText(requireContext(), "Network error", Toast.LENGTH_SHORT).show()
+
             } finally {
                 binding.btnSave.isEnabled = true
                 binding.btnSave.text = "Save Changes"
