@@ -1,6 +1,5 @@
 package com.cebunest.app.modules.auth.login
 
-import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -10,6 +9,7 @@ import androidx.lifecycle.lifecycleScope
 import com.cebunest.app.R
 import com.cebunest.app.core.api.RetrofitClient
 import com.cebunest.app.databinding.ActivityLoginBinding
+import com.cebunest.app.modules.auth.password_recovery.ForgotPasswordActivity
 import com.cebunest.app.modules.auth.register.RegisterActivity
 import com.cebunest.app.modules.auth.shared.AuthResponse
 import com.cebunest.app.modules.auth.shared.GoogleAuthRequest
@@ -89,14 +89,21 @@ class LoginActivity : AppCompatActivity() {
         googleSignInClient = GoogleSignIn.getClient(this, gso)
 
         binding.btnLogin.setOnClickListener { attemptLogin() }
+
         binding.btnGoogleLogin.setOnClickListener {
             setLoading(true)
             googleSignInClient.signOut().addOnCompleteListener {
                 googleSignInLauncher.launch(googleSignInClient.signInIntent)
             }
         }
+
         binding.tvGoToRegister.setOnClickListener {
             startActivity(Intent(this, RegisterActivity::class.java))
+        }
+
+        // NEW: Navigate to Forgot Password Screen
+        binding.tvForgotPassword.setOnClickListener {
+            startActivity(Intent(this, ForgotPasswordActivity::class.java))
         }
     }
 
@@ -137,13 +144,13 @@ class LoginActivity : AppCompatActivity() {
         if (response.isSuccessful && body?.success == true) {
             val data = body.data!!
 
-            // WEB FEATURE: Catch brand new Google Users and ask for their role![cite: 4]
+            // Catch brand new Google Users and ask for their role
             if (data.requiresRoleSelection == true) {
                 showRoleSelectionDialog()
                 return
             }
 
-            // WEB FEATURE: Restrict to Tenant View Only
+            // Restrict to Tenant View Only
             val userRole = data.user?.role?.uppercase()
             if (userRole == "OWNER" || userRole == "ADMIN") {
                 showWebOnlyDialog()
@@ -186,12 +193,11 @@ class LoginActivity : AppCompatActivity() {
 
     private fun showWebOnlyDialog() {
         MaterialAlertDialogBuilder(this)
-            .setTitle("Web Access Only 💻")
+            .setTitle("Web Access Only")
             .setMessage("The CebuNest mobile app is designed exclusively for Tenants. To access the Owner dashboard and manage your properties, please log in using our web application.")
             .setPositiveButton("Got it") { dialog, _ ->
                 dialog.dismiss()
                 setLoading(false)
-                // Clear Google session just in case
                 googleSignInClient.signOut()
             }
             .setCancelable(false)
@@ -209,6 +215,7 @@ class LoginActivity : AppCompatActivity() {
         binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
         binding.btnLogin.isEnabled = !loading
         binding.btnGoogleLogin.isEnabled = !loading
+        binding.tvForgotPassword.isEnabled = !loading
         binding.btnLogin.text = if (loading) "Signing in…" else "Sign In"
     }
 
@@ -223,5 +230,6 @@ class LoginActivity : AppCompatActivity() {
         binding.tvError.visibility = View.GONE
         binding.btnLogin.isEnabled = false
         binding.btnGoogleLogin.isEnabled = false
+        binding.tvForgotPassword.isEnabled = false
     }
 }
