@@ -12,7 +12,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
     private const val BASE_URL = "https://it342-saligue-cebunest.onrender.com/"
-
+    //private const val BASE_URL = "http://10.0.2.2:8080/"
     // 1. Your Existing Interceptor: Slaps the Bearer token onto the request
     private val authInterceptor = Interceptor { chain ->
         val requestBuilder = chain.request().newBuilder()

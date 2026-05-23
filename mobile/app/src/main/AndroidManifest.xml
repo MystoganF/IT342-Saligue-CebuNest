@@ -39,6 +39,21 @@
             android:name=".modules.tenant.my_rentals.RentalDetailFragment"
             android:exported="false" />
 
+        <activity
+            android:name=".modules.auth.password_recovery.ForgotPasswordActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"/>
+
+        <activity
+            android:name=".modules.auth.password_recovery.VerifyCodeActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"/>
+
+        <activity
+            android:name=".modules.auth.password_recovery.ResetPasswordActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize"/>
+
 
 
     </application>

@@ -16,49 +16,62 @@
         android:paddingTop="40dp"
         android:paddingBottom="32dp">
 
-        <!-- Brand header -->
+        <!-- Logo + Subtitle Header -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="6dp"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:gravity="center"
+            android:orientation="vertical">
 
             <ImageView
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:src="@drawable/cebunest_logo"
+                android:layout_width="90dp"
+                android:layout_height="90dp"
+                android:contentDescription="CebuNest Logo"
                 android:scaleType="fitCenter"
-                android:layout_marginEnd="10dp"
-                android:contentDescription="CebuNest Logo" />
+                android:src="@drawable/cebunest_logo" />
 
-            <TextView
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="sans-serif-medium"
-                android:text="CebuNest"
-                android:textColor="@color/teal_deep"
-                android:textSize="30sp"
-                android:textStyle="bold" />
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="20dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="24dp"
+                    android:layout_height="2dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="@color/teal_aero" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.15"
+                    android:text="PROPERTY MANAGEMENT"
+                    android:textAllCaps="true"
+                    android:textColor="@color/teal_aero"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <View
+                    android:layout_width="24dp"
+                    android:layout_height="2dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@color/teal_aero" />
+
+            </LinearLayout>
 
         </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="28dp"
-            android:text="Find Your Perfect Home in Cebu"
-            android:textColor="@color/teal_aero"
-            android:textSize="13sp"
-            android:letterSpacing="0.02" />
 
         <!-- Card -->
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:elevation="8dp"
-            app:cardCornerRadius="24dp"
-            app:cardBackgroundColor="@color/white">
+            app:cardBackgroundColor="@color/white"
+            app:cardCornerRadius="24dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -66,7 +79,6 @@
                 android:orientation="vertical"
                 android:padding="28dp">
 
-                <!-- Header -->
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
@@ -80,37 +92,53 @@
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
                     android:layout_marginBottom="20dp"
+                    android:lineSpacingExtra="2dp"
                     android:text="Register as a Tenant to get started."
                     android:textColor="@color/slate"
-                    android:textSize="13sp"
-                    android:lineSpacingExtra="2dp" />
+                    android:textSize="13sp" />
 
-                <!-- Owner Info Banner -->
+                <!-- Owner Info Banner (no emoji) -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginBottom="24dp"
                     android:background="@drawable/bg_info_banner"
+                    android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:padding="14dp"
-                    android:layout_marginBottom="24dp">
+                    android:padding="14dp">
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="ℹ️"
-                        android:textSize="16sp"
-                        android:layout_gravity="top"
-                        android:layout_marginEnd="10dp"
-                        android:layout_marginTop="1dp" />
+                    <View
+                        android:layout_width="3dp"
+                        android:layout_height="40dp"
+                        android:layout_marginEnd="12dp"
+                        android:background="@color/teal_aero" />
 
-                    <TextView
+                    <LinearLayout
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="Are you a Property Owner? The mobile app is exclusively for Tenants. To list and manage properties, please use our web platform."
-                        android:textColor="#1F5D71"
-                        android:textSize="12sp"
-                        android:lineSpacingExtra="3dp" />
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:letterSpacing="0.04"
+                            android:text="Property Owner?"
+                            android:textColor="#1F5D71"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:lineSpacingExtra="3dp"
+                            android:text="The mobile app is exclusively for Tenants. To list and manage properties, please use our web platform."
+                            android:textColor="#1F5D71"
+                            android:textSize="12sp" />
+
+                    </LinearLayout>
+
                 </LinearLayout>
 
                 <!-- Full Name -->
@@ -119,21 +147,22 @@
                     android:text="FULL NAME" />
 
                 <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    app:boxCornerRadiusTopStart="12dp"
-                    app:boxCornerRadiusTopEnd="12dp"
-                    app:boxCornerRadiusBottomStart="12dp"
+                    android:layout_marginBottom="18dp"
                     app:boxCornerRadiusBottomEnd="12dp"
-                    android:layout_marginBottom="18dp">
+                    app:boxCornerRadiusBottomStart="12dp"
+                    app:boxCornerRadiusTopEnd="12dp"
+                    app:boxCornerRadiusTopStart="12dp">
+
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etName"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="Juan dela Cruz"
-                        android:inputType="textPersonName"
-                        android:imeOptions="actionNext" />
+                        android:imeOptions="actionNext"
+                        android:inputType="textPersonName" />
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <!-- Phone Number -->
@@ -142,21 +171,22 @@
                     android:text="PHONE NUMBER" />
 
                 <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    app:boxCornerRadiusTopStart="12dp"
-                    app:boxCornerRadiusTopEnd="12dp"
-                    app:boxCornerRadiusBottomStart="12dp"
+                    android:layout_marginBottom="18dp"
                     app:boxCornerRadiusBottomEnd="12dp"
-                    android:layout_marginBottom="18dp">
+                    app:boxCornerRadiusBottomStart="12dp"
+                    app:boxCornerRadiusTopEnd="12dp"
+                    app:boxCornerRadiusTopStart="12dp">
+
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etPhoneNumber"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="+63 912 345 6789"
-                        android:inputType="phone"
-                        android:imeOptions="actionNext" />
+                        android:imeOptions="actionNext"
+                        android:inputType="phone" />
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <!-- Email -->
@@ -165,21 +195,22 @@
                     android:text="EMAIL ADDRESS" />
 
                 <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    app:boxCornerRadiusTopStart="12dp"
-                    app:boxCornerRadiusTopEnd="12dp"
-                    app:boxCornerRadiusBottomStart="12dp"
+                    android:layout_marginBottom="18dp"
                     app:boxCornerRadiusBottomEnd="12dp"
-                    android:layout_marginBottom="18dp">
+                    app:boxCornerRadiusBottomStart="12dp"
+                    app:boxCornerRadiusTopEnd="12dp"
+                    app:boxCornerRadiusTopStart="12dp">
+
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etEmail"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="you@example.com"
-                        android:inputType="textEmailAddress"
-                        android:imeOptions="actionNext" />
+                        android:imeOptions="actionNext"
+                        android:inputType="textEmailAddress" />
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <!-- Password -->
@@ -188,22 +219,23 @@
                     android:text="PASSWORD" />
 
                 <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    app:endIconMode="password_toggle"
-                    app:boxCornerRadiusTopStart="12dp"
-                    app:boxCornerRadiusTopEnd="12dp"
-                    app:boxCornerRadiusBottomStart="12dp"
+                    android:layout_marginBottom="18dp"
                     app:boxCornerRadiusBottomEnd="12dp"
-                    android:layout_marginBottom="18dp">
+                    app:boxCornerRadiusBottomStart="12dp"
+                    app:boxCornerRadiusTopEnd="12dp"
+                    app:boxCornerRadiusTopStart="12dp"
+                    app:endIconMode="password_toggle">
+
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etPassword"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="Min. 8 characters"
-                        android:inputType="textPassword"
-                        android:imeOptions="actionNext" />
+                        android:imeOptions="actionNext"
+                        android:inputType="textPassword" />
                 </com.google.android.material.textfield.TextInputLayout>
 
                 <!-- Confirm Password -->
@@ -212,36 +244,72 @@
                     android:text="CONFIRM PASSWORD" />
 
                 <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    app:endIconMode="password_toggle"
-                    app:boxCornerRadiusTopStart="12dp"
-                    app:boxCornerRadiusTopEnd="12dp"
-                    app:boxCornerRadiusBottomStart="12dp"
+                    android:layout_marginBottom="8dp"
                     app:boxCornerRadiusBottomEnd="12dp"
-                    android:layout_marginBottom="8dp">
+                    app:boxCornerRadiusBottomStart="12dp"
+                    app:boxCornerRadiusTopEnd="12dp"
+                    app:boxCornerRadiusTopStart="12dp"
+                    app:endIconMode="password_toggle">
+
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/etConfirmPassword"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:hint="Re-enter your password"
-                        android:inputType="textPassword"
-                        android:imeOptions="actionDone" />
+                        android:imeOptions="actionDone"
+                        android:inputType="textPassword" />
                 </com.google.android.material.textfield.TextInputLayout>
 
-                <!-- Error -->
-                <TextView
-                    android:id="@+id/tvError"
+                <!-- Modern Error Banner -->
+                <LinearLayout
+                    android:id="@+id/layoutError"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:layout_marginBottom="4dp"
-                    android:background="@drawable/bg_error"
-                    android:padding="12dp"
-                    android:textColor="#B03030"
-                    android:textSize="13sp"
-                    android:visibility="gone" />
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="8dp"
+                    android:background="@drawable/bg_error_modern"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="14dp"
+                    android:visibility="gone">
+
+                    <View
+                        android:layout_width="3dp"
+                        android:layout_height="36dp"
+                        android:layout_marginEnd="12dp"
+                        android:background="#B03030" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvErrorTitle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:letterSpacing="0.04"
+                            android:text="Registration Error"
+                            android:textColor="#7A1E1E"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvError"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:lineSpacingExtra="2dp"
+                            android:textColor="#B03030"
+                            android:textSize="13sp" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
 
                 <!-- Progress -->
                 <ProgressBar
@@ -259,35 +327,67 @@
                     android:layout_height="54dp"
                     android:layout_marginTop="20dp"
                     android:backgroundTint="@color/teal_deep"
+                    android:letterSpacing="0.05"
+                    android:stateListAnimator="@null"
                     android:text="Create Account"
                     android:textColor="@color/white"
                     android:textSize="15sp"
-                    android:textStyle="bold"
-                    android:letterSpacing="0.05"
-                    android:stateListAnimator="@null" />
+                    android:textStyle="bold" />
 
-                <!-- Success -->
-                <TextView
-                    android:id="@+id/tvSuccess"
+                <!-- Success Banner -->
+                <LinearLayout
+                    android:id="@+id/layoutSuccess"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
                     android:background="@drawable/bg_success"
-                    android:padding="12dp"
-                    android:text="&#x2713;  Account created! Redirecting…"
-                    android:textColor="#1F5D71"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:visibility="gone" />
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="14dp"
+                    android:visibility="gone">
+
+                    <View
+                        android:layout_width="3dp"
+                        android:layout_height="36dp"
+                        android:layout_marginEnd="12dp"
+                        android:background="#1F5D71" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:letterSpacing="0.04"
+                            android:text="Account Created"
+                            android:textColor="#1F5D71"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/tvSuccess"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="Redirecting you to your account..."
+                            android:textColor="#1F5D71"
+                            android:textSize="13sp" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
 
                 <!-- OR Divider -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
+                    android:layout_marginBottom="16dp"
                     android:layout_marginTop="24dp"
-                    android:layout_marginBottom="16dp">
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
                     <View
                         android:layout_width="0dp"
@@ -298,11 +398,11 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="14dp"
+                        android:letterSpacing="0.08"
                         android:text="OR"
                         android:textColor="#9CA3AF"
-                        android:textSize="11sp"
-                        android:letterSpacing="0.08"
-                        android:layout_marginHorizontal="14dp" />
+                        android:textSize="11sp" />
 
                     <View
                         android:layout_width="0dp"
@@ -314,6 +414,7 @@
                 <!-- Google Button -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnGoogleLogin"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_width="match_parent"
                     android:layout_height="54dp"
                     android:backgroundTint="@color/white"
@@ -321,21 +422,20 @@
                     android:textColor="#374151"
                     android:textSize="14sp"
                     android:textStyle="bold"
-                    app:strokeColor="#D1D5DB"
-                    app:strokeWidth="1dp"
-                    app:icon="@drawable/ic_google"
-                    app:iconTint="@null"
-                    app:iconGravity="textStart"
                     app:cornerRadius="12dp"
-                    style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+                    app:icon="@drawable/ic_google"
+                    app:iconGravity="textStart"
+                    app:iconTint="@null"
+                    app:strokeColor="#D1D5DB"
+                    app:strokeWidth="1dp" />
 
                 <!-- Go to Login -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
                     android:gravity="center"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="20dp">
+                    android:orientation="horizontal">
 
                     <TextView
                         android:layout_width="wrap_content"
