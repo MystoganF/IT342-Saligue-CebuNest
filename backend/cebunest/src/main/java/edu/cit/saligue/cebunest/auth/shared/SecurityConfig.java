@@ -58,6 +58,7 @@ public class SecurityConfig {
 
                         // ── Others ─────────────────────────────────────────
                         .anyRequest().authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
