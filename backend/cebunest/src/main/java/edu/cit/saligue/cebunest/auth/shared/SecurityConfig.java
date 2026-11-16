@@ -43,6 +43,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // ── Public ─────────────────────────────────────────
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/properties/**").permitAll()
 
@@ -58,7 +59,7 @@ public class SecurityConfig {
 
                         // ── Others ─────────────────────────────────────────
                         .anyRequest().authenticated()
-                        .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
+
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
